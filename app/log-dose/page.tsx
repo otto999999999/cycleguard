@@ -10,7 +10,6 @@ interface Compound {
   name: string
   concentration?: number
   concentrationUnit?: string
-  method?: string
 }
 
 export default function LogDosePage() {
@@ -26,19 +25,9 @@ export default function LogDosePage() {
   const [notes, setNotes] = useState("")
   const [saved, setSaved] = useState(false)
 
-  // Compounds aus Supabase laden
+  // Compounds nur vom aktuellen User laden
   useEffect(() => {
-    const loadCompounds = async () => {
-      const { data, error } = await supabase
-        .from('compounds')
-        .select('id, name, concentration, concentration_unit')
-        .order('name')
-
-      if (error) console.error("Fehler beim Laden der Substanzen:", error)
-      else setCompounds(data || [])
-    }
-
-    loadCompounds()
+    loadUserCompounds()
 
     const now = new Date()
     const y = now.getFullYear()
@@ -47,6 +36,20 @@ export default function LogDosePage() {
     setDateDisplay(`${d}.${m}.${y}`)
     setTime(`${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`)
   }, [])
+
+  const loadUserCompounds = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const { data, error } = await supabase
+      .from('compounds')
+      .select('id, name, concentration, concentration_unit')
+      .eq('user_id', session.user.id)
+      .order('name')
+
+    if (error) console.error(error)
+    else setCompounds(data || [])
+  }
 
   const filteredCompounds = compounds.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -71,6 +74,9 @@ export default function LogDosePage() {
       return
     }
 
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
     const dose = {
       name: selectedCompound.name,
       menge: parseFloat(amount),
@@ -79,6 +85,7 @@ export default function LogDosePage() {
       datum: dateDisplay.split('.').reverse().join('-'),
       zeit: time,
       notes: notes.trim() || null,
+      user_id: session.user.id
     }
 
     const { error } = await supabase.from('doses').insert(dose)
@@ -90,7 +97,7 @@ export default function LogDosePage() {
       setSaved(true)
       setTimeout(() => {
         window.location.href = "/logging"
-      }, 1500)
+      }, 1200)
     }
   }
 
@@ -155,9 +162,7 @@ export default function LogDosePage() {
             />
             <div className="bg-[#0A0A0A] rounded-3xl px-6 flex items-center text-lg font-medium">mg</div>
           </div>
-          {calculatedMl && (
-            <p className="text-emerald-400 text-sm mt-2">≈ {calculatedMl} ml</p>
-          )}
+          {calculatedMl && <p className="text-emerald-400 text-sm mt-2">≈ {calculatedMl} ml</p>}
         </div>
 
         {/* Datum & Uhrzeit */}
@@ -183,7 +188,7 @@ export default function LogDosePage() {
           </div>
         </div>
 
-        {/* Methode (ohne Topical) */}
+        {/* Methode */}
         <div>
           <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">METHODE</label>
           <div className="grid grid-cols-3 gap-2">
@@ -199,7 +204,7 @@ export default function LogDosePage() {
           </div>
         </div>
 
-        {/* Injektionsstelle nur bei IM / SubQ */}
+        {/* Injektionsstelle */}
         {(method === "IM" || method === "SubQ") && (
           <div>
             <label className="text-xs uppercase tracking-wider text-muted-foreground mb-2 block">INJEKTIONSSTELLE <span className="text-red-500">*</span></label>

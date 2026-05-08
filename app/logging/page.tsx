@@ -13,11 +13,21 @@ export default function LoggingPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
+  // Doses nur vom aktuellen User laden
   const loadDoses = async () => {
     setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      setDoses([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('doses')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
 
     if (error) console.error(error)
@@ -164,7 +174,6 @@ export default function LoggingPage() {
                 </div>
               </div>
 
-              {/* Menge */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-1">Menge (mg)</label>
                 <input 
@@ -175,7 +184,6 @@ export default function LoggingPage() {
                 />
               </div>
 
-              {/* Methode (ohne Topical) */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-1">Methode</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -191,7 +199,6 @@ export default function LoggingPage() {
                 </div>
               </div>
 
-              {/* Injektionsstelle nur bei IM und SubQ */}
               {(selectedDose.methode === "IM" || selectedDose.methode === "SubQ") && (
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1">Injektionsstelle</label>
@@ -206,7 +213,6 @@ export default function LoggingPage() {
                 </div>
               )}
 
-              {/* Notizen */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-1">Notizen</label>
                 <textarea 

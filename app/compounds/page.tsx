@@ -48,22 +48,72 @@ export default function CompoundsPage() {
     price: 0,
   })
 
-  // Compounds laden
+  // Compounds nur vom aktuellen User laden
   const loadCompounds = async () => {
     setLoading(true)
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session) {
+      setCompounds([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('compounds')
       .select('*')
+      .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
 
-    if (error) console.error("Fehler beim Laden:", error)
+    if (error) console.error("Fehler:", error)
     else setCompounds(data || [])
+    
     setLoading(false)
   }
 
   useEffect(() => {
     loadCompounds()
   }, [])
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.type) {
+      alert("Name und Typ sind erforderlich!")
+      return
+    }
+    if (form.type === "Injectable") {
+      if (!form.packaging || !form.manufacturer?.trim() || !form.price) {
+        alert("Bei Injectable sind Verpackung, Marke und Preis erforderlich!")
+        return
+      }
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+
+    const payload = {
+      name: form.name,
+      type: form.type,
+      concentration: form.concentration,
+      concentration_unit: form.concentrationUnit,
+      packaging: form.packaging || null,
+      size_ml: form.sizeMl,
+      current_vials: form.currentVials,
+      half_life: form.halfLife,
+      method: form.method,
+      manufacturer: form.manufacturer || null,
+      price: form.price || null,
+      user_id: session.user.id
+    }
+
+    if (editingCompound) {
+      await supabase.from('compounds').update(payload).eq('id', editingCompound.id)
+    } else {
+      await supabase.from('compounds').insert(payload)
+    }
+
+    setShowModal(false)
+    loadCompounds()
+  }
 
   const openAddModal = () => {
     setEditingCompound(null)
@@ -93,42 +143,6 @@ export default function CompoundsPage() {
     setShowModal(true)
   }
 
-  const handleSave = async () => {
-    if (!form.name.trim() || !form.type) {
-      alert("Name und Typ sind erforderlich!")
-      return
-    }
-    if (form.type === "Injectable") {
-      if (!form.packaging || !form.manufacturer?.trim() || !form.price) {
-        alert("Bei Injectable sind Verpackung, Marke und Preis erforderlich!")
-        return
-      }
-    }
-
-    const payload = {
-      name: form.name,
-      type: form.type,
-      concentration: form.concentration,
-      concentration_unit: form.concentrationUnit,
-      packaging: form.packaging || null,
-      size_ml: form.sizeMl,
-      current_vials: form.currentVials,
-      half_life: form.halfLife,
-      method: form.method,
-      manufacturer: form.manufacturer || null,
-      price: form.price || null,
-    }
-
-    if (editingCompound) {
-      await supabase.from('compounds').update(payload).eq('id', editingCompound.id)
-    } else {
-      await supabase.from('compounds').insert(payload)
-    }
-
-    setShowModal(false)
-    loadCompounds()
-  }
-
   const handleDeleteClick = (id: string) => {
     setCompoundToDelete(id)
     setShowDeleteConfirm(true)
@@ -156,7 +170,7 @@ export default function CompoundsPage() {
 
       <div className="px-5 pt-6">
         {loading ? (
-          <p className="text-center text-muted-foreground">Lade Substanzen...</p>
+          <p className="text-center text-muted-foreground py-20">Lade Substanzen...</p>
         ) : compounds.length === 0 ? (
           <div className="text-center py-20">
             <Syringe className="w-20 h-20 mx-auto text-muted-foreground mb-6" />
@@ -215,7 +229,6 @@ export default function CompoundsPage() {
             </h2>
 
             <div className="space-y-6">
-              {/* Alle Formularfelder hier */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-1">Name <span className="text-red-500">*</span></label>
                 <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4" placeholder="Testosterone Enanthate" />
