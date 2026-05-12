@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Syringe, Plus, Trash2, Clock, CalendarDays } from "lucide-react"
+import { Syringe, Plus, Trash2, Clock, CalendarDays, CheckCircle } from "lucide-react"
 import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
@@ -21,21 +21,15 @@ interface Dose {
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 
+const todayKey = () => new Date().toISOString().split("T")[0]
+
 export default function LoggingPage() {
   const [doses, setDoses] = useState<Dose[]>([])
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
-  const [dueToday, setDueToday] = useState<any[]>([])
-  const todayDate = new Date().toISOString().split("T")[0]
-
-const isPlannedDone = (item: any) => {
-  return doses.some(
-    (dose) =>
-      dose.compound_id === item.id &&
-      dose.datum === todayDate
-  )
-}
   const [loading, setLoading] = useState(true)
+
+  const [selectedDate, setSelectedDate] = useState(todayKey())
 
   const [showLogModal, setShowLogModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -49,7 +43,7 @@ const isPlannedDone = (item: any) => {
     compound_id: "",
     menge: "",
     methode: "Oral",
-    stelle: "Rechte Schulter",
+    stelle: "",
     notes: "",
     datum: "",
     uhrzeit: "",
@@ -92,14 +86,6 @@ const isPlannedDone = (item: any) => {
     setCompounds(comps || [])
     setDoses(doseData || [])
     setActiveCycle(cycleData || null)
-
-    if (cycleData) {
-      const stack = [...(cycleData.main_stack || []), ...(cycleData.pct_stack || [])]
-      setDueToday(stack.filter((item) => isDoseDueToday(item, cycleData)))
-    } else {
-      setDueToday([])
-    }
-
     setLoading(false)
   }
 
@@ -110,32 +96,61 @@ const isPlannedDone = (item: any) => {
     if (saved) setLastInjectionSite(saved)
   }, [])
 
-  const isDoseDueToday = (item: any, cycle: any) => {
-    if (!cycle?.start_date) return false
+  const getDueForDate = (dateKey: string) => {
+    if (!activeCycle) return []
 
-    const todayShort = DAYS[new Date().getDay()]
+    const stack = [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
+    const date = new Date(dateKey)
+    const dayShort = DAYS[date.getDay()]
 
-    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-    if (item.frequency === "Custom") return (item.customDays || []).includes(todayShort)
+    return stack.filter((item) => {
+      if (!activeCycle.start_date) return false
 
-    const start = new Date(cycle.start_date)
-    const now = new Date()
-    const diffDays = Math.floor((now.getTime() - start.getTime()) / 86400000)
+      const startWeek = item.startWeek || 1
+      const endWeek = item.endWeek || activeCycle.duration_weeks || 12
 
-    if (item.frequency === "EOD") return diffDays % 2 === 0
-    if (item.frequency === "E3D") return diffDays % 3 === 0
-    if (item.frequency === "Weekly") return diffDays % 7 === 0
+      const start = new Date(activeCycle.start_date)
+      const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
-    return false
+      if (diffDays < 0) return false
+
+      const currentWeek = Math.floor(diffDays / 7) + 1
+      if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+      if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+      if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+      if (item.frequency === "EOD") return diffDays % 2 === 0
+      if (item.frequency === "E3D") return diffDays % 3 === 0
+      if (item.frequency === "Weekly") return diffDays % 7 === 0
+
+      return false
+    })
   }
 
-  const setCurrentDateTime = () => {
-    const now = new Date()
-    setForm((prev) => ({
-      ...prev,
-      datum: now.toISOString().split("T")[0],
-      uhrzeit: now.toTimeString().slice(0, 5),
-    }))
+  const getWeekMarkedDates = () => {
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(today)
+    monday.setDate(today.getDate() + mondayOffset)
+
+    return Array.from({ length: 7 })
+      .map((_, i) => {
+        const date = new Date(monday)
+        date.setDate(monday.getDate() + i)
+        return date.toISOString().split("T")[0]
+      })
+      .filter((dateKey) => getDueForDate(dateKey).length > 0)
+  }
+
+  const selectedDue = getDueForDate(selectedDate)
+
+  const isPlannedDone = (item: any, dateKey: string) => {
+    return doses.some(
+      (dose) =>
+        dose.compound_id === item.id &&
+        dose.datum === dateKey
+    )
   }
 
   const openNewLog = () => {
@@ -146,29 +161,30 @@ const isPlannedDone = (item: any) => {
       compound_id: "",
       menge: "",
       methode: "Oral",
-      stelle: "Rechte Schulter",
+      stelle: "",
       notes: "",
-      datum: "",
-      uhrzeit: "",
+      datum: selectedDate,
+      uhrzeit: new Date().toTimeString().slice(0, 5),
     })
     setShowLogModal(true)
   }
 
   const openFromPlanned = (planned: any) => {
     const comp = compounds.find((c) => c.id === planned.id)
+    const injectable = comp?.type === "Injectable" || planned.method === "IM" || planned.method === "SubQ"
+    const nextSite = lastInjectionSite === "Rechte Schulter" ? "Linke Schulter" : "Rechte Schulter"
 
-    const now = new Date()
     setIsEditing(false)
     setEditingId(null)
     setSelectedDose(null)
     setForm({
       compound_id: planned.id,
       menge: String(planned.doseAmount || ""),
-      methode: planned.method || (comp?.type === "Injectable" ? "IM" : "Oral"),
-      stelle: planned.method === "Oral" ? "" : lastInjectionSite === "Rechte Schulter" ? "Linke Schulter" : "Rechte Schulter",
+      methode: planned.method || (injectable ? "IM" : "Oral"),
+      stelle: injectable ? nextSite : "",
       notes: "Aus Cycle-Plan geloggt",
-      datum: now.toISOString().split("T")[0],
-      uhrzeit: now.toTimeString().slice(0, 5),
+      datum: selectedDate,
+      uhrzeit: new Date().toTimeString().slice(0, 5),
     })
     setShowLogModal(true)
   }
@@ -182,7 +198,7 @@ const isPlannedDone = (item: any) => {
       compound_id: dose.compound_id || "",
       menge: String(dose.menge || ""),
       methode: dose.methode || "Oral",
-      stelle: dose.stelle || "Rechte Schulter",
+      stelle: dose.methode === "Oral" ? "" : (dose.stelle || "Rechte Schulter"),
       notes: dose.notes || "",
       datum: dose.datum,
       uhrzeit: dose.zeit || "",
@@ -222,22 +238,32 @@ const isPlannedDone = (item: any) => {
       ? (mengeNum / selectedCompound.concentration).toFixed(2)
       : null
 
-  const updateOralStock = async (compoundId: string | null | undefined, amountMg: number, direction: "subtract" | "restore") => {
-    if (!compoundId || !amountMg) return
+  const getPillsUsed = (compound: any, amountMg: number) => {
+    if (!compound || !isOral(compound)) return 0
 
-    const comp = compounds.find((c) => c.id === compoundId)
+    const perPill = compound.dose_per_pill || 0
+    if (!perPill) return 0
+
+    return Math.ceil(amountMg / perPill)
+  }
+
+  const adjustOralStock = async (
+    compoundId: string | null | undefined,
+    pillDelta: number
+  ) => {
+    if (!compoundId || pillDelta === 0) return
+
+    const { data: comp, error: fetchError } = await supabase
+      .from("compounds")
+      .select("id, type, remaining_pills")
+      .eq("id", compoundId)
+      .single()
+
+    if (fetchError) throw fetchError
     if (!comp || !isOral(comp)) return
 
-    const perPill = comp.dose_per_pill || 0
-    if (!perPill) return
-
-    const pillChange = Math.ceil(amountMg / perPill)
     const current = comp.remaining_pills ?? 0
-
-    const next =
-      direction === "subtract"
-        ? Math.max(0, current - pillChange)
-        : current + pillChange
+    const next = Math.max(0, current - pillDelta)
 
     const { error } = await supabase
       .from("compounds")
@@ -275,7 +301,7 @@ const isPlannedDone = (item: any) => {
       name: isEditing ? selectedDose?.name : compound?.name || "Unbekannt",
       menge: mengeNum,
       methode: form.methode,
-      stelle: form.stelle || null,
+      stelle: form.methode === "Oral" ? null : (form.stelle || null),
       notes: form.notes || null,
       datum: form.datum,
       zeit: form.uhrzeit,
@@ -283,8 +309,18 @@ const isPlannedDone = (item: any) => {
 
     try {
       if (isEditing && editingId && selectedDose) {
-        await updateOralStock(selectedDose.compound_id, selectedDose.menge, "restore")
-        await updateOralStock(payload.compound_id, mengeNum, "subtract")
+        const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
+        const newCompound = compounds.find((c) => c.id === payload.compound_id)
+
+        const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
+        const newPills = getPillsUsed(newCompound, mengeNum)
+
+        if (selectedDose.compound_id === payload.compound_id) {
+          await adjustOralStock(payload.compound_id, newPills - oldPills)
+        } else {
+          await adjustOralStock(selectedDose.compound_id, -oldPills)
+          await adjustOralStock(payload.compound_id, newPills)
+        }
 
         const { error } = await supabase
           .from("doses")
@@ -294,7 +330,10 @@ const isPlannedDone = (item: any) => {
 
         if (error) throw error
       } else {
-        await updateOralStock(form.compound_id, mengeNum, "subtract")
+        const newCompound = compounds.find((c) => c.id === form.compound_id)
+        const newPills = getPillsUsed(newCompound, mengeNum)
+
+        await adjustOralStock(form.compound_id, newPills)
 
         const { error } = await supabase
           .from("doses")
@@ -303,7 +342,7 @@ const isPlannedDone = (item: any) => {
         if (error) throw error
       }
 
-      if (form.stelle) {
+      if (form.methode !== "Oral" && form.stelle) {
         localStorage.setItem("lastInjectionSite", form.stelle)
         setLastInjectionSite(form.stelle)
       }
@@ -329,7 +368,10 @@ const isPlannedDone = (item: any) => {
     if (!selectedDose) return
 
     try {
-      await updateOralStock(selectedDose.compound_id, selectedDose.menge, "restore")
+      const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
+      const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
+
+      await adjustOralStock(selectedDose.compound_id, -oldPills)
 
       const { error } = await supabase
         .from("doses")
@@ -346,9 +388,11 @@ const isPlannedDone = (item: any) => {
     }
   }
 
-  useEffect(() => {
-    if (showLogModal && !isEditing && !form.datum) setCurrentDateTime()
-  }, [showLogModal, isEditing])
+  const selectedDateLabel = new Date(selectedDate).toLocaleDateString("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  })
 
   return (
     <div className="min-h-screen bg-[#050505] pb-24">
@@ -357,57 +401,62 @@ const isPlannedDone = (item: any) => {
       </header>
 
       <div className="px-5 pt-4">
-        <WeekCalendar />
+        <WeekCalendar
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          markedDates={getWeekMarkedDates()}
+        />
 
         <div className="mt-6 mb-8">
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CalendarDays className="w-5 h-5" />
-            Heute anstehend
+            {selectedDateLabel} anstehend
           </h2>
 
-          {dueToday.length === 0 ? (
+          {selectedDue.length === 0 ? (
             <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
               <p className="text-muted-foreground">
-                {activeCycle ? "Heute nichts geplant." : "Noch kein aktiver Cycle"}
+                {activeCycle ? "An diesem Tag ist nichts geplant." : "Noch kein aktiver Cycle"}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-                {dueToday.map((item) => {
-                  const done = isPlannedDone(item)
+              {selectedDue.map((item) => {
+                const done = isPlannedDone(item, selectedDate)
 
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => !done && openFromPlanned(item)}
-                      disabled={done}
-                      className={`w-full text-left rounded-3xl p-5 border transition ${
-                        done
-                          ? "bg-emerald-500/10 border-emerald-500/30 opacity-80"
-                          : "bg-[#0A0A0A] border-primary/20"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start gap-3">
-                        <div>
-                          <p className="font-semibold">{item.name}</p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.doseAmount} {item.doseUnit} • {item.frequency}
-                          </p>
-                        </div>
-
-                        {done && (
-                          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">
-                            Erledigt
-                          </span>
-                        )}
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => !done && openFromPlanned(item)}
+                    disabled={done}
+                    className={`w-full text-left rounded-3xl p-5 border transition ${
+                      done
+                        ? "bg-emerald-500/10 border-emerald-500/30 opacity-80"
+                        : "bg-[#0A0A0A] border-primary/20"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <div>
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.doseAmount} {item.doseUnit} • {item.frequency}
+                        </p>
                       </div>
 
-                      <p className={`text-xs mt-2 ${done ? "text-emerald-400" : "text-primary"}`}>
-                        {done ? "Heute bereits geloggt" : "Zum Loggen antippen"}
-                      </p>
-                    </button>
-                  )
-                })}
+                      {done && (
+                        <span className="text-xs bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Erledigt
+                        </span>
+                      )}
+                    </div>
+
+                    <p className={`text-xs mt-2 ${done ? "text-emerald-400" : "text-primary"}`}>
+                      {done ? "Bereits geloggt" : "Zum Loggen antippen"}
+                    </p>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>

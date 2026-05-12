@@ -3,19 +3,21 @@
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import {
-  Bell,
-  Settings,
-  Plus,
-  Syringe,
-  PlayCircle,
-  User,
-  LogOut,
   AlertTriangle,
-  Check,
-  Package,
+  Bell,
   CalendarDays,
+  CheckCircle,
+  Clock,
+  LogOut,
+  Package,
+  PlayCircle,
+  Plus,
+  Settings,
+  Syringe,
+  User,
   X,
 } from "lucide-react"
+
 import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
@@ -24,13 +26,7 @@ const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Suppleme
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const READ_KEY = "cycleguard_read_notifications"
 
-type NotificationItem = {
-  id: string
-  title: string
-  message: string
-  type: "low-stock" | "dose" | "cycle" | "info"
-  href?: string
-}
+const todayKey = () => new Date().toISOString().split("T")[0]
 
 export default function CycleGuardDashboard() {
   const [showSettings, setShowSettings] = useState(false)
@@ -40,7 +36,12 @@ export default function CycleGuardDashboard() {
 
   const [activeCycle, setActiveCycle] = useState<any>(null)
   const [compounds, setCompounds] = useState<any[]>([])
+  const [doses, setDoses] = useState<any[]>([])
+  const [missedDoses, setMissedDoses] = useState<any[]>([])
   const [readIds, setReadIds] = useState<string[]>([])
+  const [selectedDate, setSelectedDate] = useState(todayKey())
+
+  const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
 
   useEffect(() => {
     const saved = localStorage.getItem(READ_KEY)
@@ -80,87 +81,237 @@ export default function CycleGuardDashboard() {
       .eq("user_id", session.user.id)
       .order("name")
 
+    const { data: doseData } = await supabase
+      .from("doses")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("datum", { ascending: false })
+      .order("zeit", { ascending: false })
+
+    const { data: missedData } = await supabase
+      .from("missed_doses")
+      .select("*")
+      .eq("user_id", session.user.id)
+
     setActiveCycle(cycleData || null)
     setCompounds(compoundData || [])
+    setDoses(doseData || [])
+    setMissedDoses(missedData || [])
     setLoading(false)
   }
 
-  const isOral = (c: any) => ORAL_TYPES.includes(c.type)
+  const getDueForDate = (dateKey: string) => {
+    if (!activeCycle) return []
 
-  const getQuantity = (c: any) => {
-    if (isOral(c)) return c.remaining_pills ?? 0
-    if (c.packaging === "Vial") return c.current_vials ?? 0
-    return c.current_ampoules ?? 0
+    const stack = [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
+    const date = new Date(dateKey)
+    const dayShort = DAYS[date.getDay()]
+
+    return stack.filter((item) => {
+      if (!activeCycle.start_date) return false
+
+      const startWeek = item.startWeek || 1
+      const endWeek = item.endWeek || activeCycle.duration_weeks || 12
+      const start = new Date(activeCycle.start_date)
+      const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
+
+      if (diffDays < 0) return false
+
+      const currentWeek = Math.floor(diffDays / 7) + 1
+      if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+      if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+      if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+      if (item.frequency === "EOD") return diffDays % 2 === 0
+      if (item.frequency === "E3D") return diffDays % 3 === 0
+      if (item.frequency === "Weekly") return diffDays % 7 === 0
+
+      return false
+    })
+  }
+
+  const getWeekDates = () => {
+    const today = new Date()
+    const dayOfWeek = today.getDay()
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+    const monday = new Date(today)
+    monday.setDate(today.getDate() + mondayOffset)
+
+    return Array.from({ length: 7 }).map((_, i) => {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + i)
+      return date.toISOString().split("T")[0]
+    })
+  }
+
+  const getWeekMarkedDates = () => {
+    return getWeekDates().filter((dateKey) => getDueForDate(dateKey).length > 0)
+  }
+
+  const isLogged = (item: any, dateKey: string) => {
+    return doses.some((dose) => dose.compound_id === item.id && dose.datum === dateKey)
+  }
+
+  const isSkipped = (item: any, dateKey: string) => {
+    return missedDoses.some(
+      (m) =>
+        m.cycle_id === activeCycle?.id &&
+        m.compound_id === item.id &&
+        m.planned_date === dateKey
+    )
+  }
+
+  const isPastDate = (dateKey: string) => dateKey < todayKey()
+
+  const getStatus = (item: any, dateKey: string) => {
+    if (isLogged(item, dateKey)) return "done"
+    if (isSkipped(item, dateKey)) return "skipped"
+    if (isPastDate(dateKey)) return "missed"
+    return "open"
+  }
+
+  const selectedDue = getDueForDate(selectedDate)
+  const todayDue = getDueForDate(todayKey())
+
+  const getThisWeekPlanned = () => {
+    const dates = getWeekDates()
+    return dates.flatMap((date) =>
+      getDueForDate(date).map((item) => ({
+        ...item,
+        plannedDate: date,
+        status: getStatus(item, date),
+      }))
+    )
+  }
+
+  const weekPlanned = getThisWeekPlanned()
+  const weekDone = weekPlanned.filter((x) => x.status === "done").length
+  const weekSkipped = weekPlanned.filter((x) => x.status === "skipped").length
+  const weekMissed = weekPlanned.filter((x) => x.status === "missed").length
+  const weekTotal = weekPlanned.length
+  const adherencePercent = weekTotal > 0 ? Math.round((weekDone / weekTotal) * 100) : 0
+
+  const getMissedOpen = () => {
+    return weekPlanned.filter((x) => x.status === "missed")
+  }
+
+  const missedOpen = getMissedOpen()
+
+  const markSkipped = async (item: any, dateKey: string) => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session || !activeCycle) return
+
+    const { error } = await supabase.from("missed_doses").upsert({
+      user_id: session.user.id,
+      cycle_id: activeCycle.id,
+      compound_id: item.id,
+      planned_date: dateKey,
+      status: "skipped",
+    })
+
+    if (error) {
+      alert("Fehler: " + error.message)
+      return
+    }
+
+    await loadDashboard()
   }
 
   const getLowStock = () => {
     return compounds.filter((c) => {
-      const qty = getQuantity(c)
-      if (isOral(c)) return qty > 0 && qty < 20
+      if (isOral(c)) {
+        const remaining = c.remaining_pills ?? 0
+        return remaining > 0 && remaining < 20
+      }
+
+      const qty = c.packaging === "Vial" ? c.current_vials ?? 0 : c.current_ampoules ?? 0
       return qty <= 1
     })
   }
 
-  const todayShort = DAYS[new Date().getDay()]
+  const lowStock = getLowStock()
+  const recentLogs = doses.slice(0, 3)
 
-  const isDoseDueToday = (item: any) => {
-    if (!activeCycle?.start_date) return false
-
-    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-    if (item.frequency === "Custom") return (item.customDays || []).includes(todayShort)
+  const getCycleTimeProgress = () => {
+    if (!activeCycle?.start_date || !activeCycle?.duration_weeks) {
+      return { week: 0, total: 0, percent: 0, endDate: null as string | null }
+    }
 
     const start = new Date(activeCycle.start_date)
     const now = new Date()
-    const diffDays = Math.floor((now.getTime() - start.getTime()) / 86400000)
+    const diffDays = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000))
+    const week = Math.min(activeCycle.duration_weeks, Math.floor(diffDays / 7) + 1)
 
-    if (item.frequency === "EOD") return diffDays % 2 === 0
-    if (item.frequency === "E3D") return diffDays % 3 === 0
-    if (item.frequency === "Weekly") return diffDays % 7 === 0
+    const end = new Date(start)
+    end.setDate(start.getDate() + activeCycle.duration_weeks * 7)
 
-    return false
+    return {
+      week,
+      total: activeCycle.duration_weeks,
+      percent: Math.min(100, Math.round((week / activeCycle.duration_weeks) * 100)),
+      endDate: end.toISOString().split("T")[0],
+    }
   }
 
-  const dueToday = useMemo(() => {
-    if (!activeCycle) return []
-    const stack = [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
-    return stack.filter(isDoseDueToday)
-  }, [activeCycle])
+  const timeProgress = getCycleTimeProgress()
 
-  const notifications: NotificationItem[] = useMemo(() => {
-    const items: NotificationItem[] = []
+  const notifications = useMemo(() => {
+    const items: any[] = []
 
-    getLowStock().forEach((c) => {
+    lowStock.forEach((c) => {
       items.push({
-        id: `low-${c.id}-${getQuantity(c)}`,
+        id: `low-${c.id}-${isOral(c) ? c.remaining_pills : c.current_vials ?? c.current_ampoules}`,
         title: "Low Stock",
-        message: `${c.name} ist niedrig: ${getQuantity(c)} ${isOral(c) ? "Pillen" : c.packaging || "Einheiten"} übrig.`,
+        message: `${c.name} ist niedrig: ${
+          isOral(c)
+            ? `${c.remaining_pills ?? 0} Pillen`
+            : `${c.current_vials ?? c.current_ampoules ?? 0} ${c.packaging || "Einheiten"}`
+        } übrig.`,
         type: "low-stock",
         href: "/einkauf",
       })
     })
 
-    dueToday.forEach((d) => {
+    todayDue.forEach((d) => {
+      if (getStatus(d, todayKey()) === "open") {
+        items.push({
+          id: `dose-${activeCycle?.id}-${d.id}-${todayKey()}`,
+          title: "Heute fällig",
+          message: `${d.name}: ${d.doseAmount} ${d.doseUnit} • ${d.frequency}`,
+          type: "dose",
+          href: "/logging",
+        })
+      }
+    })
+
+    missedOpen.forEach((m) => {
       items.push({
-        id: `dose-${activeCycle?.id}-${d.id}-${todayShort}`,
-        title: "Heute fällig",
-        message: `${d.name}: ${d.doseAmount} ${d.doseUnit} • ${d.frequency}`,
-        type: "dose",
+        id: `missed-${activeCycle?.id}-${m.id}-${m.plannedDate}`,
+        title: "Dosis verpasst",
+        message: `${m.name} war am ${m.plannedDate} geplant.`,
+        type: "missed",
         href: "/logging",
       })
     })
 
-    if (activeCycle) {
-      items.push({
-        id: `cycle-${activeCycle.id}`,
-        title: "Aktiver Cycle",
-        message: `${activeCycle.name} läuft aktuell.`,
-        type: "cycle",
-        href: "/cycle",
-      })
+    if (activeCycle && timeProgress.endDate) {
+      const daysLeft = Math.ceil((new Date(timeProgress.endDate).getTime() - new Date().getTime()) / 86400000)
+      if (daysLeft <= 7 && daysLeft >= 0) {
+        items.push({
+          id: `cycle-ending-${activeCycle.id}`,
+          title: "Cycle endet bald",
+          message: `${activeCycle.name} endet in ca. ${daysLeft} Tagen.`,
+          type: "cycle",
+          href: "/cycle",
+        })
+      }
     }
 
     return items
-  }, [compounds, dueToday, activeCycle])
+  }, [activeCycle, compounds, doses, missedDoses])
 
   const unreadCount = notifications.filter((n) => !readIds.includes(n.id)).length
 
@@ -172,9 +323,11 @@ export default function CycleGuardDashboard() {
     saveReadIds(notifications.map((n) => n.id))
   }
 
-  const activeCompounds = activeCycle
-    ? [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
-    : []
+  const selectedDateLabel = new Date(selectedDate).toLocaleDateString("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  })
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-24">
@@ -209,9 +362,13 @@ export default function CycleGuardDashboard() {
       </header>
 
       <main className="max-w-lg mx-auto px-5 pt-6">
-        <WeekCalendar />
+        <WeekCalendar
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          markedDates={getWeekMarkedDates()}
+        />
 
-        <div className="mt-6">
+        <section className="mt-6">
           {loading ? (
             <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center text-muted-foreground">
               Lade Dashboard...
@@ -220,9 +377,47 @@ export default function CycleGuardDashboard() {
             <div className="bg-[#0A0A0A] rounded-3xl p-6 border border-emerald-500/30">
               <p className="text-sm text-emerald-400 mb-1">Aktiver Cycle</p>
               <h2 className="text-3xl font-bold">{activeCycle.name}</h2>
-              <p className="text-muted-foreground mt-2">
-                {activeCycle.duration_weeks} Wochen • Start: {activeCycle.start_date}
-              </p>
+
+              <div className="mt-5">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Zeit: Woche {timeProgress.week} von {timeProgress.total}</span>
+                  <span>{timeProgress.percent}%</span>
+                </div>
+                <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${timeProgress.percent}%` }} />
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Diese Woche erledigt</span>
+                  <span>{weekDone}/{weekTotal} • {adherencePercent}%</span>
+                </div>
+                <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${adherencePercent}%` }} />
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
+                  <div className="bg-[#111111] rounded-2xl p-3">
+                    <p className="text-emerald-400 font-semibold">{weekDone}</p>
+                    <p className="text-muted-foreground">Erledigt</p>
+                  </div>
+                  <div className="bg-[#111111] rounded-2xl p-3">
+                    <p className="text-orange-400 font-semibold">{weekMissed}</p>
+                    <p className="text-muted-foreground">Verpasst</p>
+                  </div>
+                  <div className="bg-[#111111] rounded-2xl p-3">
+                    <p className="text-blue-400 font-semibold">{weekSkipped}</p>
+                    <p className="text-muted-foreground">Nicht genommen</p>
+                  </div>
+                </div>
+              </div>
+
+              {timeProgress.endDate && (
+                <p className="text-xs text-muted-foreground mt-4">
+                  Ende ca. {timeProgress.endDate}
+                </p>
+              )}
 
               <Link href="/cycle" className="mt-5 inline-flex bg-primary px-5 py-3 rounded-2xl font-medium">
                 Cycle öffnen
@@ -243,69 +438,145 @@ export default function CycleGuardDashboard() {
               </Link>
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="mt-8">
+        {missedOpen.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-400" />
+              Verpasst
+            </h2>
+
+            <div className="space-y-3">
+              {missedOpen.map((m) => (
+                <div key={`${m.id}-${m.plannedDate}`} className="bg-orange-500/10 border border-orange-500/30 rounded-3xl p-5">
+                  <p className="font-semibold">{m.name}</p>
+                  <p className="text-sm text-orange-300 mt-1">
+                    Geplant am {m.plannedDate} • {m.doseAmount} {m.doseUnit}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <Link href="/logging" className="bg-primary rounded-2xl py-3 text-center font-medium">
+                      Nachtragen
+                    </Link>
+
+                    <button
+                      onClick={() => markSkipped(m, m.plannedDate)}
+                      className="bg-[#111111] rounded-2xl py-3 font-medium"
+                    >
+                      Nicht genommen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Heute fällig</h2>
+            <h2 className="text-lg font-semibold">{selectedDateLabel} anstehend</h2>
             <Link href="/logging" className="text-sm text-primary hover:underline">
-              Loggen
+              Öffnen
             </Link>
           </div>
 
-          {dueToday.length === 0 ? (
+          {selectedDue.length === 0 ? (
             <div className="bg-[#0A0A0A] rounded-3xl p-6 text-center text-muted-foreground border border-border/30">
-              Heute keine geplanten Einträge.
+              {activeCycle ? "An diesem Tag ist nichts geplant." : "Noch kein aktiver Cycle."}
             </div>
           ) : (
             <div className="space-y-3">
-              {dueToday.map((d) => (
-                <Link key={d.id} href="/logging" className="block bg-[#0A0A0A] rounded-3xl p-5 border border-primary/20">
-                  <p className="font-semibold">{d.name}</p>
+              {selectedDue.map((item) => {
+                const status = getStatus(item, selectedDate)
+
+                return (
+                  <Link
+                    key={item.id}
+                    href="/logging"
+                    className={`block rounded-3xl p-5 border ${
+                      status === "done"
+                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        : status === "skipped"
+                          ? "bg-blue-500/10 border-blue-500/30"
+                          : status === "missed"
+                            ? "bg-orange-500/10 border-orange-500/30"
+                            : "bg-[#0A0A0A] border-primary/20"
+                    }`}
+                  >
+                    <div className="flex justify-between gap-3">
+                      <div>
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {item.doseAmount} {item.doseUnit} • {item.frequency}
+                        </p>
+                      </div>
+
+                      {status === "done" && (
+                        <span className="text-xs text-emerald-400 flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4" />
+                          Erledigt
+                        </span>
+                      )}
+
+                      {status === "skipped" && <span className="text-xs text-blue-400">Nicht genommen</span>}
+                      {status === "missed" && <span className="text-xs text-orange-400">Verpasst</span>}
+                      {status === "open" && <span className="text-xs text-primary">Offen</span>}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        {lowStock.length > 0 && (
+          <section className="mt-8">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-400" />
+              Low Stock
+            </h2>
+
+            <div className="space-y-3">
+              {lowStock.slice(0, 3).map((c) => (
+                <Link key={c.id} href="/einkauf" className="block bg-orange-500/10 border border-orange-500/30 rounded-3xl p-5">
+                  <p className="font-semibold">{c.name}</p>
+                  <p className="text-sm text-orange-300 mt-1">
+                    {isOral(c)
+                      ? `${c.remaining_pills ?? 0} Pillen übrig`
+                      : `${c.current_vials ?? c.current_ampoules ?? 0} ${c.packaging || "Einheiten"} übrig`}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-8">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            Letzte Logs
+          </h2>
+
+          {recentLogs.length === 0 ? (
+            <div className="bg-[#0A0A0A] rounded-3xl p-6 text-center text-muted-foreground border border-border/30">
+              Noch keine Logs.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentLogs.map((dose) => (
+                <Link key={dose.id} href="/logging" className="block bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
+                  <p className="font-semibold">{dose.name}</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {d.doseAmount} {d.doseUnit} • {d.frequency}
+                    {dose.menge} mg • {dose.datum} {dose.zeit}
                   </p>
                 </Link>
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="flex items-center justify-between mt-8 mb-4">
-          <h2 className="text-lg font-semibold">Aktive Substanzen</h2>
-          <Link href="/compounds" className="text-sm text-primary hover:underline">
-            Alle verwalten
-          </Link>
-        </div>
-
-        {activeCompounds.length === 0 ? (
-          <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
-            <div className="mx-auto w-16 h-16 bg-[#111111] rounded-2xl flex items-center justify-center mb-4">
-              <Syringe className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-medium mb-2">Keine aktiven Substanzen</h3>
-            <p className="text-sm text-muted-foreground mb-6 max-w-[260px] mx-auto">
-              Füge Substanzen hinzu oder starte einen Cycle.
-            </p>
-            <Link href="/compounds" className="bg-primary px-6 py-3 rounded-2xl font-medium inline-flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Substanz hinzufügen
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {activeCompounds.map((c) => (
-              <div key={c.id} className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
-                <p className="font-semibold">{c.name}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Woche {c.startWeek}–{c.endWeek} • {c.doseAmount} {c.doseUnit} • {c.frequency}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 gap-3 mt-6">
+        <div className="grid grid-cols-2 gap-3 mt-8">
           <Link href="/logging" className="bg-primary rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2">
             <Syringe className="w-4 h-4" />
             Dosis eintragen
@@ -334,8 +605,7 @@ export default function CycleGuardDashboard() {
             </div>
 
             {notifications.length > 0 && (
-              <button onClick={markAllRead} className="w-full bg-[#111111] py-3 rounded-2xl mb-4 font-medium flex items-center justify-center gap-2">
-                <Check className="w-4 h-4" />
+              <button onClick={markAllRead} className="w-full bg-[#111111] py-3 rounded-2xl mb-4 font-medium">
                 Alle als gelesen markieren
               </button>
             )}
@@ -363,11 +633,7 @@ export default function CycleGuardDashboard() {
 
                           <div className="flex gap-2 mt-4">
                             {n.href && (
-                              <Link
-                                href={n.href}
-                                onClick={() => markRead(n.id)}
-                                className="flex-1 bg-primary py-2.5 rounded-xl text-sm font-medium text-center"
-                              >
+                              <Link href={n.href} onClick={() => markRead(n.id)} className="flex-1 bg-primary py-2.5 rounded-xl text-sm font-medium text-center">
                                 Öffnen
                               </Link>
                             )}
