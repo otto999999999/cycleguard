@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, Pencil, Trash2, ChevronLeft, Syringe } from "lucide-react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { ChevronLeft, Pencil, Plus, Syringe, Trash2 } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 
@@ -12,34 +12,31 @@ interface Compound {
   type: string
   concentration?: number | null
   concentration_unit?: string | null
-  // Oral
-  dose_per_pill?: number | null
-  pill_unit?: string | null
-  pills_per_bottle?: number | null
-  current_bottles?: number | null
-  // AI
-  dose_per_pill_ai?: number | null
-  pill_unit_ai?: string | null
-  pills_per_bottle_ai?: number | null
-  current_bottles_ai?: number | null
-  // SARM
-  dose_per_pill_sarm?: number | null
-  pill_unit_sarm?: string | null
-  pills_per_bottle_sarm?: number | null
-  current_bottles_sarm?: number | null
   packaging?: "Vial" | "Ampulle" | null
   size_ml?: number | null
   current_vials?: number | null
   current_ampoules?: number | null
   method?: "IM" | "SubQ" | "Oral" | null
+  dose_per_pill?: number | null
+  pill_unit?: string | null
+  pills_per_bottle?: number | null
+  current_bottles?: number | null
+  remaining_pills?: number | null
   manufacturer?: string | null
   price?: number | null
 }
 
 const compoundTypes = [
-  "Injectable", "Oral", "AI (Aromatase Inhibitor)", "SARM",
-  "Peptide", "PCT", "Supplement"
+  "Injectable",
+  "Oral",
+  "AI (Aromatase Inhibitor)",
+  "SARM",
+  "Peptide",
+  "PCT",
+  "Supplement",
 ]
+
+const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 export default function CompoundsPage() {
   const [compounds, setCompounds] = useState<Compound[]>([])
@@ -54,39 +51,69 @@ export default function CompoundsPage() {
     type: "",
     concentration: 250,
     concentrationUnit: "mg/ml",
-    dosePerPill: 25,
-    pillUnit: "mg/pill",
-    pillsPerBottle: 100,
-    currentBottles: 1,
-    dosePerPillAI: 25,
-    pillUnitAI: "mg/pill",
-    pillsPerBottleAI: 100,
-    currentBottlesAI: 1,
-    dosePerPillSARM: 25,
-    pillUnitSARM: "mg/pill",
-    pillsPerBottleSARM: 100,
-    currentBottlesSARM: 1,
     packaging: "" as "" | "Vial" | "Ampulle",
     sizeMl: 10,
     currentVials: 0,
     currentAmpoules: 0,
     method: "IM" as "IM" | "SubQ" | "Oral",
+    dosePerPill: 25,
+    pillUnit: "mg/pill",
+    pillsPerBottle: 100,
+    currentBottles: 1,
+    remainingPills: 100,
     manufacturer: "",
     price: 0,
   })
 
+  const isOralType = (type: string) => ORAL_TYPES.includes(type)
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      type: "",
+      concentration: 250,
+      concentrationUnit: "mg/ml",
+      packaging: "",
+      sizeMl: 10,
+      currentVials: 0,
+      currentAmpoules: 0,
+      method: "IM",
+      dosePerPill: 25,
+      pillUnit: "mg/pill",
+      pillsPerBottle: 100,
+      currentBottles: 1,
+      remainingPills: 100,
+      manufacturer: "",
+      price: 0,
+    })
+  }
+
   const loadCompounds = async () => {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return setLoading(false)
 
-    const { data } = await supabase
-      .from('compounds')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false })
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-    setCompounds(data || [])
+    if (!session) {
+      setCompounds([])
+      setLoading(false)
+      return
+    }
+
+    const { data, error } = await supabase
+      .from("compounds")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      alert("Fehler beim Laden: " + error.message)
+      setCompounds([])
+    } else {
+      setCompounds(data || [])
+    }
+
     setLoading(false)
   }
 
@@ -96,44 +123,32 @@ export default function CompoundsPage() {
 
   const openAddModal = () => {
     setEditingCompound(null)
-    setForm({
-      name: "", type: "", concentration: 250, concentrationUnit: "mg/ml",
-      dosePerPill: 25, pillUnit: "mg/pill", pillsPerBottle: 100, currentBottles: 1,
-      dosePerPillAI: 25, pillUnitAI: "mg/pill", pillsPerBottleAI: 100, currentBottlesAI: 1,
-      dosePerPillSARM: 25, pillUnitSARM: "mg/pill", pillsPerBottleSARM: 100, currentBottlesSARM: 1,
-      packaging: "", sizeMl: 10, currentVials: 0, currentAmpoules: 0,
-      method: "IM", manufacturer: "", price: 0
-    })
+    resetForm()
     setShowModal(true)
   }
 
   const openEditModal = (c: Compound) => {
     setEditingCompound(c)
+
     setForm({
       name: c.name || "",
       type: c.type || "",
       concentration: c.concentration ?? 250,
       concentrationUnit: c.concentration_unit || "mg/ml",
-      dosePerPill: c.dose_per_pill ?? 25,
-      pillUnit: c.pill_unit || "mg/pill",
-      pillsPerBottle: c.pills_per_bottle ?? 100,
-      currentBottles: c.current_bottles ?? 1,
-      dosePerPillAI: c.dose_per_pill_ai ?? 25,
-      pillUnitAI: c.pill_unit_ai || "mg/pill",
-      pillsPerBottleAI: c.pills_per_bottle_ai ?? 100,
-      currentBottlesAI: c.current_bottles_ai ?? 1,
-      dosePerPillSARM: c.dose_per_pill_sarm ?? 25,
-      pillUnitSARM: c.pill_unit_sarm || "mg/pill",
-      pillsPerBottleSARM: c.pills_per_bottle_sarm ?? 100,
-      currentBottlesSARM: c.current_bottles_sarm ?? 1,
       packaging: c.packaging || "",
       sizeMl: c.size_ml ?? 10,
       currentVials: c.current_vials ?? 0,
       currentAmpoules: c.current_ampoules ?? 0,
-      method: (c.method as "IM" | "SubQ" | "Oral") || "IM",
+      method: c.method || "IM",
+      dosePerPill: c.dose_per_pill ?? 25,
+      pillUnit: c.pill_unit || "mg/pill",
+      pillsPerBottle: c.pills_per_bottle ?? 100,
+      currentBottles: c.current_bottles ?? 1,
+      remainingPills: c.remaining_pills ?? c.pills_per_bottle ?? 100,
       manufacturer: c.manufacturer || "",
       price: c.price ?? 0,
     })
+
     setShowModal(true)
   }
 
@@ -143,13 +158,19 @@ export default function CompoundsPage() {
       return
     }
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      alert("Du bist nicht eingeloggt.")
+      return
+    }
 
     const payload: any = {
       name: form.name.trim(),
       type: form.type,
-      manufacturer: form.manufacturer?.trim() || null,
+      manufacturer: form.manufacturer.trim() || null,
       price: form.price || null,
       user_id: session.user.id,
     }
@@ -160,37 +181,36 @@ export default function CompoundsPage() {
       payload.packaging = form.packaging || null
       payload.size_ml = form.sizeMl
       payload.method = form.method
-      if (form.packaging === "Vial") payload.current_vials = form.currentVials ?? 0
-      if (form.packaging === "Ampulle") payload.current_ampoules = form.currentAmpoules ?? 0
-    } 
-    else if (form.type === "Oral") {
+      payload.current_vials = form.packaging === "Vial" ? form.currentVials : 0
+      payload.current_ampoules = form.packaging === "Ampulle" ? form.currentAmpoules : 0
+      payload.current_bottles = 0
+      payload.remaining_pills = 0
+    } else if (isOralType(form.type)) {
       payload.dose_per_pill = form.dosePerPill
       payload.pill_unit = form.pillUnit
       payload.pills_per_bottle = form.pillsPerBottle
       payload.current_bottles = form.currentBottles
+      payload.remaining_pills = form.remainingPills
       payload.method = "Oral"
-    } 
-    else if (form.type === "AI (Aromatase Inhibitor)") {
-      payload.dose_per_pill_ai = form.dosePerPillAI
-      payload.pill_unit_ai = form.pillUnitAI
-      payload.pills_per_bottle_ai = form.pillsPerBottleAI
-      payload.current_bottles_ai = form.currentBottlesAI
-      payload.method = "Oral"
-    } 
-    else if (form.type === "SARM") {
-      payload.dose_per_pill_sarm = form.dosePerPillSARM
-      payload.pill_unit_sarm = form.pillUnitSARM
-      payload.pills_per_bottle_sarm = form.pillsPerBottleSARM
-      payload.current_bottles_sarm = form.currentBottlesSARM
-      payload.method = "Oral"
+      payload.packaging = null
+      payload.concentration = null
+      payload.concentration_unit = null
+      payload.size_ml = null
+      payload.current_vials = 0
+      payload.current_ampoules = 0
     }
 
     try {
       if (editingCompound) {
-        const { error } = await supabase.from('compounds').update(payload).eq('id', editingCompound.id)
+        const { error } = await supabase
+          .from("compounds")
+          .update(payload)
+          .eq("id", editingCompound.id)
+          .eq("user_id", session.user.id)
+
         if (error) throw error
       } else {
-        const { error } = await supabase.from('compounds').insert(payload)
+        const { error } = await supabase.from("compounds").insert(payload)
         if (error) throw error
       }
 
@@ -210,7 +230,24 @@ export default function CompoundsPage() {
 
   const confirmDelete = async () => {
     if (!compoundToDelete) return
-    await supabase.from('compounds').delete().eq('id', compoundToDelete)
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) return
+
+    const { error } = await supabase
+      .from("compounds")
+      .delete()
+      .eq("id", compoundToDelete)
+      .eq("user_id", session.user.id)
+
+    if (error) {
+      alert("Fehler beim Löschen: " + error.message)
+      return
+    }
+
     setShowDeleteConfirm(false)
     setCompoundToDelete(null)
     await loadCompounds()
@@ -220,8 +257,8 @@ export default function CompoundsPage() {
     let count = 0
     let unit = ""
 
-    if (c.type === "Oral" || c.type === "AI (Aromatase Inhibitor)" || c.type === "SARM") {
-      count = c.current_bottles ?? c.current_bottles_ai ?? c.current_bottles_sarm ?? 0
+    if (isOralType(c.type)) {
+      count = c.current_bottles ?? 0
       unit = count === 1 ? "Flasche" : "Flaschen"
     } else if (c.packaging === "Vial") {
       count = c.current_vials ?? 0
@@ -238,6 +275,9 @@ export default function CompoundsPage() {
     return { count, unit, stockColor }
   }
 
+  const inputClass =
+    "w-full bg-[#181818] border border-white/5 focus:border-primary rounded-2xl p-4 outline-none transition"
+
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-24">
       <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20">
@@ -245,6 +285,7 @@ export default function CompoundsPage() {
           <Link href="/" className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </Link>
+
           <h1 className="text-xl font-semibold">Substanzen</h1>
           <div className="w-10" />
         </div>
@@ -258,38 +299,54 @@ export default function CompoundsPage() {
             <Syringe className="w-20 h-20 mx-auto text-muted-foreground mb-6" />
             <h2 className="text-2xl font-medium">Keine Substanzen</h2>
             <p className="text-muted-foreground mt-3 mb-8">Füge deine ersten Substanzen hinzu</p>
+
             <button onClick={openAddModal} className="bg-primary px-8 py-4 rounded-2xl font-medium flex items-center gap-2 mx-auto">
-              <Plus className="w-5 h-5" /> Neue Substanz hinzufügen
+              <Plus className="w-5 h-5" />
+              Neue Substanz hinzufügen
             </button>
           </div>
         ) : (
           <div className="space-y-3">
             {compounds.map((c) => {
               const { count, unit, stockColor } = getStockInfo(c)
+              const oral = isOralType(c.type)
+
               return (
                 <div key={c.id} className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
-                  <div className="flex justify-between">
-                    <div>
-                      <h3 className="font-semibold text-lg">{c.name}</h3>
-                      {(c.type === "Oral" || c.type === "AI (Aromatase Inhibitor)" || c.type === "SARM") ? (
+                  <div className="flex justify-between gap-4">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-lg truncate">{c.name}</h3>
+
+                      {oral ? (
                         <p className="text-sm text-blue-400">
-                          {c.dose_per_pill || c.dose_per_pill_ai || c.dose_per_pill_sarm} 
-                          {c.pill_unit || c.pill_unit_ai || c.pill_unit_sarm} • 
-                          {c.pills_per_bottle || c.pills_per_bottle_ai || c.pills_per_bottle_sarm} Pillen/Flasche
+                          {c.dose_per_pill} {c.pill_unit} • {c.pills_per_bottle} Pillen/Flasche
                         </p>
                       ) : (
                         <p className="text-sm text-blue-400">
                           {c.concentration} {c.concentration_unit} • {c.packaging} {c.size_ml}ml • {c.method}
                         </p>
                       )}
+
                       <p className={`font-medium mt-1 ${stockColor}`}>
-                        {count} {unit} in Stock • €{c.price} pro Stk.
+                        {count} {unit} in Stock{c.price ? ` • €${c.price} pro Stk.` : ""}
                       </p>
+
+                      {oral && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {c.remaining_pills ?? 0} Pillen übrig
+                        </p>
+                      )}
+
+                      {c.manufacturer && (
+                        <p className="text-xs text-muted-foreground mt-1">{c.manufacturer}</p>
+                      )}
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex gap-2 shrink-0">
                       <button onClick={() => openEditModal(c)} className="p-3 bg-[#111111] rounded-2xl">
                         <Pencil className="w-5 h-5" />
                       </button>
+
                       <button onClick={() => handleDeleteClick(c.id)} className="p-3 bg-red-500/10 text-red-400 rounded-2xl">
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -306,140 +363,221 @@ export default function CompoundsPage() {
         <Plus className="w-7 h-7" />
       </button>
 
-      <BottomNav />
-
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/90 z-[70] flex items-end">
           <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[92vh] overflow-y-auto">
-            <h2 className="text-2xl font-semibold mb-6">
+            <h2 className="text-2xl font-semibold mb-1">
               {editingCompound ? "Substanz bearbeiten" : "Neue Substanz hinzufügen"}
             </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Trage Dosierung, Bestand und Hersteller sauber ein.
+            </p>
 
             <div className="space-y-6">
-              <div>
-                <label className="text-sm text-muted-foreground block mb-1">Name <span className="text-red-500">*</span></label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4" />
+              <div className="space-y-5">
+                <Field label="Name der Substanz">
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="z. B. Testosterone Enanthate"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label="Kategorie">
+                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={inputClass}>
+                    <option value="">Bitte auswählen...</option>
+                    {compoundTypes.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
               </div>
 
-              <div>
-                <label className="text-sm text-muted-foreground block mb-1">Typ <span className="text-red-500">*</span></label>
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4">
-                  <option value="">Bitte auswählen...</option>
-                  {compoundTypes.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+              {isOralType(form.type) && (
+                <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+                  <div>
+                    <h3 className="font-semibold text-lg">Pillen / Oral Bestand</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Gilt für Oral, AI, SARM, PCT und Supplements.
+                    </p>
+                  </div>
 
-              {/* Pillen-Felder für Oral, AI und SARM */}
-              {(form.type === "Oral" || form.type === "AI (Aromatase Inhibitor)" || form.type === "SARM") && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-muted-foreground block mb-1">Dose pro Pille <span className="text-red-500">*</span></label>
-                      <input type="number" value={form.dosePerPill} onChange={(e) => setForm({ ...form, dosePerPill: Number(e.target.value) })} className="w-full bg-[#111111] rounded-2xl p-4" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground block mb-1">Einheit</label>
-                      <select value={form.pillUnit} onChange={(e) => setForm({ ...form, pillUnit: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4">
+                  <Field label="Dosierung pro Pille">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        value={form.dosePerPill}
+                        onChange={(e) => setForm({ ...form, dosePerPill: Number(e.target.value) })}
+                        className={inputClass}
+                      />
+
+                      <select value={form.pillUnit} onChange={(e) => setForm({ ...form, pillUnit: e.target.value })} className={inputClass}>
                         <option value="mg/pill">mg/pill</option>
                         <option value="mcg/pill">mcg/pill</option>
                       </select>
                     </div>
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-1">Pillen pro Flasche</label>
-                    <input type="number" value={form.pillsPerBottle} onChange={(e) => setForm({ ...form, pillsPerBottle: Number(e.target.value) })} className="w-full bg-[#111111] rounded-2xl p-4" />
-                  </div>
-
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-1">Anzahl der Flaschen</label>
-                    <input 
-                      type="number" 
-                      min="0" 
-                      value={
-                        form.type === "Oral" ? form.currentBottles :
-                        form.type === "AI (Aromatase Inhibitor)" ? form.currentBottlesAI :
-                        form.currentBottlesSARM
-                      } 
+                  <Field label="Pillen pro Flasche">
+                    <input
+                      type="number"
+                      value={form.pillsPerBottle}
                       onChange={(e) => {
-                        const val = Number(e.target.value) || 0
-                        if (form.type === "Oral") setForm({ ...form, currentBottles: val })
-                        else if (form.type === "AI (Aromatase Inhibitor)") setForm({ ...form, currentBottlesAI: val })
-                        else if (form.type === "SARM") setForm({ ...form, currentBottlesSARM: val })
-                      }} 
-                      className="w-full bg-[#111111] rounded-2xl p-4" 
+                        const pills = Number(e.target.value)
+                        setForm({ ...form, pillsPerBottle: pills, remainingPills: form.currentBottles * pills })
+                      }}
+                      className={inputClass}
                     />
-                  </div>
-                </>
+                  </Field>
+
+                  <Field label="Anzahl Flaschen">
+                    <input
+                      type="number"
+                      value={form.currentBottles}
+                      onChange={(e) => {
+                        const bottles = Number(e.target.value)
+                        setForm({ ...form, currentBottles: bottles, remainingPills: bottles * form.pillsPerBottle })
+                      }}
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  <Field label="Verbleibende Pillen gesamt">
+                    <input
+                      type="number"
+                      value={form.remainingPills}
+                      onChange={(e) => setForm({ ...form, remainingPills: Number(e.target.value) })}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
               )}
 
-              {/* Injectable Felder */}
               {form.type === "Injectable" && (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm text-muted-foreground block mb-1">Konzentration <span className="text-red-500">*</span></label>
-                      <input type="number" value={form.concentration} onChange={(e) => setForm({ ...form, concentration: Number(e.target.value) })} className="w-full bg-[#111111] rounded-2xl p-4" />
-                    </div>
-                    <div>
-                      <label className="text-sm text-muted-foreground block mb-1">Einheit</label>
-                      <select value={form.concentrationUnit} onChange={(e) => setForm({ ...form, concentrationUnit: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4">
+                <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+                  <div>
+                    <h3 className="font-semibold text-lg">Injectable Bestand</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Konzentration, Verpackung und verfügbare Menge.
+                    </p>
+                  </div>
+
+                  <Field label="Konzentration">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        type="number"
+                        value={form.concentration}
+                        onChange={(e) => setForm({ ...form, concentration: Number(e.target.value) })}
+                        className={inputClass}
+                      />
+
+                      <select value={form.concentrationUnit} onChange={(e) => setForm({ ...form, concentrationUnit: e.target.value })} className={inputClass}>
                         <option value="mg/ml">mg/ml</option>
                         <option value="mcg/ml">mcg/ml</option>
                       </select>
                     </div>
-                  </div>
+                  </Field>
 
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-1">Verpackung <span className="text-red-500">*</span></label>
-                    <select value={form.packaging} onChange={(e) => setForm({ ...form, packaging: e.target.value as "Vial" | "Ampulle" })} className="w-full bg-[#111111] rounded-2xl p-4">
+                  <Field label="Verpackung">
+                    <select
+                      value={form.packaging}
+                      onChange={(e) => setForm({ ...form, packaging: e.target.value as "" | "Vial" | "Ampulle" })}
+                      className={inputClass}
+                    >
                       <option value="">Bitte auswählen...</option>
                       <option value="Vial">Vial</option>
                       <option value="Ampulle">Ampulle</option>
                     </select>
-                  </div>
+                  </Field>
 
-                  {form.packaging && (
-                    <>
-                      <div>
-                        <label className="text-sm text-muted-foreground block mb-1">Anzahl der {form.packaging === "Vial" ? "Vials" : "Ampullen"}</label>
-                        <input type="number" min="0" value={form.packaging === "Vial" ? form.currentVials : form.currentAmpoules} onChange={(e) => {
-                          const val = Number(e.target.value) || 0
-                          if (form.packaging === "Vial") setForm({ ...form, currentVials: val })
-                          else setForm({ ...form, currentAmpoules: val })
-                        }} className="w-full bg-[#111111] rounded-2xl p-4" />
-                      </div>
-
-                      <div>
-                        <label className="text-sm text-muted-foreground block mb-1">Größe pro {form.packaging} (ml)</label>
-                        <input type="number" min="0.1" step="0.1" value={form.sizeMl} onChange={(e) => setForm({ ...form, sizeMl: Number(e.target.value) })} className="w-full bg-[#111111] rounded-2xl p-4" />
-                      </div>
-                    </>
+                  {form.packaging === "Vial" && (
+                    <Field label="Anzahl Vials">
+                      <input
+                        type="number"
+                        value={form.currentVials}
+                        onChange={(e) => setForm({ ...form, currentVials: Number(e.target.value) })}
+                        className={inputClass}
+                      />
+                    </Field>
                   )}
 
-                  <div>
-                    <label className="text-sm text-muted-foreground block mb-2">Injektionsmethode</label>
+                  {form.packaging === "Ampulle" && (
+                    <Field label="Anzahl Ampullen">
+                      <input
+                        type="number"
+                        value={form.currentAmpoules}
+                        onChange={(e) => setForm({ ...form, currentAmpoules: Number(e.target.value) })}
+                        className={inputClass}
+                      />
+                    </Field>
+                  )}
+
+                  <Field label="Größe pro Einheit in ml">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={form.sizeMl}
+                      onChange={(e) => setForm({ ...form, sizeMl: Number(e.target.value) })}
+                      className={inputClass}
+                    />
+                  </Field>
+
+                  <Field label="Methode">
                     <div className="flex gap-3">
-                      <button onClick={() => setForm({ ...form, method: "IM" })} className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "IM" ? "bg-primary text-white" : "bg-[#111111]"}`}>IM</button>
-                      <button onClick={() => setForm({ ...form, method: "SubQ" })} className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "SubQ" ? "bg-primary text-white" : "bg-[#111111]"}`}>SubQ</button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, method: "IM" })}
+                        className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "IM" ? "bg-primary text-white" : "bg-[#181818]"}`}
+                      >
+                        IM
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, method: "SubQ" })}
+                        className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "SubQ" ? "bg-primary text-white" : "bg-[#181818]"}`}
+                      >
+                        SubQ
+                      </button>
                     </div>
-                  </div>
-                </>
+                  </Field>
+                </div>
               )}
 
-              <div>
-                <label className="text-sm text-muted-foreground block mb-1">Marke / Hersteller <span className="text-red-500">*</span></label>
-                <input type="text" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} className="w-full bg-[#111111] rounded-2xl p-4" />
-              </div>
+              <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+                <h3 className="font-semibold text-lg">Zusatzinfos</h3>
 
-              <div>
-                <label className="text-sm text-muted-foreground block mb-1">Preis (€) <span className="text-red-500">*</span></label>
-                <input type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} className="w-full bg-[#111111] rounded-2xl p-4" />
+                <Field label="Marke / Hersteller">
+                  <input
+                    value={form.manufacturer}
+                    onChange={(e) => setForm({ ...form, manufacturer: e.target.value })}
+                    placeholder="z. B. Deus Medical"
+                    className={inputClass}
+                  />
+                </Field>
+
+                <Field label="Preis pro Stück / Flasche / Vial">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                    placeholder="z. B. 45"
+                    className={inputClass}
+                  />
+                </Field>
               </div>
 
               <button onClick={handleSave} className="w-full bg-primary py-4 rounded-2xl font-semibold">
                 {editingCompound ? "Änderungen speichern" : "Substanz hinzufügen"}
+              </button>
+
+              <button onClick={() => setShowModal(false)} className="w-full bg-[#111111] py-4 rounded-2xl font-semibold">
+                Abbrechen
               </button>
             </div>
           </div>
@@ -452,13 +590,30 @@ export default function CompoundsPage() {
             <Trash2 className="w-14 h-14 text-red-500 mx-auto mb-5" />
             <h3 className="text-xl font-semibold mb-2">Substanz löschen?</h3>
             <p className="text-muted-foreground mb-8">Das kann nicht rückgängig gemacht werden.</p>
+
             <div className="flex gap-4">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-4 bg-[#111111] rounded-2xl font-medium">Abbrechen</button>
-              <button onClick={confirmDelete} className="flex-1 py-4 bg-red-600 rounded-2xl font-medium">Ja, löschen</button>
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-4 bg-[#111111] rounded-2xl font-medium">
+                Abbrechen
+              </button>
+
+              <button onClick={confirmDelete} className="flex-1 py-4 bg-red-600 rounded-2xl font-medium">
+                Ja, löschen
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      <BottomNav />
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-2 text-white">{label}</label>
+      {children}
     </div>
   )
 }
