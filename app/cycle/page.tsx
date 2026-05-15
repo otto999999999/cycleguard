@@ -6,7 +6,10 @@ import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 
 const daysShort = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+const DAY_KEYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+
+const todayKey = () => new Date().toISOString().split("T")[0]
 
 export default function CyclePage() {
   const [cycles, setCycles] = useState<any[]>([])
@@ -22,6 +25,7 @@ export default function CyclePage() {
   const [selectedCompoundForDosing, setSelectedCompoundForDosing] = useState<any>(null)
 
   const [cycleName, setCycleName] = useState("")
+  const [cycleType, setCycleType] = useState<"normal" | "trt">("normal")
   const [durationWeeks, setDurationWeeks] = useState(12)
   const [description, setDescription] = useState("")
   const [mainStack, setMainStack] = useState<any[]>([])
@@ -66,6 +70,7 @@ export default function CyclePage() {
   const resetForm = () => {
     setEditingCycle(null)
     setCycleName("")
+    setCycleType("normal")
     setDurationWeeks(12)
     setDescription("")
     setMainStack([])
@@ -80,6 +85,7 @@ export default function CyclePage() {
   const openEditModal = (cycle: any) => {
     setEditingCycle(cycle)
     setCycleName(cycle.name || "")
+    setCycleType(cycle.cycle_type || (cycle.indefinite ? "trt" : "normal"))
     setDurationWeeks(cycle.duration_weeks || 12)
     setDescription(cycle.description || "")
     setMainStack(cycle.main_stack || [])
@@ -96,7 +102,7 @@ export default function CyclePage() {
       type: compound.type,
       method: oral ? "Oral" : compound.method || "IM",
       startWeek: 1,
-      endWeek: durationWeeks,
+      endWeek: cycleType === "trt" ? 9999 : durationWeeks,
       doseAmount: oral ? compound.dose_per_pill || 25 : compound.concentration || 250,
       doseUnit: oral ? compound.pill_unit || "mg/pill" : compound.concentration_unit || "mg/ml",
       frequency: oral ? "Daily" : "E3D",
@@ -176,7 +182,9 @@ export default function CyclePage() {
 
     const payload = {
       name: cycleName.trim(),
-      duration_weeks: durationWeeks,
+      cycle_type: cycleType,
+      indefinite: cycleType === "trt",
+      duration_weeks: cycleType === "trt" ? null : durationWeeks,
       description: description.trim() || null,
       main_stack: mainStack,
       pct_stack: pctStack,
@@ -291,7 +299,106 @@ export default function CyclePage() {
   }
 
   const renderLine = (c: any) => {
-    return `Woche ${c.startWeek}–${c.endWeek} • ${c.doseAmount} ${c.doseUnit} • ${formatSchedule(c)}`
+    const endText = c.endWeek >= 9999 ? "dauerhaft" : `Woche ${c.startWeek}–${c.endWeek}`
+    return `${endText} • ${c.doseAmount} ${c.doseUnit} • ${formatSchedule(c)}`
+  }
+
+  const getCycleProgress = (cycle: any) => {
+    if (!cycle.start_date) {
+      return { label: "Noch nicht gestartet", percent: 0, endDate: null as string | null, runningDays: 0 }
+    }
+
+    const start = new Date(cycle.start_date)
+    const now = new Date()
+    const diffDays = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000))
+    const runningDays = diffDays + 1
+
+    if (cycle.indefinite || cycle.cycle_type === "trt") {
+      return {
+        label: `Läuft seit ${runningDays} Tagen`,
+        percent: 100,
+        endDate: null as string | null,
+        runningDays,
+      }
+    }
+
+    const totalDays = (cycle.duration_weeks || 1) * 7
+    const percent = Math.min(100, Math.round((runningDays / totalDays) * 100))
+
+    const end = new Date(start)
+    end.setDate(start.getDate() + totalDays)
+
+    const currentWeek = Math.min(cycle.duration_weeks || 1, Math.floor(diffDays / 7) + 1)
+
+    return {
+      label: `Woche ${currentWeek} von ${cycle.duration_weeks}`,
+      percent,
+      endDate: end.toISOString().split("T")[0],
+      runningDays,
+    }
+  }
+
+  const getDueForCycleDate = (cycle: any, dateKey: string) => {
+    if (!cycle.active || !cycle.start_date) return []
+
+    const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
+    const date = new Date(dateKey)
+    const dayShort = DAY_KEYS[date.getDay()]
+    const start = new Date(cycle.start_date)
+    const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
+
+    if (diffDays < 0) return []
+
+    return stack.filter((item) => {
+      const startWeek = item.startWeek || 1
+      const endWeek =
+        cycle.indefinite || cycle.cycle_type === "trt"
+          ? 9999
+          : item.endWeek || cycle.duration_weeks || 12
+
+      const currentWeek = Math.floor(diffDays / 7) + 1
+
+      if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+      if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+      if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+      if (item.frequency === "EOD") return diffDays % 2 === 0
+      if (item.frequency === "E3D") return diffDays % 3 === 0
+      if (item.frequency === "Weekly") return diffDays % 7 === 0
+
+      return false
+    })
+  }
+
+  const getNextDose = (cycle: any) => {
+    for (let i = 0; i < 60; i++) {
+      const date = new Date()
+      date.setDate(date.getDate() + i)
+      const key = date.toISOString().split("T")[0]
+      const due = getDueForCycleDate(cycle, key)
+
+      if (due.length > 0) {
+        return {
+          date: key,
+          items: due,
+        }
+      }
+    }
+
+    return null
+  }
+
+  const getStackAnalysis = (cycle: any) => {
+    const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
+
+    const oralCount = stack.filter((x) => x.method === "Oral").length
+    const injectableCount = stack.filter((x) => x.method !== "Oral").length
+
+    return {
+      totalItems: stack.length,
+      oralCount,
+      injectableCount,
+    }
   }
 
   return (
@@ -323,68 +430,153 @@ export default function CyclePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {cycles.map((cycle) => (
-              <div
-                key={cycle.id}
-                className={`rounded-3xl p-5 border ${
-                  cycle.active
-                    ? "bg-emerald-500/10 border-emerald-500/30"
-                    : "bg-[#0A0A0A] border-white/5"
-                }`}
-              >
-                <div className="flex justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className={`text-xs mb-1 ${cycle.active ? "text-emerald-400" : "text-muted-foreground"}`}>
-                      {cycle.active ? "Aktiv" : "Gespeichert"}
-                    </p>
+            {cycles.map((cycle) => {
+              const progress = getCycleProgress(cycle)
+              const todayDue = getDueForCycleDate(cycle, todayKey())
+              const nextDose = getNextDose(cycle)
+              const analysis = getStackAnalysis(cycle)
+              const isTrt = cycle.indefinite || cycle.cycle_type === "trt"
 
-                    <h2 className="text-xl font-semibold truncate">{cycle.name}</h2>
+              return (
+                <div
+                  key={cycle.id}
+                  className={`rounded-3xl p-5 border ${
+                    cycle.active
+                      ? "bg-emerald-500/10 border-emerald-500/30"
+                      : "bg-[#0A0A0A] border-white/5"
+                  }`}
+                >
+                  <div className="flex justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className={`text-xs mb-1 ${cycle.active ? "text-emerald-400" : "text-muted-foreground"}`}>
+                        {cycle.active ? "Aktiv" : "Gespeichert"}
+                      </p>
 
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {cycle.duration_weeks} Wochen
-                      {cycle.start_date ? ` • Start: ${cycle.start_date}` : ""}
-                    </p>
+                      <h2 className="text-xl font-semibold truncate">{cycle.name}</h2>
 
-                    <p className="text-xs text-muted-foreground mt-2">
-                      {(cycle.main_stack || []).length} Cycle Substanzen • {(cycle.pct_stack || []).length} PCT
-                    </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {isTrt
+                          ? "TRT • läuft unbegrenzt"
+                          : `${cycle.duration_weeks} Wochen`}
+                        {cycle.start_date ? ` • Start: ${cycle.start_date}` : ""}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {(cycle.main_stack || []).length} Cycle Substanzen • {(cycle.pct_stack || []).length} PCT
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => openEditModal(cycle)} className="p-3 bg-[#111111] rounded-2xl">
+                        <Edit className="w-5 h-5" />
+                      </button>
+
+                      <button onClick={() => deleteCycle(cycle)} className="p-3 bg-red-500/10 text-red-400 rounded-2xl">
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => openEditModal(cycle)} className="p-3 bg-[#111111] rounded-2xl">
-                      <Edit className="w-5 h-5" />
-                    </button>
+                  {cycle.active && (
+                    <div className="mt-5 space-y-4">
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>{progress.label}</span>
+                          {!isTrt && <span>{progress.percent}%</span>}
+                        </div>
 
-                    <button onClick={() => deleteCycle(cycle)} className="p-3 bg-red-500/10 text-red-400 rounded-2xl">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+                        {!isTrt ? (
+                          <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${progress.percent}%` }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3 text-sm text-blue-300">
+                            TRT / dauerhaft aktiv
+                          </div>
+                        )}
 
-                <CycleStackMini title="Cycle Stack" items={cycle.main_stack || []} renderLine={renderLine} />
-                <CycleStackMini title="PCT Stack" items={cycle.pct_stack || []} renderLine={renderLine} pct />
+                        {progress.endDate && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Ende ca. {progress.endDate}
+                          </p>
+                        )}
+                      </div>
 
-                <div className="flex gap-3 mt-5">
-                  {cycle.active ? (
-                    <button
-                      onClick={() => stopCycle(cycle)}
-                      className="flex-1 py-4 bg-red-600 rounded-2xl font-semibold flex items-center justify-center gap-2"
-                    >
-                      <Square className="w-5 h-5" />
-                      Stoppen
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => startCycle(cycle)}
-                      className="flex-1 py-4 bg-primary rounded-2xl font-semibold flex items-center justify-center gap-2"
-                    >
-                      <PlayCircle className="w-5 h-5" />
-                      Starten
-                    </button>
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                        <div className="bg-[#111111] rounded-2xl p-3">
+                          <p className="font-semibold">{analysis.totalItems}</p>
+                          <p className="text-muted-foreground">Stack</p>
+                        </div>
+
+                        <div className="bg-[#111111] rounded-2xl p-3">
+                          <p className="font-semibold text-blue-400">{analysis.oralCount}</p>
+                          <p className="text-muted-foreground">Oral</p>
+                        </div>
+
+                        <div className="bg-[#111111] rounded-2xl p-3">
+                          <p className="font-semibold text-emerald-400">{analysis.injectableCount}</p>
+                          <p className="text-muted-foreground">Inj.</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#111111] rounded-2xl p-4">
+                        <p className="text-sm font-semibold mb-2">Heute geplant</p>
+
+                        {todayDue.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Heute ist nichts geplant.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {todayDue.map((item: any) => (
+                              <div key={item.id} className="text-sm flex justify-between gap-3">
+                                <span>{item.name}</span>
+                                <span className="text-muted-foreground">
+                                  {item.doseAmount} {item.doseUnit}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {nextDose && (
+                        <div className="bg-[#111111] rounded-2xl p-4">
+                          <p className="text-sm font-semibold mb-1">Nächste Dosis</p>
+                          <p className="text-sm text-muted-foreground">
+                            {nextDose.date} • {nextDose.items.map((x: any) => x.name).join(", ")}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   )}
+
+                  <CycleStackMini title="Cycle Stack" items={cycle.main_stack || []} renderLine={renderLine} />
+                  <CycleStackMini title="PCT Stack" items={cycle.pct_stack || []} renderLine={renderLine} pct />
+
+                  <div className="flex gap-3 mt-5">
+                    {cycle.active ? (
+                      <button
+                        onClick={() => stopCycle(cycle)}
+                        className="flex-1 py-4 bg-red-600 rounded-2xl font-semibold flex items-center justify-center gap-2"
+                      >
+                        <Square className="w-5 h-5" />
+                        Stoppen
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => startCycle(cycle)}
+                        className="flex-1 py-4 bg-primary rounded-2xl font-semibold flex items-center justify-center gap-2"
+                      >
+                        <PlayCircle className="w-5 h-5" />
+                        Starten
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>
@@ -401,7 +593,7 @@ export default function CyclePage() {
       {showCycleModal && (
         <Modal title={editingCycle ? "Cycle bearbeiten" : "Neuen Cycle erstellen"} onClose={() => setShowCycleModal(false)}>
           <div className="space-y-6">
-            <Card title="Grunddaten" subtitle="Name, Dauer und Beschreibung.">
+            <Card title="Grunddaten" subtitle="Name, Typ und Beschreibung.">
               <Field label="Cycle Name">
                 <input
                   value={cycleName}
@@ -411,15 +603,47 @@ export default function CyclePage() {
                 />
               </Field>
 
-              <Field label="Dauer in Wochen">
-                <input
-                  type="number"
-                  min="1"
-                  value={durationWeeks}
-                  onChange={(e) => setDurationWeeks(Number(e.target.value))}
-                  className="input"
-                />
+              <Field label="Cycle Typ">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCycleType("normal")}
+                    className={`py-4 rounded-2xl font-medium ${
+                      cycleType === "normal" ? "bg-primary text-white" : "bg-[#181818]"
+                    }`}
+                  >
+                    Normal
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setCycleType("trt")}
+                    className={`py-4 rounded-2xl font-medium ${
+                      cycleType === "trt" ? "bg-primary text-white" : "bg-[#181818]"
+                    }`}
+                  >
+                    TRT / dauerhaft
+                  </button>
+                </div>
               </Field>
+
+              {cycleType === "normal" && (
+                <Field label="Dauer in Wochen">
+                  <input
+                    type="number"
+                    min="1"
+                    value={durationWeeks}
+                    onChange={(e) => setDurationWeeks(Number(e.target.value))}
+                    className="input"
+                  />
+                </Field>
+              )}
+
+              {cycleType === "trt" && (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-sm text-blue-300">
+                  Dieser Cycle läuft unbegrenzt weiter und hat kein festes Enddatum.
+                </div>
+              )}
 
               <Field label="Beschreibung optional">
                 <textarea
@@ -509,7 +733,7 @@ export default function CyclePage() {
                   />
                 </Field>
 
-                <Field label="End Woche">
+                <Field label={cycleType === "trt" ? "End Woche / dauerhaft" : "End Woche"}>
                   <input
                     type="number"
                     min="1"

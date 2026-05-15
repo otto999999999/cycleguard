@@ -31,6 +31,8 @@ export default function LoggingPage() {
 
   const [selectedDate, setSelectedDate] = useState(todayKey())
 
+  const [filter, setFilter] = useState<"all" | "oral" | "injection">("all")
+
   const [showLogModal, setShowLogModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -394,6 +396,42 @@ export default function LoggingPage() {
     month: "2-digit",
   })
 
+const getDoseType = (dose: Dose) => {
+  if (dose.methode === "Oral") return "oral"
+  return "injection"
+}
+
+const filteredDoses = doses.filter((dose) => {
+  const type = getDoseType(dose)
+  if (filter === "oral") return type === "oral"
+  if (filter === "injection") return type === "injection"
+  return true
+})
+
+const getDateLabel = (dateKey: string) => {
+  const today = todayKey()
+
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayKey = yesterday.toISOString().split("T")[0]
+
+  if (dateKey === today) return "Heute"
+  if (dateKey === yesterdayKey) return "Gestern"
+
+  return new Date(dateKey).toLocaleDateString("de-DE", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+  })
+}
+
+const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) => {
+  const key = dose.datum
+  if (!acc[key]) acc[key] = []
+  acc[key].push(dose)
+  return acc
+}, {})
+
   return (
     <div className="min-h-screen bg-[#050505] pb-24">
       <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20 px-5 py-4">
@@ -476,29 +514,100 @@ export default function LoggingPage() {
           </button>
         </div>
 
-        {loading ? (
-          <p className="text-center py-12 text-muted-foreground">Lade Logs...</p>
-        ) : doses.length === 0 ? (
-          <div className="bg-[#0A0A0A] rounded-3xl p-12 text-center">
-            <p className="text-muted-foreground">Noch keine Einträge</p>
-          </div>
-        ) : (
-          <div className="space-y-3 pb-20">
-            {doses.map((dose) => (
-              <div key={dose.id} className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30 relative">
-                <div onClick={() => openEdit(dose)} className="cursor-pointer pr-12">
-                  <div className="flex justify-between items-start">
+        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+  {[
+    { key: "all", label: "Alle" },
+    { key: "oral", label: "Oral" },
+    { key: "injection", label: "Injektionen" },
+  ].map((item) => (
+    <button
+      key={item.key}
+      onClick={() => setFilter(item.key as "all" | "oral" | "injection")}
+      className={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap ${
+        filter === item.key
+          ? "bg-primary text-white"
+          : "bg-[#0A0A0A] text-muted-foreground border border-border/30"
+      }`}
+    >
+      {item.label}
+    </button>
+  ))}
+</div>
+
+{loading ? (
+  <p className="text-center py-12 text-muted-foreground">
+    Lade Logs...
+  </p>
+) : filteredDoses.length === 0 ? (
+  <div className="bg-[#0A0A0A] rounded-3xl p-12 text-center">
+    <p className="text-muted-foreground">
+      Keine Einträge für diesen Filter
+    </p>
+  </div>
+) : (
+  <div className="space-y-8 pb-20">
+    {Object.entries(groupedDoses).map(([dateKey, entries]) => (
+      <div key={dateKey}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-2 h-2 rounded-full bg-primary" />
+
+          <h3 className="text-sm font-semibold text-muted-foreground">
+            {getDateLabel(dateKey)}
+          </h3>
+
+          <div className="h-px flex-1 bg-border/30" />
+        </div>
+
+        <div className="space-y-3">
+          {entries.map((dose) => {
+            const oral = dose.methode === "Oral"
+
+            return (
+              <div
+                key={dose.id}
+                className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30 relative"
+              >
+                <div
+                  onClick={() => openEdit(dose)}
+                  className="cursor-pointer pr-12"
+                >
+                  <div className="flex justify-between items-start gap-4">
                     <div>
-                      <p className="font-semibold text-lg">{dose.name}</p>
-                      <p className="text-2xl font-medium mt-1">{dose.menge} mg</p>
-                      <p className="text-sm text-blue-400">
-                        {dose.methode} {dose.stelle && `• ${dose.stelle}`}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span
+                          className={`text-xs px-3 py-1 rounded-full ${
+                            oral
+                              ? "bg-blue-500/10 text-blue-400"
+                              : "bg-emerald-500/10 text-emerald-400"
+                          }`}
+                        >
+                          {oral ? "Oral" : dose.methode || "Injection"}
+                        </span>
+
+                        {dose.stelle && (
+                          <span className="text-xs px-3 py-1 rounded-full bg-[#111111] text-muted-foreground">
+                            {dose.stelle}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="font-semibold text-lg">
+                        {dose.name}
                       </p>
-                      {dose.notes && <p className="text-sm text-muted-foreground mt-2">„{dose.notes}“</p>}
+
+                      <p className="text-2xl font-medium mt-1">
+                        {dose.menge} mg
+                      </p>
+
+                      {dose.notes && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          „{dose.notes}“
+                        </p>
+                      )}
                     </div>
 
                     <p className="text-xs text-muted-foreground text-right">
-                      {dose.datum} {dose.zeit}
+                      {dose.zeit || "--:--"}
                     </p>
                   </div>
                 </div>
@@ -513,9 +622,13 @@ export default function LoggingPage() {
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
-            ))}
-          </div>
-        )}
+            )
+          })}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
       </div>
 
       <BottomNav />
@@ -664,3 +777,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   )
 }
+
+
+
