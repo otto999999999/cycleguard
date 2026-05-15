@@ -8,35 +8,48 @@ type WeekCalendarProps = {
   markedDates?: string[]
 }
 
-const toDateKey = (date: Date) => date.toISOString().split("T")[0]
+const dateKeyLocal = (date: Date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+const parseLocalDate = (dateKey: string) => {
+  const [y, m, d] = dateKey.split("-").map(Number)
+  return new Date(y, m - 1, d)
+}
 
 export function WeekCalendar({
   selectedDate,
   onSelectDate,
   markedDates = [],
 }: WeekCalendarProps) {
-  const selected = selectedDate ? new Date(selectedDate) : new Date()
+  const today = new Date()
+  const selectedKey = selectedDate || dateKeyLocal(today)
+
+  const selectedLocalDate = parseLocalDate(selectedKey)
 
   const getWeekDates = () => {
-    const today = new Date()
     const dayOfWeek = today.getDay()
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+
     const monday = new Date(today)
+    monday.setHours(12, 0, 0, 0)
     monday.setDate(today.getDate() + mondayOffset)
 
     return wochentage.map((tag, index) => {
       const date = new Date(monday)
       date.setDate(monday.getDate() + index)
 
-      const key = toDateKey(date)
+      const key = dateKeyLocal(date)
 
       return {
         tag,
         key,
         date: date.getDate(),
-        fullDate: date,
-        isToday: key === toDateKey(today),
-        isSelected: key === toDateKey(selected),
+        isToday: key === dateKeyLocal(today),
+        isSelected: key === selectedKey,
         isMarked: markedDates.includes(key),
       }
     })
@@ -48,15 +61,13 @@ export function WeekCalendar({
     <div className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
       <div className="flex items-center justify-between mb-4">
         <span className="text-sm font-medium text-foreground">
-          {selected.toLocaleDateString("de-DE", {
+          {selectedLocalDate.toLocaleDateString("de-DE", {
             month: "long",
             year: "numeric",
           })}
         </span>
 
-        <span className="text-xs text-muted-foreground">
-          Diese Woche
-        </span>
+        <span className="text-xs text-muted-foreground">Diese Woche</span>
       </div>
 
       <div className="grid grid-cols-7 gap-1">
@@ -75,18 +86,14 @@ export function WeekCalendar({
               }
             `}
           >
-            <span className="text-[10px] uppercase tracking-widest mb-1 opacity-70">
+            <span className="text-[10px] uppercase tracking-widest mb-1 text-muted-foreground">
               {tag}
             </span>
 
-            <span className="text-lg font-semibold">{date}</span>
+            <span className="text-lg font-medium">{date}</span>
 
             {isMarked && (
-              <span
-                className={`absolute bottom-2 w-1.5 h-1.5 rounded-full ${
-                  isSelected ? "bg-white" : "bg-red-500"
-                }`}
-              />
+              <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
             )}
           </button>
         ))}

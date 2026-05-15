@@ -21,7 +21,14 @@ interface Dose {
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 
-const todayKey = () => new Date().toISOString().split("T")[0]
+const todayKey = () => dateKeyLocal(new Date())
+
+const dateKeyLocal = (date: Date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
 
 export default function LoggingPage() {
   const [doses, setDoses] = useState<Dose[]>([])
@@ -140,7 +147,7 @@ export default function LoggingPage() {
       .map((_, i) => {
         const date = new Date(monday)
         date.setDate(monday.getDate() + i)
-        return date.toISOString().split("T")[0]
+        return dateKeyLocal(date)
       })
       .filter((dateKey) => getDueForDate(dateKey).length > 0)
   }
@@ -413,7 +420,7 @@ const getDateLabel = (dateKey: string) => {
 
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  const yesterdayKey = yesterday.toISOString().split("T")[0]
+  const yesterdayKey = dateKeyLocal(yesterday)
 
   if (dateKey === today) return "Heute"
   if (dateKey === yesterdayKey) return "Gestern"

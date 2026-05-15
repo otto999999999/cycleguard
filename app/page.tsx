@@ -26,7 +26,14 @@ const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Suppleme
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const READ_KEY = "cycleguard_read_notifications"
 
-const todayKey = () => new Date().toISOString().split("T")[0]
+const dateKeyLocal = (date: Date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+const todayKey = () => dateKeyLocal(new Date())
 
 export default function CycleGuardDashboard() {
   const [showSettings, setShowSettings] = useState(false)
@@ -140,7 +147,7 @@ export default function CycleGuardDashboard() {
     return Array.from({ length: 7 }).map((_, i) => {
       const date = new Date(monday)
       date.setDate(monday.getDate() + i)
-      return date.toISOString().split("T")[0]
+      return dateKeyLocal(date)
     })
   }
 
@@ -252,7 +259,7 @@ export default function CycleGuardDashboard() {
       week,
       total: activeCycle.duration_weeks,
       percent: Math.min(100, Math.round((week / activeCycle.duration_weeks) * 100)),
-      endDate: end.toISOString().split("T")[0],
+      endDate: dateKeyLocal(end),
     }
   }
 

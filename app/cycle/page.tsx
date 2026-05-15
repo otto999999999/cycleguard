@@ -9,7 +9,15 @@ const daysShort = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 const DAY_KEYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
-const todayKey = () => new Date().toISOString().split("T")[0]
+
+const dateKeyLocal = (date: Date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+const todayKey = () => dateKeyLocal(new Date())
 
 export default function CyclePage() {
   const [cycles, setCycles] = useState<any[]>([])
@@ -246,7 +254,7 @@ export default function CyclePage() {
       .from("cycles")
       .update({
         active: true,
-        start_date: cycle.start_date || new Date().toISOString().split("T")[0],
+        start_date: cycle.start_date || todayKey(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", cycle.id)
@@ -333,7 +341,7 @@ export default function CyclePage() {
     return {
       label: `Woche ${currentWeek} von ${cycle.duration_weeks}`,
       percent,
-      endDate: end.toISOString().split("T")[0],
+      endDate: dateKeyLocal(end),
       runningDays,
     }
   }
@@ -374,7 +382,7 @@ export default function CyclePage() {
     for (let i = 0; i < 60; i++) {
       const date = new Date()
       date.setDate(date.getDate() + i)
-      const key = date.toISOString().split("T")[0]
+      const key = dateKeyLocal(date)
       const due = getDueForCycleDate(cycle, key)
 
       if (due.length > 0) {
