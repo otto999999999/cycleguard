@@ -30,12 +30,22 @@ export default function LoginPage() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) throw error
-        window.location.href = "/"
-      } else {
-        if (inviteCode !== "CYCLE2026") {
-          throw new Error("Falscher Invite-Code")
+             const { error } = await supabase.auth.signInWithPassword({ email, password })
+             if (error) throw error
+             window.location.href = "/"
+          } else {
+            const inviteRes = await fetch("/api/check-invite", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ inviteCode }),
+        })
+
+        const inviteResult = await inviteRes.json()
+
+        if (!inviteRes.ok || !inviteResult.ok) {
+          throw new Error(inviteResult.message || "Falscher Invite-Code")
         }
         const { error } = await supabase.auth.signUp({ 
           email, 
@@ -112,7 +122,7 @@ export default function LoginPage() {
               <div>
                 <input
                   type="text"
-                  placeholder="Invite Code (CYCLE2026)"
+                  placeholder="Invite Code"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value)}
                   className="w-full bg-[#111111] rounded-2xl p-4 outline-none"
