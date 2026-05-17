@@ -144,8 +144,8 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-24 text-foreground">
-      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+    <div className="min-h-screen bg-[#050505] pb-32 text-foreground">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
         <h1 className="text-2xl font-bold tracking-tight">Einkauf</h1>
       </header>
 
@@ -237,7 +237,7 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
           {lowStockItems.length === 0 ? (
             <p className="text-muted-foreground">Alles im grünen Bereich.</p>
           ) : (
-            <div className="space-y-3 text-sm">
+            <div className="space-y-4 text-sm">
               {lowStockItems.map((c) => (
                 <div key={c.id}>
                   <p>{c.name}</p>
@@ -253,7 +253,7 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
         </Panel>
 
         <Panel title="Schnellaktionen">
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Link href="/compounds" className="flex items-center gap-3 bg-[#111111] rounded-2xl p-4">
               <IconBox><Plus className="w-5 h-5" /></IconBox>
               <div className="font-medium">Neue Substanz hinzufügen</div>

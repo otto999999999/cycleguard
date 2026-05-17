@@ -410,8 +410,8 @@ export default function CyclePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-foreground pb-24">
-      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+    <div className="min-h-screen bg-[#050505] text-foreground pb-32">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
         <h1 className="text-2xl font-bold">Cycle</h1>
       </header>
 
@@ -494,7 +494,7 @@ export default function CyclePage() {
                         </div>
 
                         {!isTrt ? (
-                          <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
+                          <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
                             <div
                               className="h-full bg-emerald-500 rounded-full"
                               style={{ width: `${progress.percent}%` }}
@@ -881,7 +881,7 @@ function StackEditor({ items, onOpen, onRemove, emptyText, renderLine, pct }: an
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {items.map((comp: any) => (
         <div key={comp.id} onClick={() => onOpen(comp)} className="bg-[#181818] rounded-2xl p-4 flex justify-between gap-3 cursor-pointer">
           <div>
@@ -932,7 +932,7 @@ function SelectCompoundModal({ title, compounds, onSelect, onClose, isOral }: an
         )}
       </div>
 
-      <button onClick={onClose} className="w-full mt-6 py-4 bg-[#111111] rounded-2xl">
+      <button onClick={onClose} className="w-full 8 py-4 bg-[#111111] rounded-2xl">
         Fertig
       </button>
     </Modal>

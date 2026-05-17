@@ -440,8 +440,8 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
 }, {})
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-24">
-      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+    <div className="min-h-screen bg-[#050505] pb-32">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
         <h1 className="text-2xl font-bold">Logging</h1>
       </header>
 
@@ -452,7 +452,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
           markedDates={getWeekMarkedDates()}
         />
 
-        <div className="mt-6 mb-8">
+        <div className="mt-8 mb-8">
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
             <CalendarDays className="w-5 h-5" />
             {selectedDateLabel} anstehend
@@ -465,7 +465,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {selectedDue.map((item) => {
                 const done = isPlannedDone(item, selectedDate)
 
@@ -565,7 +565,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
           <div className="h-px flex-1 bg-border/30" />
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {entries.map((dose) => {
             const oral = dose.methode === "Oral"
 

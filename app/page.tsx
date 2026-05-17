@@ -337,8 +337,8 @@ export default function CycleGuardDashboard() {
   })
 
   return (
-    <div className="min-h-screen bg-[#050505] text-foreground pb-24">
-      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20">
+    <div className="min-h-screen bg-[#050505] text-foreground pb-32">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20">
         <div className="max-w-lg mx-auto px-5 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tighter">CycleGuard</h1>
@@ -348,7 +348,7 @@ export default function CycleGuardDashboard() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowNotifications(true)}
-              className="relative w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30"
+              className="relative w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30 transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -360,7 +360,7 @@ export default function CycleGuardDashboard() {
 
             <button
               onClick={() => setShowSettings(true)}
-              className="w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30"
+              className="w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30 transition-all duration-200 hover:scale-105 active:scale-95"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -375,13 +375,13 @@ export default function CycleGuardDashboard() {
           markedDates={getWeekMarkedDates()}
         />
 
-        <section className="mt-6">
+        <section className="mt-10">
           {loading ? (
             <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center text-muted-foreground">
               Lade Dashboard...
             </div>
           ) : activeCycle ? (
-            <div className="bg-[#0A0A0A] rounded-3xl p-6 border border-emerald-500/30">
+            <div className="bg-gradient-to-br from-[#111111] to-[#0A0A0A] rounded-3xl p-6 border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.08)]">
               <p className="text-sm text-emerald-400 mb-1">Aktiver Cycle</p>
               <h2 className="text-3xl font-bold">{activeCycle.name}</h2>
 
@@ -390,8 +390,8 @@ export default function CycleGuardDashboard() {
                   <span>Zeit: Woche {timeProgress.week} von {timeProgress.total}</span>
                   <span>{timeProgress.percent}%</span>
                 </div>
-                <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${timeProgress.percent}%` }} />
+                <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
+                  <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.45)]" style={{ width: `${timeProgress.percent}%` }} />
                 </div>
               </div>
 
@@ -400,20 +400,20 @@ export default function CycleGuardDashboard() {
                   <span>Diese Woche erledigt</span>
                   <span>{weekDone}/{weekTotal} • {adherencePercent}%</span>
                 </div>
-                <div className="h-2.5 bg-[#181818] rounded-full overflow-hidden">
+                <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
                   <div className="h-full bg-primary rounded-full" style={{ width: `${adherencePercent}%` }} />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
-                  <div className="bg-[#111111] rounded-2xl p-3">
+                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
                     <p className="text-emerald-400 font-semibold">{weekDone}</p>
                     <p className="text-muted-foreground">Erledigt</p>
                   </div>
-                  <div className="bg-[#111111] rounded-2xl p-3">
+                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
                     <p className="text-orange-400 font-semibold">{weekMissed}</p>
                     <p className="text-muted-foreground">Verpasst</p>
                   </div>
-                  <div className="bg-[#111111] rounded-2xl p-3">
+                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
                     <p className="text-blue-400 font-semibold">{weekSkipped}</p>
                     <p className="text-muted-foreground">Nicht genommen</p>
                   </div>
@@ -426,7 +426,7 @@ export default function CycleGuardDashboard() {
                 </p>
               )}
 
-              <Link href="/cycle" className="mt-5 inline-flex bg-primary px-5 py-3 rounded-2xl font-medium">
+              <Link href="/cycle" className="mt-5 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 px-5 py-3 font-bold text-black shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
                 Cycle öffnen
               </Link>
             </div>
@@ -448,13 +448,13 @@ export default function CycleGuardDashboard() {
         </section>
 
         {missedOpen.length > 0 && (
-          <section className="mt-8">
+          <section className="mt-10">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-400" />
               Verpasst
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {missedOpen.map((m) => (
                 <div key={`${m.id}-${m.plannedDate}`} className="bg-orange-500/10 border border-orange-500/30 rounded-3xl p-5">
                   <p className="font-semibold">{m.name}</p>
@@ -480,7 +480,7 @@ export default function CycleGuardDashboard() {
           </section>
         )}
 
-        <section className="mt-8">
+        <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">{selectedDateLabel} anstehend</h2>
             <Link href="/logging" className="text-sm text-primary hover:underline">
@@ -493,7 +493,7 @@ export default function CycleGuardDashboard() {
               {activeCycle ? "An diesem Tag ist nichts geplant." : "Noch kein aktiver Cycle."}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {selectedDue.map((item) => {
                 const status = getStatus(item, selectedDate)
 
@@ -501,20 +501,31 @@ export default function CycleGuardDashboard() {
                   <Link
                     key={item.id}
                     href="/logging"
-                    className={`block rounded-3xl p-5 border ${
+                    className={`group relative block overflow-hidden rounded-3xl border p-5 transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] ${
                       status === "done"
-                        ? "bg-emerald-500/10 border-emerald-500/30"
+                        ? "border-emerald-400/25 bg-emerald-400/10 shadow-[0_0_24px_rgba(52,211,153,0.08)]"
                         : status === "skipped"
-                          ? "bg-blue-500/10 border-blue-500/30"
+                          ? "border-blue-400/25 bg-blue-400/10 shadow-[0_0_24px_rgba(96,165,250,0.08)]"
                           : status === "missed"
-                            ? "bg-orange-500/10 border-orange-500/30"
-                            : "bg-[#0A0A0A] border-primary/20"
+                            ? "border-orange-400/25 bg-orange-400/10 shadow-[0_0_24px_rgba(251,146,60,0.08)]"
+                            : "border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] shadow-xl"
                     }`}
                   >
+                    <div
+  className={`absolute left-0 top-0 h-full w-1 ${
+    status === "done"
+      ? "bg-emerald-400"
+      : status === "skipped"
+        ? "bg-blue-400"
+        : status === "missed"
+          ? "bg-orange-400"
+          : "bg-primary"
+  }`}
+/>
                     <div className="flex justify-between gap-3">
                       <div>
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-base font-bold tracking-tight">{item.name}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">
                           {item.doseAmount} {item.doseUnit} • {item.frequency}
                         </p>
                       </div>
@@ -538,15 +549,16 @@ export default function CycleGuardDashboard() {
         </section>
 
         {lowStock.length > 0 && (
-          <section className="mt-8">
+          <section className="mt-10">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-orange-400" />
               Low Stock
             </h2>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {lowStock.slice(0, 3).map((c) => (
-                <Link key={c.id} href="/einkauf" className="block bg-orange-500/10 border border-orange-500/30 rounded-3xl p-5">
+                <Link key={c.id} href="/einkauf" className="group relative block overflow-hidden rounded-3xl border border-orange-400/25 bg-orange-400/10 p-5 shadow-[0_0_24px_rgba(251,146,60,0.08)] transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]">
+                  <div className="absolute left-0 top-0 h-full w-1 bg-orange-400" />
                   <p className="font-semibold">{c.name}</p>
                   <p className="text-sm text-orange-300 mt-1">
                     {isOral(c)
@@ -559,7 +571,7 @@ export default function CycleGuardDashboard() {
           </section>
         )}
 
-        <section className="mt-8">
+        <section className="mt-10">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Clock className="w-5 h-5" />
             Letzte Logs
@@ -570,11 +582,11 @@ export default function CycleGuardDashboard() {
               Noch keine Logs.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {recentLogs.map((dose) => (
-                <Link key={dose.id} href="/logging" className="block bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
+                <Link key={dose.id} href="/logging" className="block rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]">
                   <p className="font-semibold">{dose.name}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {dose.menge} mg • {dose.datum} {dose.zeit}
                   </p>
                 </Link>
@@ -583,24 +595,30 @@ export default function CycleGuardDashboard() {
           )}
         </section>
 
-        <div className="grid grid-cols-2 gap-3 mt-8">
-          <Link href="/logging" className="bg-primary rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2">
-            <Syringe className="w-4 h-4" />
-            Dosis eintragen
-          </Link>
+        <div className="grid grid-cols-2 gap-3 mt-10">
+        <Link
+          href="/logging"
+          className="bg-gradient-to-r from-emerald-400 to-emerald-500 text-black rounded-2xl py-4 text-sm font-bold flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Syringe className="w-4 h-4" />
+          Dosis eintragen
+        </Link>
 
-          <Link href="/compounds" className="bg-[#0A0A0A] border border-border/50 rounded-2xl py-4 text-sm font-semibold flex items-center justify-center gap-2">
-            <Plus className="w-4 h-4" />
-            Substanz hinzufügen
-          </Link>
-        </div>
+        <Link
+          href="/compounds"
+          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.98]"
+        >
+          <Plus className="w-4 h-4" />
+          Substanz hinzufügen
+        </Link>
+      </div>
       </main>
 
       <BottomNav />
 
       {showNotifications && (
-        <div className="fixed inset-0 bg-black/90 z-[80] flex items-end">
-          <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[88vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[80] flex items-end bg-black/80 backdrop-blur-md">
+          <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-semibold">Benachrichtigungen</h2>
@@ -612,7 +630,7 @@ export default function CycleGuardDashboard() {
             </div>
 
             {notifications.length > 0 && (
-              <button onClick={markAllRead} className="w-full bg-[#111111] py-3 rounded-2xl mb-4 font-medium">
+              <button onClick={markAllRead} className="mb-4 w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3 font-medium backdrop-blur-sm transition-all duration-200 hover:bg-white/[0.07]">
                 Alle als gelesen markieren
               </button>
             )}
@@ -622,21 +640,21 @@ export default function CycleGuardDashboard() {
                 Keine Benachrichtigungen.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {notifications.map((n) => {
                   const read = readIds.includes(n.id)
                   const Icon = n.type === "low-stock" ? AlertTriangle : n.type === "dose" ? CalendarDays : Package
 
                   return (
-                    <div key={n.id} className={`bg-[#111111] rounded-3xl p-4 border ${read ? "border-white/5 opacity-60" : "border-primary/30"}`}>
+                    <div key={n.id} className={`rounded-3xl border p-4 backdrop-blur-sm transition-all duration-200 ${read ? "border-white/5 bg-white/[0.03] opacity-60" : "border-emerald-400/20 bg-emerald-400/[0.06] shadow-[0_0_24px_rgba(52,211,153,0.06)]"}`}>
                       <div className="flex gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <div className="w-11 h-11 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm flex items-center justify-center shrink-0">
                           <Icon className="w-5 h-5 text-primary" />
                         </div>
 
                         <div className="flex-1">
                           <p className="font-semibold">{n.title}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{n.message}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{n.message}</p>
 
                           <div className="flex gap-2 mt-4">
                             {n.href && (
@@ -663,8 +681,8 @@ export default function CycleGuardDashboard() {
       )}
 
       {showSettings && (
-        <div className="fixed inset-0 bg-black/90 z-[70] flex items-end">
-          <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[88vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
+          <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-semibold">Einstellungen</h2>
               <button onClick={() => setShowSettings(false)} className="text-3xl text-muted-foreground hover:text-white">

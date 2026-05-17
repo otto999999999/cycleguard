@@ -102,7 +102,7 @@ export default function LogDosePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-foreground pb-24">
+    <div className="min-h-screen bg-[#050505] text-foreground pb-32">
       <header className="sticky top-0 z-50 bg-[#050505] border-b border-border/20 px-5 py-4 flex items-center">
         <Link href="/logging" className="mr-4">
           <ChevronLeft className="w-6 h-6" />

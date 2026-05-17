@@ -26,8 +26,8 @@ export function WeekCalendar({
   markedDates = [],
 }: WeekCalendarProps) {
   const today = new Date()
-  const selectedKey = selectedDate || dateKeyLocal(today)
-
+  const todayKey = dateKeyLocal(today)
+  const selectedKey = selectedDate || todayKey
   const selectedLocalDate = parseLocalDate(selectedKey)
 
   const getWeekDates = () => {
@@ -48,7 +48,7 @@ export function WeekCalendar({
         tag,
         key,
         date: date.getDate(),
-        isToday: key === dateKeyLocal(today),
+        isToday: key === todayKey,
         isSelected: key === selectedKey,
         isMarked: markedDates.includes(key),
       }
@@ -58,42 +58,59 @@ export function WeekCalendar({
   const weekDates = getWeekDates()
 
   return (
-    <div className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-foreground">
-          {selectedLocalDate.toLocaleDateString("de-DE", {
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
+    <div className="rounded-[28px] border border-white/10 bg-gradient-to-br from-[#101010] to-[#070707] p-5 shadow-[0_0_35px_rgba(255,255,255,0.035)] backdrop-blur-xl">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Kalender</p>
+          <p className="text-base font-semibold capitalize">
+            {selectedLocalDate.toLocaleDateString("de-DE", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
 
-        <span className="text-xs text-muted-foreground">Diese Woche</span>
+        <div className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-muted-foreground">
+          Diese Woche
+        </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1.5">
         {weekDates.map(({ tag, key, date, isToday, isSelected, isMarked }) => (
           <button
             key={key}
             onClick={() => onSelectDate?.(key)}
             className={`
-              flex flex-col items-center py-3 rounded-2xl transition-all relative
+              relative flex min-h-[72px] flex-col items-center justify-center rounded-2xl border transition-all duration-300 ease-out
               ${
                 isSelected
-                  ? "bg-primary text-primary-foreground scale-105"
+                  ? "scale-[1.04] border-emerald-400/40 bg-emerald-400 text-black shadow-[0_0_22px_rgba(52,211,153,0.22)]"
                   : isToday
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-[#111111] text-foreground/80"
+                    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                    : "border-white/5 bg-white/[0.025] text-foreground/80 hover:border-white/10 hover:bg-white/[0.06]"
               }
             `}
           >
-            <span className="text-[10px] uppercase tracking-widest mb-1 text-muted-foreground">
+            {isToday && !isSelected && (
+              <div className="absolute top-1.5 h-1 w-5 rounded-full bg-emerald-400/70" />
+            )}
+
+            <span
+              className={`mb-1 text-[10px] font-medium uppercase tracking-widest ${
+                isSelected ? "text-black/60" : "text-muted-foreground"
+              }`}
+            >
               {tag}
             </span>
 
-            <span className="text-lg font-medium">{date}</span>
+            <span className="text-lg font-bold">{date}</span>
 
             {isMarked && (
-              <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-primary" />
+              <div
+                className={`absolute bottom-2 h-1.5 w-1.5 rounded-full ${
+                  isSelected ? "bg-black/70" : "bg-emerald-400"
+                }`}
+              />
             )}
           </button>
         ))}

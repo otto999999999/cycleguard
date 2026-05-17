@@ -1,43 +1,64 @@
 "use client"
 
 import Link from "next/link"
-import { Home, List, Calendar, BarChart3, ShoppingCart, Syringe } from "lucide-react"
+import { usePathname } from "next/navigation"
+import {
+  Home,
+  List,
+  Calendar,
+  BarChart3,
+  ShoppingCart,
+  Syringe,
+} from "lucide-react"
+
+const navItems = [
+  { href: "/", label: "Home", icon: Home },
+  { href: "/compounds", label: "Stack", icon: List },
+  { href: "/cycle", label: "Cycle", icon: Calendar },
+  { href: "/stats", label: "Stats", icon: BarChart3 },
+  { href: "/einkauf", label: "Shop", icon: ShoppingCart },
+  { href: "/logging", label: "Log", icon: Syringe },
+]
 
 export function BottomNav() {
+  const pathname = usePathname()
+
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-border/30 z-50">
-      <div className="max-w-lg mx-auto flex items-center justify-around py-2">
-        
-        <Link href="/" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <Home className="w-6 h-6" />
-          <span className="text-[10px] mt-1">Dashboard</span>
-        </Link>
+    <nav className="fixed bottom-4 left-0 right-0 z-50 px-4">
+      <div className="mx-auto max-w-lg rounded-[28px] border border-white/10 bg-black/70 px-2 py-2 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-1">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname.startsWith(item.href)
 
-        <Link href="/compounds" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <List className="w-6 h-6" />
-          <span className="text-[10px] mt-1">Substanzen</span>
-        </Link>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl px-2 py-2 text-[10px] font-medium transition-all duration-300 ease-out ${
+                  isActive
+                    ? "bg-white text-black shadow-lg"
+                    : "text-zinc-500 hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                {isActive && (
+                  <div className="absolute -top-1 h-1 w-8 rounded-full bg-white" />
+                )}
 
-        <Link href="/cycle" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <Calendar className="w-6 h-6" />
-          <span className="text-[10px] mt-1">Cycle</span>
-        </Link>
+                <Icon
+                  className={`mb-1 h-5 w-5 transition-transform duration-200 ${
+                    isActive ? "scale-110 -translate-y-[2px]" : ""
+                  }`}
+                />
 
-        <Link href="/stats" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <BarChart3 className="w-6 h-6" />
-          <span className="text-[10px] mt-1">Statistik</span>
-        </Link>
-
-        <Link href="/einkauf" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <ShoppingCart className="w-6 h-6" />
-          <span className="text-[10px] mt-1">Einkauf</span>
-        </Link>
-
-        <Link href="/logging" className="flex flex-col items-center py-1 px-3 text-muted-foreground hover:text-foreground transition-colors">
-          <Syringe className="w-6 h-6" />   {/* Import Syringe von lucide-react */}
-          <span className="text-[10px] mt-1">Log</span>
-        </Link>
-
+                <span className="truncate">{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </nav>
   )

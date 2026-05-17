@@ -279,8 +279,8 @@ export default function CompoundsPage() {
     "w-full bg-[#181818] border border-white/5 focus:border-primary rounded-2xl p-4 outline-none transition"
 
   return (
-    <div className="min-h-screen bg-[#050505] text-foreground pb-24">
-      <header className="sticky top-0 z-50 bg-[#050505]/95 backdrop-blur-lg border-b border-border/20">
+    <div className="min-h-screen bg-[#050505] text-foreground pb-32">
+      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20">
         <div className="flex items-center justify-between px-5 py-4">
           <Link href="/" className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
@@ -306,7 +306,7 @@ export default function CompoundsPage() {
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {compounds.map((c) => {
               const { count, unit, stockColor } = getStockInfo(c)
               const oral = isOralType(c.type)
@@ -359,7 +359,7 @@ export default function CompoundsPage() {
         )}
       </div>
 
-      <button onClick={openAddModal} className="fixed bottom-24 right-6 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-2xl z-50">
+      <button onClick={openAddModal} className="fixed bottom-32 right-6 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-2xl z-50">
         <Plus className="w-7 h-7" />
       </button>
 
