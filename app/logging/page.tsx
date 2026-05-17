@@ -703,7 +703,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                     </Field>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="Datum">
                       <input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} className="input" />
                     </Field>
