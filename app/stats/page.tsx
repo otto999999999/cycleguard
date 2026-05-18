@@ -37,7 +37,7 @@ export default function StatsPage() {
       halfLife: number
     }[]
   >([])
-
+  const [lastUpdated, setLastUpdated] = useState("")
   const [chartData, setChartData] = useState<any[]>([])
   const [hiddenCompounds, setHiddenCompounds] = useState<string[]>([])
   const [fullscreenChart, setFullscreenChart] = useState(false)
@@ -46,6 +46,12 @@ export default function StatsPage() {
 
 useEffect(() => {
   loadStats()
+
+  const interval = setInterval(() => {
+    loadStats()
+  }, 30000)
+
+  return () => clearInterval(interval)
 }, [rangeHours])
 
 const toggleCompound = (name: string) => {
@@ -175,6 +181,13 @@ const toggleCompound = (name: string) => {
 
     setChartData(points)
 
+    setLastUpdated(
+      new Date().toLocaleTimeString("de-DE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    )
     setLoading(false)
   }
     const chartColors = [
@@ -203,6 +216,9 @@ const toggleCompound = (name: string) => {
 
             <h2 className="mt-1 text-xl font-bold">
               Active Levels
+              <p className="mt-2 text-xs text-muted-foreground">
+  Zuletzt aktualisiert: {lastUpdated || "--"}
+</p>
             </h2>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
   {[
@@ -250,10 +266,15 @@ const toggleCompound = (name: string) => {
             </div>
           </div>
 
-          <div
-  className="h-[260px] cursor-pointer"
+<div
+  className="relative h-[260px] cursor-pointer"
   onClick={() => setFullscreenChart(true)}
 >
+  {loading && (
+  <div className="absolute right-4 top-4 z-20 rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-muted-foreground backdrop-blur-md">
+    Aktualisiere...
+  </div>
+)}
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis
@@ -282,15 +303,23 @@ const toggleCompound = (name: string) => {
     (item) => !hiddenCompounds.includes(item.name)
   )
   .map((item, index) => (
-    <Line
-      key={item.name}
-      type="monotone"
-      dataKey={item.name}
-      stroke={chartColors[index % chartColors.length]}
-      strokeWidth={3}
-      dot={false}
-      connectNulls
-    />
+<Line
+  key={item.name}
+  type="monotone"
+  dataKey={item.name}
+  stroke={chartColors[index % chartColors.length]}
+  strokeWidth={3}
+  dot={false}
+  connectNulls
+  isAnimationActive
+  animationDuration={600}
+  animationEasing="ease-out"
+  activeDot={{
+    r: 6,
+    strokeWidth: 0,
+    fill: chartColors[index % chartColors.length],
+  }}
+/>
   ))}
               </LineChart>
             </ResponsiveContainer>
@@ -309,9 +338,12 @@ const toggleCompound = (name: string) => {
               </h2>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-muted-foreground">
-              Live
-            </div>
+            <button
+  onClick={loadStats}
+  className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-muted-foreground transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
+>
+  Aktualisieren
+</button>
           </div>
 
           {loading ? (
@@ -393,6 +425,9 @@ const toggleCompound = (name: string) => {
 
         <h2 className="text-xl font-bold">
           Active Levels
+          <p className="mt-2 text-xs text-muted-foreground">
+  Zuletzt aktualisiert: {lastUpdated || "--"}
+</p>
         </h2>
       </div>
 
@@ -405,6 +440,11 @@ const toggleCompound = (name: string) => {
     </div>
 
     <div className="h-[85vh] p-4">
+      {loading && (
+  <div className="absolute right-4 top-4 z-20 rounded-2xl border border-white/10 bg-black/60 px-3 py-2 text-xs text-muted-foreground backdrop-blur-md">
+    Aktualisiere...
+  </div>
+)}
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData}>
           <XAxis
@@ -434,15 +474,23 @@ const toggleCompound = (name: string) => {
     (item) => !hiddenCompounds.includes(item.name)
   )
   .map((item, index) => (
-    <Line
-      key={item.name}
-      type="monotone"
-      dataKey={item.name}
-      stroke={chartColors[index % chartColors.length]}
-      strokeWidth={3}
-      dot={false}
-      connectNulls
-    />
+<Line
+  key={item.name}
+  type="monotone"
+  dataKey={item.name}
+  stroke={chartColors[index % chartColors.length]}
+  strokeWidth={3}
+  dot={false}
+  connectNulls
+  isAnimationActive
+  animationDuration={600}
+  animationEasing="ease-out"
+  activeDot={{
+    r: 6,
+    strokeWidth: 0,
+    fill: chartColors[index % chartColors.length],
+  }}
+/>
   ))}
         </LineChart>
       </ResponsiveContainer>

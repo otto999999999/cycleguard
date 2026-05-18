@@ -10,6 +10,8 @@ const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Suppleme
 
 export default function EinkaufPage() {
   const [compounds, setCompounds] = useState<any[]>([])
+  const [activeCycle, setActiveCycle] = useState<any>(null)
+
   const [loading, setLoading] = useState(true)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [showStockSelect, setShowStockSelect] = useState(false)
@@ -20,6 +22,7 @@ export default function EinkaufPage() {
     current_ampoules: 0,
     current_bottles: 0,
     remaining_pills: 0,
+    remaining_ml: 0,
   })
 
   const isOral = (c: any) => ORAL_TYPES.includes(c.type)
@@ -33,15 +36,32 @@ export default function EinkaufPage() {
       return
     }
 
-    const { data, error } = await supabase
-      .from("compounds")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .order("name")
+const { data, error } = await supabase
+  .from("compounds")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .order("name")
 
-    if (error) alert("Fehler beim Laden: " + error.message)
-    setCompounds(data || [])
-    setLoading(false)
+const { data: cycleData, error: cycleError } = await supabase
+  .from("cycles")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .maybeSingle()
+
+if (cycleError) {
+  alert("Fehler beim Laden des aktiven Cycles: " + cycleError.message)
+  setActiveCycle(null)
+} else {
+  setActiveCycle(cycleData || null)
+}
+
+
+
+if (error) alert("Fehler beim Laden: " + error.message)
+
+setCompounds(data || [])
+setLoading(false)
   }
 
   useEffect(() => {
@@ -67,8 +87,61 @@ export default function EinkaufPage() {
     if (c.packaging === "Vial") return qty === 1 ? "Vial" : "Vials"
     return qty === 1 ? "Ampulle" : "Ampullen"
   }
+const getPlannedWeeklyUsage = (compoundId: string) => {
+  if (!activeCycle) return null
 
+  const stack = [
+    ...(activeCycle.main_stack || []),
+    ...(activeCycle.pct_stack || []),
+  ]
 
+  const item = stack.find((x) => x.id === compoundId)
+  if (!item) return null
+
+  const dose = Number(item.doseAmount || 0)
+  if (!dose) return null
+
+  if (item.frequency === "Daily") return dose * 7
+  if (item.frequency === "Twice Daily") return dose * 14
+  if (item.frequency === "EOD") return dose * 3.5
+  if (item.frequency === "E3D") return dose * (7 / 3)
+  if (item.frequency === "Weekly") return dose
+
+  if (item.frequency === "Custom") {
+    const days = item.customDays?.length || 0
+    return dose * days
+  }
+
+  return null
+}
+
+const getEstimatedDaysLeft = (c: any) => {
+  const plannedWeekly = getPlannedWeeklyUsage(c.id)
+
+  if (!plannedWeekly) return null
+
+  const dailyUsage = plannedWeekly / 7
+
+  if (!dailyUsage) return null
+
+  if (isOral(c)) {
+    const remaining = c.remaining_pills || 0
+    return Math.floor(remaining / dailyUsage)
+  }
+
+  
+
+  if (!c.concentration || !c.size_ml) return null
+
+const remainingMg =
+  c.remaining_ml && c.concentration
+    ? c.remaining_ml * c.concentration
+    : null
+
+if (remainingMg === null) return null
+
+return Math.floor(remainingMg / dailyUsage)
+}
   const breakdown = compounds.map((c) => {
     const quantity = getQuantity(c)
     return {
@@ -99,9 +172,18 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
     { gesamtwert: 0, injectables: 0, orals: 0, lowStock: 0 }
   )
 
-  const lowStockItems = compounds.filter((c) =>
-    isOral(c) ? (c.remaining_pills || 0) < 20 : getQuantity(c) < 1
-  )
+const lowStockItems = compounds.filter((c) => {
+  const daysLeft = getEstimatedDaysLeft(c)
+
+  if (daysLeft !== null) {
+    return daysLeft <= 14
+  }
+
+  return isOral(c)
+    ? (c.remaining_pills || 0) < 20
+    : getQuantity(c) < 1
+})
+
 
   const selectCompoundForEdit = (c: any) => {
     setSelected(c)
@@ -110,6 +192,7 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
       current_ampoules: c.current_ampoules || 0,
       current_bottles: c.current_bottles || 0,
       remaining_pills: c.remaining_pills || c.pills_per_bottle || 0,
+remaining_ml: c.remaining_ml || 0,
     })
     setShowStockSelect(false)
     setShowStockEdit(true)
@@ -124,8 +207,8 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
           remaining_pills: editForm.remaining_pills,
         }
       : selected.packaging === "Vial"
-        ? { current_vials: editForm.current_vials }
-        : { current_ampoules: editForm.current_ampoules }
+        ? { current_vials: editForm.current_vials, remaining_ml: editForm.remaining_ml }
+        : { current_ampoules: editForm.current_ampoules, remaining_ml: editForm.remaining_ml }
 
     const { error } = await supabase
       .from("compounds")
@@ -169,15 +252,77 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
               {compounds.map((c) => {
                 const oral = isOral(c)
                 const qty = getQuantity(c)
-                const percentage = oral ? getPercentage(c) : qty > 0 ? 100 : 0
-                const totalPills = getTotalPills(c)
+                const daysLeft = getEstimatedDaysLeft(c)
+                const remainingMg =
+  !isOral(c) &&
+  c.remaining_ml &&
+  c.concentration
+    ? Math.round(c.remaining_ml * c.concentration)
+    : null
+                let percentage = 0
 
+if (oral) {
+  percentage = getPercentage(c)
+} else if (c.remaining_ml && c.size_ml) {
+  const maxMl =
+    (c.current_vials || c.current_ampoules || 0) * c.size_ml
+
+  percentage = maxMl
+    ? Math.min(100, Math.round((c.remaining_ml / maxMl) * 100))
+    : 0
+} else {
+  percentage = qty > 0 ? 100 : 0
+}
+                const totalPills = getTotalPills(c)
+                const plannedWeekly = getPlannedWeeklyUsage(c.id)
+                const cycleItem = activeCycle
+  ? [
+      ...(activeCycle.main_stack || []),
+      ...(activeCycle.pct_stack || []),
+    ].find((x) => x.id === c.id)
+  : null
+
+const doseAmount = Number(cycleItem?.doseAmount || 0)
+                const dosesLeft =
+  !oral &&
+  remainingMg !== null &&
+  doseAmount > 0
+    ? Math.floor(remainingMg / doseAmount)
+    : null
+
+                
                 return (
                   <div key={c.id} className="bg-[#111111] rounded-3xl p-5">
                     <div className="flex justify-between items-start gap-4">
                       <div>
                         <p className="font-medium">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.type}</p>
+                        <p className="mt-1 text-xs text-emerald-400">
+  {plannedWeekly
+    ? `Geplant: ${Math.round(plannedWeekly)}mg/Woche`
+    : "Kein Wochenverbrauch geplant"}
+</p>
+<p
+  className={`mt-1 text-xs ${
+    daysLeft === null
+      ? "text-muted-foreground"
+      : daysLeft <= 7
+        ? "text-red-400"
+        : daysLeft <= 14
+          ? "text-orange-400"
+          : "text-emerald-400"
+  }`}
+>
+  {daysLeft === null
+    ? "Reichweite: nicht berechenbar"
+    : `Reicht ca. ${daysLeft} Tage`}
+</p>
+{dosesLeft !== null && (
+  <p className="mt-1 text-xs text-blue-400">
+    Noch ca. {dosesLeft} Dosen möglich
+  </p>
+)}            
+
                         {oral && (
                           <p className="text-xs text-muted-foreground mt-1">
                             {c.pills_per_bottle || 0} Pillen pro Flasche
@@ -186,20 +331,30 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
                       </div>
 
                       <div className="text-right">
-                        {oral ? (
-                          <>
-                            <p className="font-semibold">{c.remaining_pills || 0} Pillen</p>
+                        {oral 
+                        ? (
+                          <><p className="font-semibold">{c.remaining_pills || 0} Pillen</p>
                             <p className="text-xs text-muted-foreground">{c.current_bottles || 0} Flaschen</p>
                           </>
-                        ) : (
-                          <p className="font-semibold">
-                            {qty} {c.packaging}
-                          </p>
-                        )}
+) : (
+  <>
+    <p className="font-semibold">
+      {remainingMg !== null
+        ? `${remainingMg}mg`
+        : `${qty} ${c.packaging}`}
+    </p>
+
+    {remainingMg !== null && (
+      <p className="text-xs text-muted-foreground">
+        {Number(c.remaining_ml || 0).toFixed(2)}ml übrig
+      </p>
+    )}
+  </>
+)}
                       </div>
                     </div>
 
-                    {oral && (
+                    {(
                       <div className="mt-4">
                         <div className="h-2.5 rounded-full overflow-hidden bg-[#222]">
                           <div
@@ -216,10 +371,18 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
 
                         <div className="flex justify-between text-xs mt-1">
                           <span className={percentage <= 20 ? "text-red-500" : percentage <= 50 ? "text-orange-400" : "text-emerald-400"}>
-                            {percentage}% verbleibend
+                            {daysLeft === null
+  ? `${percentage}% verbleibend`
+  : `${daysLeft} Tage Reichweite`}
                           </span>
                           <span className="text-muted-foreground">
-                            {c.remaining_pills || 0}/{totalPills} Pillen
+                            <span className="text-muted-foreground">
+  {oral
+    ? `${c.remaining_pills || 0}/${totalPills} Pillen`
+    : remainingMg !== null
+      ? `${remainingMg}mg übrig • ${Number(c.remaining_ml || 0).toFixed(2)}ml`
+      : `${qty} ${c.packaging}`}
+</span>
                           </span>
                         </div>
                       </div>
@@ -241,7 +404,11 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
               {lowStockItems.map((c) => (
                 <div key={c.id}>
                   <p>{c.name}</p>
-                  <p className="text-xs text-muted-foreground">Bestand niedrig</p>
+                  <p className="text-xs text-muted-foreground">
+  {getEstimatedDaysLeft(c) !== null
+    ? `Reicht noch ca. ${getEstimatedDaysLeft(c)} Tage`
+    : "Bestand niedrig"}
+</p>
                 </div>
               ))}
             </div>
@@ -276,6 +443,7 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
               <button key={c.id} onClick={() => selectCompoundForEdit(c)} className="w-full text-left bg-[#111111] rounded-2xl p-4">
                 <p className="font-medium">{c.name}</p>
                 <p className="text-xs text-muted-foreground">{c.type}</p>
+
               </button>
             ))}
           </div>
@@ -312,7 +480,15 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
             onChange={(v: number) => setEditForm({ ...editForm, current_ampoules: v })}
         />
         )}
-
+{!isOral(selected) && (
+  <NumberInput
+    label="Verbleibende ml"
+    value={editForm.remaining_ml}
+    onChange={(v: number) =>
+      setEditForm({ ...editForm, remaining_ml: v })
+    }
+  />
+)}
             <div className="flex gap-3 pt-6">
               <button onClick={() => setShowStockEdit(false)} className="flex-1 py-4 bg-[#111] rounded-2xl">Abbrechen</button>
               <button onClick={saveStockEdit} className="flex-1 py-4 bg-primary rounded-2xl font-semibold">Speichern</button>

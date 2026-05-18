@@ -294,6 +294,41 @@ takenAt: dose.taken_at
     if (error) throw error
   }
 
+const getMlUsed = (compound: any, amountMg: number) => {
+  if (!compound || compound.type !== "Injectable") return 0
+
+  const concentration = Number(compound.concentration || 0)
+  if (!concentration) return 0
+
+  return amountMg / concentration
+}
+
+const adjustInjectableStock = async (
+  compoundId: string | null | undefined,
+  mlDelta: number
+) => {
+  if (!compoundId || mlDelta === 0) return
+
+  const { data: comp, error: fetchError } = await supabase
+    .from("compounds")
+    .select("id, type, remaining_ml")
+    .eq("id", compoundId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!comp || comp.type !== "Injectable") return
+
+  const current = Number(comp.remaining_ml ?? 0)
+  const next = Math.max(0, current - mlDelta)
+
+  const { error } = await supabase
+    .from("compounds")
+    .update({ remaining_ml: Number(next.toFixed(2)) })
+    .eq("id", compoundId)
+
+  if (error) throw error
+}
+
   const handleLogDose = async () => {
     if (!form.compound_id && !isEditing) {
       alert("Bitte Substanz auswählen!")
@@ -336,12 +371,17 @@ takenAt: dose.taken_at
 
         const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
         const newPills = getPillsUsed(newCompound, mengeNum)
-
+        const oldMl = getMlUsed(oldCompound, selectedDose.menge)
+        const newMl = getMlUsed(newCompound, mengeNum)
         if (selectedDose.compound_id === payload.compound_id) {
           await adjustOralStock(payload.compound_id, newPills - oldPills)
+          await adjustInjectableStock(payload.compound_id, newMl - oldMl)
         } else {
           await adjustOralStock(selectedDose.compound_id, -oldPills)
           await adjustOralStock(payload.compound_id, newPills)
+
+          await adjustInjectableStock(selectedDose.compound_id, -oldMl)
+          await adjustInjectableStock(payload.compound_id, newMl)
         }
 
         const { error } = await supabase
@@ -354,8 +394,10 @@ takenAt: dose.taken_at
       } else {
         const newCompound = compounds.find((c) => c.id === form.compound_id)
         const newPills = getPillsUsed(newCompound, mengeNum)
+        const newMl = getMlUsed(newCompound, mengeNum)
 
         await adjustOralStock(form.compound_id, newPills)
+        await adjustInjectableStock(form.compound_id, newMl)
 
         const { error } = await supabase
           .from("doses")
@@ -392,8 +434,10 @@ takenAt: dose.taken_at
     try {
       const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
       const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
+      const oldMl = getMlUsed(oldCompound, selectedDose.menge)
 
       await adjustOralStock(selectedDose.compound_id, -oldPills)
+      await adjustInjectableStock(selectedDose.compound_id, -oldMl)
 
       const { error } = await supabase
         .from("doses")
