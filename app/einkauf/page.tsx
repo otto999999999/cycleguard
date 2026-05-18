@@ -10,6 +10,7 @@ import { PlusCircle } from "lucide-react"
 import CountUp from "react-countup"
 import PullToRefresh from "react-simple-pull-to-refresh"
 import { Search } from "lucide-react"
+import { toast } from "sonner"
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 export default function EinkaufPage() {
@@ -18,6 +19,7 @@ export default function EinkaufPage() {
 
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [scrolled, setScrolled] = useState(false)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [showStockSelect, setShowStockSelect] = useState(false)
   const [showStockEdit, setShowStockEdit] = useState(false)
@@ -76,7 +78,15 @@ setLoading(false)
   useEffect(() => {
     loadCompounds()
   }, [])
+useEffect(() => {
+  const onScroll = () => {
+    setScrolled(window.scrollY > 24)
+  }
 
+  window.addEventListener("scroll", onScroll)
+
+  return () => window.removeEventListener("scroll", onScroll)
+}, [])
   const getTotalPills = (c: any) => (c.pills_per_bottle || 0) * (c.current_bottles || 0)
 
   const getPercentage = (c: any) => {
@@ -224,12 +234,14 @@ remaining_ml: c.remaining_ml || 0,
       .update(updateData)
       .eq("id", selected.id)
 
-    if (error) {
-      alert("Fehler: " + error.message)
-      return
-    }
+if (error) {
+  haptic()
+  toast.error("Fehler: " + error.message)
+  return
+}
 
-    alert("✅ Bestand aktualisiert!")
+haptic()
+toast.success("Bestand aktualisiert")
     setShowStockEdit(false)
     setSelected(null)
     loadCompounds()
@@ -244,7 +256,13 @@ remaining_ml: c.remaining_ml || 0,
 
   <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-blue-500/10 rounded-full blur-3xl" />
 </div>
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+      <header
+  className={`sticky top-0 z-50 px-5 py-4 transition-all duration-300 ${
+    scrolled
+      ? "bg-black/80 backdrop-blur-2xl border-b border-white/10"
+      : "bg-transparent"
+  }`}
+>
         <h1 className="text-2xl font-bold tracking-tight">Einkauf</h1>
       </header>
 <div className="sticky top-[73px] z-40 px-5 pt-3">
@@ -309,7 +327,7 @@ remaining_ml: c.remaining_ml || 0,
     placeholder="Substanz suchen..."
     value={search}
     onChange={(e) => setSearch(e.target.value)}
-    className="w-full bg-white/[0.04] border border-white/5 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:border-emerald-400/30 transition-all"
+    className="w-full bg-white/[0.04] border border-white/5 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:border-emerald-400/30 focus:shadow-[0_0_20px_rgba(52,211,153,0.12)] transition-all"
   />
 </div>
           {loading ? (
@@ -340,7 +358,8 @@ remaining_ml: c.remaining_ml || 0,
           ) : compounds.length === 0 ? (
             <p className="text-center py-12 text-muted-foreground">Noch keine Substanzen</p>
           ) : (
-            <div className="space-y-4">
+            <AnimatePresence mode="popLayout">
+  <div className="space-y-4">
               {compounds
   .filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -389,7 +408,12 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                 
                 return (
 <motion.div
+  layout
   key={c.id}
+  exit={{
+    opacity: 0,
+    y: -10,
+  }}
   initial={{ opacity: 0, y: 12 }}
   animate={{ opacity: 1, y: 0 }}
   whileHover={{
@@ -509,8 +533,10 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                 )
               })}
             </div>
+            </AnimatePresence>
           )}
         </div>
+        
       </section>
 
       <section className="px-5 mt-8 space-y-6">
@@ -538,7 +564,8 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
         </Panel>
 
         <Panel title="Schnellaktionen">
-          <div className="space-y-4">
+          
+  <div className="space-y-4">
             <Link href="/compounds" className="flex items-center gap-3 bg-[#111111] rounded-2xl p-4">
               <IconBox><Plus className="w-5 h-5" /></IconBox>
               <div className="font-medium">Neue Substanz hinzufügen</div>
@@ -552,6 +579,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
               <div className="font-medium">Bestand manuell anpassen</div>
             </button>
           </div>
+          
         </Panel>
       </section>
 <Link
