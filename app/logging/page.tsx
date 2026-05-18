@@ -16,13 +16,19 @@ interface Dose {
   notes?: string | null
   datum: string
   zeit?: string | null
+  taken_at?: string | null
 }
 
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 
 const todayKey = () => dateKeyLocal(new Date())
-
+const localDateTimeValue = () =>
+  new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16)
+const inputClass =
+  "w-full rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-4 outline-none transition-all duration-200 focus:border-emerald-400/40 focus:bg-white/[0.05]"
 const dateKeyLocal = (date: Date) => {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")
@@ -56,6 +62,7 @@ export default function LoggingPage() {
     notes: "",
     datum: "",
     uhrzeit: "",
+    takenAt: localDateTimeValue()
   })
 
   const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
@@ -174,6 +181,7 @@ export default function LoggingPage() {
       notes: "",
       datum: selectedDate,
       uhrzeit: new Date().toTimeString().slice(0, 5),
+      takenAt: localDateTimeValue()
     })
     setShowLogModal(true)
   }
@@ -194,6 +202,7 @@ export default function LoggingPage() {
       notes: "Aus Cycle-Plan geloggt",
       datum: selectedDate,
       uhrzeit: new Date().toTimeString().slice(0, 5),
+      takenAt: localDateTimeValue()
     })
     setShowLogModal(true)
   }
@@ -211,6 +220,9 @@ export default function LoggingPage() {
       notes: dose.notes || "",
       datum: dose.datum,
       uhrzeit: dose.zeit || "",
+takenAt: dose.taken_at
+  ? new Date(dose.taken_at).toISOString().slice(0, 16)
+  : localDateTimeValue(),
     })
 
     setShowLogModal(true)
@@ -314,6 +326,7 @@ export default function LoggingPage() {
       notes: form.notes || null,
       datum: form.datum,
       zeit: form.uhrzeit,
+      taken_at: new Date(form.takenAt).toISOString(),
     }
 
     try {
@@ -474,12 +487,12 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                     key={item.id}
                     onClick={() => !done && openFromPlanned(item)}
                     disabled={done}
-                    className={`w-full text-left rounded-3xl p-5 border transition ${
+                    className={`group relative w-full overflow-hidden rounded-3xl border p-5 text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] ${
                       done
-                        ? "bg-emerald-500/10 border-emerald-500/30 opacity-80"
-                        : "bg-[#0A0A0A] border-primary/20"
+                        ? "border-emerald-400/25 bg-emerald-400/10 opacity-80 shadow-[0_0_24px_rgba(52,211,153,0.08)]"
+                        : "border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] shadow-xl"
                     }`}
-                  >
+                  ><div className={`absolute left-0 top-0 h-full w-1 ${done ? "bg-emerald-400" : "bg-primary"}`} />
                     <div className="flex justify-between items-start gap-3">
                       <div>
                         <p className="font-semibold">{item.name}</p>
@@ -572,8 +585,13 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
             return (
               <div
                 key={dose.id}
-                className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30 relative"
-              >
+                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01]"
+                
+              ><div
+                className={`absolute left-0 top-0 h-full w-1 ${
+                  oral ? "bg-blue-400" : "bg-emerald-400"
+                }`}
+              />
                 <div
                   onClick={() => openEdit(dose)}
                   className="cursor-pointer pr-12"
@@ -582,10 +600,10 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span
-                          className={`text-xs px-3 py-1 rounded-full ${
+                          className={`text-xs px-3 py-1 rounded-full border ${  
                             oral
-                              ? "bg-blue-500/10 text-blue-400"
-                              : "bg-emerald-500/10 text-emerald-400"
+                              ? "border-blue-400/20 bg-blue-400/10 text-blue-300"
+                              : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
                           }`}
                         >
                           {oral ? "Oral" : dose.methode || "Injection"}
@@ -641,8 +659,8 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
       <BottomNav />
 
       {showLogModal && (
-        <div className="fixed inset-0 bg-black/90 z-[70] flex items-end">
-          <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[92vh] overflow-auto">
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
+          <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[92vh] overflow-auto backdrop-blur-2xl">
             <h2 className="text-2xl font-semibold mb-6">
               {isEditing ? "Dosis bearbeiten" : "Neue Dosis eintragen"}
             </h2>
@@ -650,7 +668,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
             <div className="space-y-6">
               {!isEditing && (
                 <Field label="Substanz">
-                  <select value={form.compound_id} onChange={(e) => handleCompoundChange(e.target.value)} className="input">
+                  <select value={form.compound_id} onChange={(e) => handleCompoundChange(e.target.value)} className={inputClass}>
                     <option value="">Substanz auswählen...</option>
                     {compounds.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -696,7 +714,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                       <p className="text-xs text-emerald-400 mb-2">
                         Zuletzt benutzt: {lastInjectionSite}
                       </p>
-                      <select value={form.stelle} onChange={(e) => setForm({ ...form, stelle: e.target.value })} className="input">
+                      <select value={form.stelle} onChange={(e) => setForm({ ...form, stelle: e.target.value })} className={inputClass}>
                         <option value="Rechte Schulter">Rechte Schulter</option>
                         <option value="Linke Schulter">Linke Schulter</option>
                       </select>
@@ -705,13 +723,24 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="Datum">
-                      <input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} className="input" />
+                      <input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} className={inputClass} />
                     </Field>
 
                     <Field label="Uhrzeit">
-                      <input type="time" value={form.uhrzeit} onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })} className="input" />
+                      <input type="time" value={form.uhrzeit} onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })} className={inputClass} />
                     </Field>
                   </div>
+
+                  <Field label="Exakter Zeitpunkt">
+                    <input
+                      type="datetime-local"
+                      value={form.takenAt}
+                      onChange={(e) =>
+                        setForm({ ...form, takenAt: e.target.value })
+                      }
+                      className="input"
+                    />
+                  </Field>
 
                   <Field label="Notizen optional">
                     <textarea

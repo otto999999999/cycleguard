@@ -24,6 +24,7 @@ interface Compound {
   remaining_pills?: number | null
   manufacturer?: string | null
   price?: number | null
+  half_life_hours?: number | null
 }
 
 const compoundTypes = [
@@ -63,6 +64,7 @@ export default function CompoundsPage() {
     remainingPills: 100,
     manufacturer: "",
     price: 0,
+    halfLifeHours: 0,
   })
 
   const isOralType = (type: string) => ORAL_TYPES.includes(type)
@@ -85,6 +87,7 @@ export default function CompoundsPage() {
       remainingPills: 100,
       manufacturer: "",
       price: 0,
+      halfLifeHours: 0,
     })
   }
 
@@ -147,6 +150,7 @@ export default function CompoundsPage() {
       remainingPills: c.remaining_pills ?? c.pills_per_bottle ?? 100,
       manufacturer: c.manufacturer || "",
       price: c.price ?? 0,
+      halfLifeHours: c.half_life_hours ?? 0,
     })
 
     setShowModal(true)
@@ -172,6 +176,7 @@ export default function CompoundsPage() {
       type: form.type,
       manufacturer: form.manufacturer.trim() || null,
       price: form.price || null,
+      half_life_hours: form.halfLifeHours || null,
       user_id: session.user.id,
     }
 
@@ -276,13 +281,16 @@ export default function CompoundsPage() {
   }
 
   const inputClass =
-    "w-full bg-[#181818] border border-white/5 focus:border-primary rounded-2xl p-4 outline-none transition"
+    "w-full rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-4 outline-none transition-all duration-200 focus:border-emerald-400/40 focus:bg-white/[0.05]"
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-32">
       <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20">
         <div className="flex items-center justify-between px-5 py-4">
-          <Link href="/" className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center">
+          <Link
+            href="/"
+            className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+          >
             <ChevronLeft className="w-5 h-5" />
           </Link>
 
@@ -300,7 +308,10 @@ export default function CompoundsPage() {
             <h2 className="text-2xl font-medium">Keine Substanzen</h2>
             <p className="text-muted-foreground mt-3 mb-8">Füge deine ersten Substanzen hinzu</p>
 
-            <button onClick={openAddModal} className="bg-primary px-8 py-4 rounded-2xl font-medium flex items-center gap-2 mx-auto">
+            <button
+              onClick={openAddModal}
+              className="mx-auto flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 px-8 py-4 font-bold text-black shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            >
               <Plus className="w-5 h-5" />
               Neue Substanz hinzufügen
             </button>
@@ -312,9 +323,14 @@ export default function CompoundsPage() {
               const oral = isOralType(c.type)
 
               return (
-                <div key={c.id} className="bg-[#0A0A0A] rounded-3xl p-5 border border-border/30">
+                <div
+                  key={c.id}
+                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01]"
+                >
+                  <div className={`absolute left-0 top-0 h-full w-1 ${oral ? "bg-blue-400" : "bg-emerald-400"}`} />
+
                   <div className="flex justify-between gap-4">
-                    <div className="min-w-0">
+                    <div className="min-w-0 pl-2">
                       <h3 className="font-semibold text-lg truncate">{c.name}</h3>
 
                       {oral ? (
@@ -322,7 +338,7 @@ export default function CompoundsPage() {
                           {c.dose_per_pill} {c.pill_unit} • {c.pills_per_bottle} Pillen/Flasche
                         </p>
                       ) : (
-                        <p className="text-sm text-blue-400">
+                        <p className="text-sm text-emerald-400">
                           {c.concentration} {c.concentration_unit} • {c.packaging} {c.size_ml}ml • {c.method}
                         </p>
                       )}
@@ -330,6 +346,16 @@ export default function CompoundsPage() {
                       <p className={`font-medium mt-1 ${stockColor}`}>
                         {count} {unit} in Stock{c.price ? ` • €${c.price} pro Stk.` : ""}
                       </p>
+
+                      {c.half_life_hours ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Halbwertszeit: {c.half_life_hours} Stunden
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Keine Halbwertszeit eingetragen
+                        </p>
+                      )}
 
                       {oral && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -343,11 +369,17 @@ export default function CompoundsPage() {
                     </div>
 
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => openEditModal(c)} className="p-3 bg-[#111111] rounded-2xl">
+                      <button
+                        onClick={() => openEditModal(c)}
+                        className="p-3 rounded-2xl border border-white/10 bg-white/[0.03] transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
+                      >
                         <Pencil className="w-5 h-5" />
                       </button>
 
-                      <button onClick={() => handleDeleteClick(c.id)} className="p-3 bg-red-500/10 text-red-400 rounded-2xl">
+                      <button
+                        onClick={() => handleDeleteClick(c.id)}
+                        className="p-3 bg-red-500/10 text-red-400 rounded-2xl transition-all duration-200 hover:bg-red-500/20 active:scale-95"
+                      >
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
@@ -359,18 +391,21 @@ export default function CompoundsPage() {
         )}
       </div>
 
-      <button onClick={openAddModal} className="fixed bottom-32 right-6 w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-2xl z-50">
+      <button
+        onClick={openAddModal}
+        className="fixed bottom-32 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_32px_rgba(52,211,153,0.35)] transition-all duration-200 hover:scale-110 active:scale-95"
+      >
         <Plus className="w-7 h-7" />
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/90 z-[70] flex items-end">
-          <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
+          <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[92vh] overflow-y-auto backdrop-blur-2xl">
             <h2 className="text-2xl font-semibold mb-1">
               {editingCompound ? "Substanz bearbeiten" : "Neue Substanz hinzufügen"}
             </h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Trage Dosierung, Bestand und Hersteller sauber ein.
+              Trage Dosierung, Bestand, Hersteller und Halbwertszeit ein.
             </p>
 
             <div className="space-y-6">
@@ -394,10 +429,25 @@ export default function CompoundsPage() {
                     ))}
                   </select>
                 </Field>
+
+                <Field label="Halbwertszeit in Stunden">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={form.halfLifeHours}
+                    onChange={(e) => setForm({ ...form, halfLifeHours: Number(e.target.value) })}
+                    placeholder="z. B. 120"
+                    className={inputClass}
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Beispiel: 120 = ca. 5 Tage. Wird später für Level-Charts benutzt.
+                  </p>
+                </Field>
               </div>
 
               {isOralType(form.type) && (
-                <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+                <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">
                   <div>
                     <h3 className="font-semibold text-lg">Pillen / Oral Bestand</h3>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -457,7 +507,7 @@ export default function CompoundsPage() {
               )}
 
               {form.type === "Injectable" && (
-                <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+                <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">
                   <div>
                     <h3 className="font-semibold text-lg">Injectable Bestand</h3>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -531,7 +581,11 @@ export default function CompoundsPage() {
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, method: "IM" })}
-                        className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "IM" ? "bg-primary text-white" : "bg-[#181818]"}`}
+                        className={`flex-1 py-4 rounded-2xl font-medium transition-all duration-200 ${
+                          form.method === "IM"
+                            ? "bg-gradient-to-r from-emerald-400 to-emerald-500 text-black"
+                            : "bg-white/[0.03] border border-white/10"
+                        }`}
                       >
                         IM
                       </button>
@@ -539,7 +593,11 @@ export default function CompoundsPage() {
                       <button
                         type="button"
                         onClick={() => setForm({ ...form, method: "SubQ" })}
-                        className={`flex-1 py-4 rounded-2xl font-medium ${form.method === "SubQ" ? "bg-primary text-white" : "bg-[#181818]"}`}
+                        className={`flex-1 py-4 rounded-2xl font-medium transition-all duration-200 ${
+                          form.method === "SubQ"
+                            ? "bg-gradient-to-r from-emerald-400 to-emerald-500 text-black"
+                            : "bg-white/[0.03] border border-white/10"
+                        }`}
                       >
                         SubQ
                       </button>
@@ -548,7 +606,7 @@ export default function CompoundsPage() {
                 </div>
               )}
 
-              <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+              <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">
                 <h3 className="font-semibold text-lg">Zusatzinfos</h3>
 
                 <Field label="Marke / Hersteller">
@@ -572,11 +630,14 @@ export default function CompoundsPage() {
                 </Field>
               </div>
 
-              <button onClick={handleSave} className="w-full bg-primary py-4 rounded-2xl font-semibold">
+              <button
+                onClick={handleSave}
+                className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 py-4 font-bold text-black shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]"
+              >
                 {editingCompound ? "Änderungen speichern" : "Substanz hinzufügen"}
               </button>
 
-              <button onClick={() => setShowModal(false)} className="w-full bg-[#111111] py-4 rounded-2xl font-semibold">
+              <button onClick={() => setShowModal(false)} className="w-full rounded-2xl border border-white/10 bg-white/[0.03] py-4 font-semibold">
                 Abbrechen
               </button>
             </div>
@@ -585,8 +646,8 @@ export default function CompoundsPage() {
       )}
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/90 z-[80] flex items-center justify-center px-5">
-          <div className="bg-[#0A0A0A] rounded-3xl p-8 w-full max-w-sm text-center">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 px-5 backdrop-blur-md">
+          <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-8 text-center">
             <Trash2 className="w-14 h-14 text-red-500 mx-auto mb-5" />
             <h3 className="text-xl font-semibold mb-2">Substanz löschen?</h3>
             <p className="text-muted-foreground mb-8">Das kann nicht rückgängig gemacht werden.</p>
