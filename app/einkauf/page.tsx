@@ -5,7 +5,11 @@ import Link from "next/link"
 import { AlertTriangle, Calendar, Edit, Pill, Plus, Syringe, X } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
-
+import { motion, AnimatePresence } from "framer-motion"
+import { PlusCircle } from "lucide-react"
+import CountUp from "react-countup"
+import PullToRefresh from "react-simple-pull-to-refresh"
+import { Search } from "lucide-react"
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 export default function EinkaufPage() {
@@ -13,6 +17,7 @@ export default function EinkaufPage() {
   const [activeCycle, setActiveCycle] = useState<any>(null)
 
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [showStockSelect, setShowStockSelect] = useState(false)
   const [showStockEdit, setShowStockEdit] = useState(false)
@@ -26,7 +31,11 @@ export default function EinkaufPage() {
   })
 
   const isOral = (c: any) => ORAL_TYPES.includes(c.type)
-
+const haptic = () => {
+  if (typeof window !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(12)
+  }
+}
   const loadCompounds = async () => {
     setLoading(true)
     const { data: { session } } = await supabase.auth.getSession()
@@ -228,28 +237,115 @@ remaining_ml: c.remaining_ml || 0,
 
   return (
     <div className="min-h-screen bg-[#050505] pb-32 text-foreground">
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute top-[120px] right-[-100px] w-[260px] h-[260px] bg-purple-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-blue-500/10 rounded-full blur-3xl" />
+</div>
       <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
         <h1 className="text-2xl font-bold tracking-tight">Einkauf</h1>
       </header>
+<div className="sticky top-[73px] z-40 px-5 pt-3">
+  <div className="rounded-2xl bg-black/40 backdrop-blur-xl border border-white/5 px-4 py-3 flex items-center justify-between text-xs">
+    <div>
+      <p className="text-muted-foreground">Compounds</p>
+      <p className="font-semibold">{compounds.length}</p>
+    </div>
 
+    <div>
+      <p className="text-muted-foreground">Low Stock</p>
+      <p className="font-semibold text-orange-400">
+        {lowStockItems.length}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-muted-foreground">Injectables</p>
+      <p className="font-semibold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]">
+        {stats.injectables}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-muted-foreground">Pillen</p>
+      <p className="font-semibold text-blue-400">
+        {stats.orals}
+      </p>
+    </div>
+  </div>
+</div>
       <div className="px-5 pt-6 grid grid-cols-2 gap-3">
         <StatCard title="Gesamtwert" value={`€${Math.round(stats.gesamtwert)}`} icon="💰" wide onClick={() => setShowBreakdown(true)} />
         <StatCard title="Injectables" value={stats.injectables} icon={<Syringe className="w-5 h-5 text-green-400" />} />
         <StatCard title="Pillen" value={stats.orals} icon={<Pill className="w-5 h-5 text-blue-400" />} />
-        <StatCard title="Low Stock" value={stats.lowStock} icon={<AlertTriangle className="w-5 h-5 text-orange-400" />} wide orange />
+        <StatCard title="Low Stock" value={stats.lowStock} icon={<AlertTriangle className="w-5 h-5 text-orange-400 drop-shadow-[0_0_6px_rgba(251,146,60,0.45)]" />} wide orange />
+      </div>
+<PullToRefresh
+  onRefresh={async () => {
+    haptic()
+    await loadCompounds()
+  }}
+  pullingContent={
+    <div className="text-center py-2 text-xs text-muted-foreground">
+      Nach unten ziehen...
+    </div>
+  }
+  refreshingContent={
+    <div className="text-center py-2 text-xs text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]">
+      Aktualisiere Bestand...
+    </div>
+  }
+>
+      <section className="px-5 mt-8">
+        <div className="rounded-3xl p-6 bg-white/[0.03] border border-white/5 backdrop-blur-md shadow-xl shadow-black/10">
+          <h3 className="font-semibold mb-4">Aktueller Bestand</h3>
+<div className="mb-5 relative">
+  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
+  <input
+    type="text"
+    placeholder="Substanz suchen..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    className="w-full bg-white/[0.04] border border-white/5 rounded-2xl pl-11 pr-4 py-3 text-sm outline-none focus:border-emerald-400/30 transition-all"
+  />
+</div>
+          {loading ? (
+            <div className="space-y-4 animate-pulse">
+  {[...Array(4)].map((_, i) => (
+    <div
+      key={i}
+      className="rounded-3xl p-5 bg-white/[0.03] border border-white/5 backdrop-blur-md shadow-2xl shadow-black/20"
+    >
+      <div className="flex justify-between">
+        <div className="space-y-3">
+          <div className="h-4 w-32 bg-white/10 rounded-full" />
+          <div className="h-3 w-20 bg-white/5 rounded-full" />
+        </div>
+
+        <div className="space-y-3 flex flex-col items-end">
+          <div className="h-4 w-16 bg-white/10 rounded-full" />
+          <div className="h-3 w-12 bg-white/5 rounded-full" />
+        </div>
       </div>
 
-      <section className="px-5 mt-8">
-        <div className="bg-[#0A0A0A] rounded-3xl p-6">
-          <h3 className="font-semibold mb-4">Aktueller Bestand</h3>
-
-          {loading ? (
-            <p className="text-center py-12 text-muted-foreground">Lade...</p>
+      <div className="mt-5 h-2.5 bg-white/5 rounded-full overflow-hidden">
+        <div className="h-full w-1/2 bg-white/10 rounded-full" />
+      </div>
+    </div>
+  ))}
+</div>
           ) : compounds.length === 0 ? (
             <p className="text-center py-12 text-muted-foreground">Noch keine Substanzen</p>
           ) : (
             <div className="space-y-4">
-              {compounds.map((c) => {
+              {compounds
+  .filter((c) =>
+    c.name.toLowerCase().includes(search.toLowerCase())
+  )
+  .map((c) => {
                 const oral = isOral(c)
                 const qty = getQuantity(c)
                 const daysLeft = getEstimatedDaysLeft(c)
@@ -292,12 +388,23 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
 
                 
                 return (
-                  <div key={c.id} className="bg-[#111111] rounded-3xl p-5">
+<motion.div
+  key={c.id}
+  initial={{ opacity: 0, y: 12 }}
+  animate={{ opacity: 1, y: 0 }}
+  whileHover={{
+  scale: 1.01,
+}}
+  transition={{
+    duration: 0.25,
+  }}
+  className="rounded-3xl p-5 bg-white/[0.03] border border-white/5 backdrop-blur-md shadow-2xl shadow-black/20"
+>
                     <div className="flex justify-between items-start gap-4">
                       <div>
                         <p className="font-medium">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.type}</p>
-                        <p className="mt-1 text-xs text-emerald-400">
+                        <p className="mt-1 text-xs text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]">
   {plannedWeekly
     ? `Geplant: ${Math.round(plannedWeekly)}mg/Woche`
     : "Kein Wochenverbrauch geplant"}
@@ -310,7 +417,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
         ? "text-red-400"
         : daysLeft <= 14
           ? "text-orange-400"
-          : "text-emerald-400"
+          : "text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]"
   }`}
 >
   {daysLeft === null
@@ -340,7 +447,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
   <>
     <p className="font-semibold">
       {remainingMg !== null
-        ? `${remainingMg}mg`
+        ? <><CountUp end={remainingMg || 0} duration={0.6} />mg</>
         : `${qty} ${c.packaging}`}
     </p>
 
@@ -357,20 +464,26 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                     {(
                       <div className="mt-4">
                         <div className="h-2.5 rounded-full overflow-hidden bg-[#222]">
-                          <div
-                            className={`h-full transition-all ${
-                              percentage <= 20
-                                ? "bg-red-500"
-                                : percentage <= 50
-                                  ? "bg-orange-400"
-                                  : "bg-gradient-to-r from-emerald-400 to-green-500"
-                            }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
+                          
+<motion.div
+  initial={{ width: 0 }}
+  animate={{ width: `${percentage}%` }}
+  transition={{
+    duration: 0.6,
+    ease: "easeOut",
+  }}
+  className={`h-full ${
+    percentage <= 20
+      ? "bg-red-500"
+      : percentage <= 50
+        ? "bg-orange-400"
+        : "bg-gradient-to-r from-emerald-400 to-green-500"
+  }`}
+/>
+</div>
 
                         <div className="flex justify-between text-xs mt-1">
-                          <span className={percentage <= 20 ? "text-red-500" : percentage <= 50 ? "text-orange-400" : "text-emerald-400"}>
+                          <span className={percentage <= 20 ? "text-red-500" : percentage <= 50 ? "text-orange-400" : "text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]"}>
                             {daysLeft === null
   ? `${percentage}% verbleibend`
   : `${daysLeft} Tage Reichweite`}
@@ -380,14 +493,19 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
   {oral
     ? `${c.remaining_pills || 0}/${totalPills} Pillen`
     : remainingMg !== null
-      ? `${remainingMg}mg übrig • ${Number(c.remaining_ml || 0).toFixed(2)}ml`
+      ? (
+  <>
+    <CountUp end={remainingMg || 0} duration={0.6} />
+    mg übrig • {Number(c.remaining_ml || 0).toFixed(2)}ml
+  </>
+)
       : `${qty} ${c.packaging}`}
 </span>
                           </span>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
@@ -426,14 +544,31 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
               <div className="font-medium">Neue Substanz hinzufügen</div>
             </Link>
 
-            <button onClick={() => setShowStockSelect(true)} className="w-full flex items-center gap-3 bg-[#111111] rounded-2xl p-4 text-left">
+            <button onClick={() => {
+  haptic()
+  setShowStockSelect(true)
+}} className="w-full flex items-center gap-3 bg-[#111111] rounded-2xl p-4 text-left">
               <IconBox orange><Edit className="w-5 h-5" /></IconBox>
               <div className="font-medium">Bestand manuell anpassen</div>
             </button>
           </div>
         </Panel>
       </section>
-
+<Link
+  href="/logging"
+  className="fixed bottom-24 right-5 z-50"
+  onClick={haptic}
+>
+  <motion.div
+    whileTap={{ scale: 0.92 }}
+    whileHover={{ scale: 1.04 }}
+    className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-[0_0_40px_rgba(74,222,128,0.35)] flex items-center justify-center"
+  >
+    <PlusCircle className="w-8 h-8 text-black" />
+  </motion.div>
+</Link>
+</PullToRefresh>
+<div className="fixed bottom-0 left-0 right-0 h-32 pointer-events-none bg-gradient-to-t from-black via-black/70 to-transparent z-40" />
       <BottomNav />
 
       {showStockSelect && (
@@ -513,7 +648,9 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
 
           <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl p-6 text-center">
             <p className="opacity-75">Gesamt</p>
-            <p className="text-4xl font-bold">€{Math.round(totalValue)}</p>
+            <p className="text-4xl font-bold">
+  €<CountUp end={Math.round(totalValue)} duration={0.8} />
+</p>
           </div>
         </Modal>
       )}
@@ -523,7 +660,11 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
 
 function StatCard({ title, value, icon, wide, orange, onClick }: any) {
   return (
-    <div
+    <motion.div
+  whileTap={{ scale: 0.97 }}
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.2 }}
       onClick={onClick}
       className={`bg-[#0A0A0A] rounded-3xl p-5 ${wide ? "col-span-2" : ""} ${orange ? "border border-orange-500/30" : ""} ${onClick ? "cursor-pointer active:scale-[0.985]" : ""}`}
     >
@@ -531,16 +672,26 @@ function StatCard({ title, value, icon, wide, orange, onClick }: any) {
         <div className="w-10 h-10 bg-purple-500/10 rounded-2xl flex items-center justify-center text-2xl">{icon}</div>
         <div>
           <p className="text-xs text-muted-foreground">{title}</p>
-          <p className={`text-2xl font-bold ${orange ? "text-orange-400" : ""}`}>{value}</p>
+          <p
+  className={`text-2xl font-bold ${
+    orange ? "text-orange-400" : ""
+  }`}
+>
+  {typeof value === "number" ? (
+    <CountUp end={value} duration={0.5} />
+  ) : (
+    value
+  )}
+</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
 function Panel({ title, icon, children, red }: any) {
   return (
-    <div className="bg-[#0A0A0A] rounded-3xl p-6">
+    <div className="rounded-3xl p-6 bg-white/[0.03] border border-white/5 backdrop-blur-md shadow-xl shadow-black/10">
       <div className="flex items-center gap-2 mb-4">
         {icon}
         <h3 className={`font-semibold ${red ? "text-red-400" : ""}`}>{title}</h3>
@@ -558,20 +709,49 @@ function IconBox({ children, orange }: any) {
   )
 }
 
+
+
 function Modal({ title, children, onClose }: any) {
   return (
-    <div className="fixed inset-0 bg-black/90 z-[80] flex items-end">
-      <div className="bg-[#0A0A0A] w-full rounded-t-3xl p-6 max-h-[85vh] overflow-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <button onClick={onClose}><X className="w-6 h-6" /></button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-end"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ y: "100%" }}
+          animate={{ y: 0 }}
+          exit={{ y: "100%" }}
+          transition={{
+            type: "spring",
+            damping: 24,
+            stiffness: 240,
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="bg-[#0A0A0A] w-full rounded-t-[32px] p-6 max-h-[85vh] overflow-auto border-t border-white/10"
+        >
+          <div className="w-14 h-1.5 rounded-full bg-white/10 mx-auto mb-5" />
+
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">{title}</h2>
+
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {children}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
-
 function NumberInput({ label, value, onChange }: any) {
   return (
     <div>
