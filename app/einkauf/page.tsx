@@ -363,8 +363,7 @@ toast.success("Bestand aktualisiert")
           ) : compounds.length === 0 ? (
             <p className="text-center py-12 text-muted-foreground">Noch keine Substanzen</p>
           ) : (
-            <AnimatePresence mode="popLayout">
-  <div className="space-y-4">
+<div className="space-y-4">
               {compounds
   .filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -413,7 +412,6 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                 
                 return (
 <motion.div
-  layout
   key={c.id}
   exit={{
     opacity: 0,
@@ -421,9 +419,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
   }}
   initial={{ opacity: 0, y: 12 }}
   animate={{ opacity: 1, y: 0 }}
-  whileHover={{
-  scale: 1.01,
-}}
+
   transition={{
     duration: 0.25,
   }}
@@ -524,7 +520,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
     : remainingMg !== null
       ? (
   <>
-    <CountUp end={remainingMg || 0} duration={0.6} />
+    {remainingMg}
     mg übrig • {Number(c.remaining_ml || 0).toFixed(2)}ml
   </>
 )
@@ -538,7 +534,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                 )
               })}
             </div>
-            </AnimatePresence>
+            
           )}
         </div>
         
