@@ -61,15 +61,20 @@ const { data: cycleData, error: cycleError } = await supabase
   .maybeSingle()
 
 if (cycleError) {
-  alert("Fehler beim Laden des aktiven Cycles: " + cycleError.message)
+  haptic()
+  toast.error(
+    "Fehler beim Laden des aktiven Cycles: " +
+      cycleError.message
+  )
   setActiveCycle(null)
 } else {
   setActiveCycle(cycleData || null)
 }
 
-
-
-if (error) alert("Fehler beim Laden: " + error.message)
+if (error) {
+  haptic()
+  toast.error("Fehler beim Laden: " + error.message)
+}
 
 setCompounds(data || [])
 setLoading(false)
