@@ -41,7 +41,10 @@ const dateKeyLocal = (date: Date) => {
   const d = String(date.getDate()).padStart(2, "0")
   return `${y}-${m}-${d}`
 }
-
+const combineDateAndTime = (date: string, time: string) => {
+  if (!date || !time) return localDateTimeValue()
+  return `${date}T${time}`
+}
 export default function LoggingPage() {
   const [doses, setDoses] = useState<Dose[]>([])
   const [compounds, setCompounds] = useState<any[]>([])
@@ -370,7 +373,10 @@ toast.error("Nicht eingeloggt")
       notes: form.notes || null,
       datum: form.datum,
       zeit: form.uhrzeit,
-      taken_at: new Date(form.takenAt).toISOString(),
+      taken_at: new Date(
+  combineDateAndTime(form.datum, form.uhrzeit)
+).toISOString(),
+      
     }
 
     try {
@@ -806,17 +812,6 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                       <input type="time" value={form.uhrzeit} onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })} className={inputClass} />
                     </Field>
                   </div>
-
-                  <Field label="Exakter Zeitpunkt">
-                    <input
-                      type="datetime-local"
-                      value={form.takenAt}
-                      onChange={(e) =>
-                        setForm({ ...form, takenAt: e.target.value })
-                      }
-                      className="input"
-                    />
-                  </Field>
 
                   <Field label="Notizen optional">
                     <textarea
