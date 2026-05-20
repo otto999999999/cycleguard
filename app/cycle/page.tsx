@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Edit, PlayCircle, Plus, Square, Trash2, X } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
-
+import { toast } from "sonner"
 const daysShort = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 const DAY_KEYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
@@ -16,7 +16,11 @@ const dateKeyLocal = (date: Date) => {
   const d = String(date.getDate()).padStart(2, "0")
   return `${y}-${m}-${d}`
 }
-
+const haptic = () => {
+  if (typeof window !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(12)
+  }
+}
 const todayKey = () => dateKeyLocal(new Date())
 
 export default function CyclePage() {
@@ -178,13 +182,15 @@ export default function CyclePage() {
 
   const saveCycle = async () => {
     if (!cycleName.trim()) {
-      alert("Bitte Cycle-Namen eingeben")
+      haptic()
+toast.error("Bitte Cycle-Namen eingeben")
       return
     }
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      alert("Nicht eingeloggt")
+      haptic()
+toast.error("Nicht eingeloggt")
       return
     }
 
@@ -208,11 +214,13 @@ export default function CyclePage() {
         .eq("user_id", session.user.id)
 
       if (error) {
-        alert("Fehler beim Bearbeiten: " + error.message)
+        haptic()
+toast.error("Fehler beim Bearbeiten: " + error.message)
         return
       }
 
-      alert("✅ Cycle aktualisiert!")
+      haptic()
+toast.success("Cycle aktualisiert")
     } else {
       const { error } = await supabase
         .from("cycles")
@@ -223,11 +231,13 @@ export default function CyclePage() {
         })
 
       if (error) {
-        alert("Fehler beim Erstellen: " + error.message)
+        haptic()
+toast.error("Fehler beim Erstellen: " + error.message)
         return
       }
 
-      alert("✅ Cycle erstellt!")
+      haptic()
+toast.success("Cycle erstellt")
     }
 
     setShowCycleModal(false)
@@ -261,7 +271,8 @@ export default function CyclePage() {
       .eq("user_id", session.user.id)
 
     if (error) {
-      alert("Fehler beim Starten: " + error.message)
+      haptic()
+toast.error("Fehler beim Starten: " + error.message)
       return
     }
 
@@ -278,7 +289,8 @@ export default function CyclePage() {
       .eq("id", cycle.id)
 
     if (error) {
-      alert("Fehler beim Stoppen: " + error.message)
+      haptic()
+toast.error("Fehler beim Stoppen: " + error.message)
       return
     }
 
@@ -294,7 +306,8 @@ export default function CyclePage() {
       .eq("id", cycle.id)
 
     if (error) {
-      alert("Fehler beim Löschen: " + error.message)
+      haptic()
+toast.error("Fehler beim Löschen: " + error.message)
       return
     }
 
@@ -411,7 +424,14 @@ export default function CyclePage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-32">
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute top-[120px] right-[-100px] w-[260px] h-[260px] bg-blue-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-purple-500/10 rounded-full blur-3xl" />
+</div>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 px-5 py-4 backdrop-blur-2xl">
         <h1 className="text-2xl font-bold">Cycle</h1>
       </header>
 
@@ -420,7 +440,7 @@ export default function CyclePage() {
           <p className="text-center text-muted-foreground py-20">Lade Cycles...</p>
         ) : cycles.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[65vh] text-center">
-            <div className="w-24 h-24 rounded-full bg-[#0A0A0A] flex items-center justify-center mx-auto mb-8">
+            <div className="w-24 h-24 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl flex items-center justify-center mx-auto mb-8">
               <PlayCircle className="w-12 h-12 text-muted-foreground" />
             </div>
             <h2 className="text-3xl font-semibold mb-3">Noch kein Cycle</h2>
@@ -448,10 +468,10 @@ export default function CyclePage() {
               return (
                 <div
                   key={cycle.id}
-                  className={`rounded-3xl p-5 border ${
+                  className={`rounded-[32px] p-5 border shadow-2xl backdrop-blur-xl transition-all duration-300 ${
                     cycle.active
-                      ? "bg-emerald-500/10 border-emerald-500/30"
-                      : "bg-[#0A0A0A] border-white/5"
+  ? "bg-gradient-to-br from-emerald-500/[0.10] to-[#080808] border-emerald-400/20 shadow-[0_0_40px_rgba(52,211,153,0.08)]"
+  : "bg-gradient-to-br from-[#101010] to-[#080808] border-white/10"
                   }`}
                 >
                   <div className="flex justify-between gap-4">
@@ -475,11 +495,11 @@ export default function CyclePage() {
                     </div>
 
                     <div className="flex gap-2 shrink-0">
-                      <button onClick={() => openEditModal(cycle)} className="p-3 bg-[#111111] rounded-2xl">
+                      <button onClick={() => openEditModal(cycle)} className="p-3 rounded-2xl border border-white/5 bg-white/[0.04] backdrop-blur-md active:scale-95 transition-all">
                         <Edit className="w-5 h-5" />
                       </button>
 
-                      <button onClick={() => deleteCycle(cycle)} className="p-3 bg-red-500/10 text-red-400 rounded-2xl">
+                      <button onClick={() => deleteCycle(cycle)} className="p-3 rounded-2xl border border-red-500/10 bg-red-500/10 text-red-400 backdrop-blur-md active:scale-95 transition-all">
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
@@ -494,9 +514,9 @@ export default function CyclePage() {
                         </div>
 
                         {!isTrt ? (
-                          <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
+                          <div className="h-3 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
                             <div
-                              className="h-full bg-emerald-500 rounded-full"
+                              className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-green-500 shadow-[0_0_16px_rgba(52,211,153,0.45)]"
                               style={{ width: `${progress.percent}%` }}
                             />
                           </div>
@@ -514,23 +534,23 @@ export default function CyclePage() {
                       </div>
 
                       <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-[#111111] rounded-2xl p-3">
+                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
                           <p className="font-semibold">{analysis.totalItems}</p>
                           <p className="text-muted-foreground">Stack</p>
                         </div>
 
-                        <div className="bg-[#111111] rounded-2xl p-3">
+                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
                           <p className="font-semibold text-blue-400">{analysis.oralCount}</p>
                           <p className="text-muted-foreground">Oral</p>
                         </div>
 
-                        <div className="bg-[#111111] rounded-2xl p-3">
+                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
                           <p className="font-semibold text-emerald-400">{analysis.injectableCount}</p>
                           <p className="text-muted-foreground">Inj.</p>
                         </div>
                       </div>
 
-                      <div className="bg-[#111111] rounded-2xl p-4">
+                      <div className="rounded-[24px] border border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010] p-4 backdrop-blur-xl shadow-xl">
                         <p className="text-sm font-semibold mb-2">Heute geplant</p>
 
                         {todayDue.length === 0 ? (
@@ -550,7 +570,7 @@ export default function CyclePage() {
                       </div>
 
                       {nextDose && (
-                        <div className="bg-[#111111] rounded-2xl p-4">
+                        <div className="rounded-[24px] border border-blue-400/10 bg-gradient-to-br from-blue-500/[0.06] to-[#101010] p-4 backdrop-blur-xl shadow-xl">
                           <p className="text-sm font-semibold mb-1">Nächste Dosis</p>
                           <p className="text-sm text-muted-foreground">
                             {nextDose.date} • {nextDose.items.map((x: any) => x.name).join(", ")}
@@ -836,14 +856,25 @@ export default function CyclePage() {
 
 function Modal({ title, children, onClose, high }: any) {
   return (
-    <div className="fixed inset-0 bg-black/90 z-[80] flex items-end">
-      <div className={`bg-[#0A0A0A] w-full rounded-t-3xl p-6 overflow-y-auto ${high ? "max-h-[92vh]" : "max-h-[90vh]"}`}>
+    <div className="fixed inset-0 z-[80] flex items-end bg-black/80 backdrop-blur-md">
+      <div
+        className={`w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 overflow-y-auto backdrop-blur-2xl ${
+          high ? "max-h-[92vh]" : "max-h-[90vh]"
+        }`}
+      >
+        <div className="w-14 h-1.5 rounded-full bg-white/10 mx-auto mb-5" />
+
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">{title}</h2>
-          <button onClick={onClose} className="w-10 h-10 rounded-xl bg-[#111111] flex items-center justify-center">
+
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
+
         {children}
       </div>
     </div>
@@ -874,7 +905,7 @@ function Field({ label, children }: any) {
 function StackEditor({ items, onOpen, onRemove, emptyText, renderLine, pct }: any) {
   if (!items.length) {
     return (
-      <div className="bg-[#181818] rounded-2xl p-6 text-center text-muted-foreground">
+      <div className="rounded-[24px] border border-white/5 bg-white/[0.03] backdrop-blur-md p-6 text-center text-muted-foreground">
         {emptyText}
       </div>
     )
@@ -883,7 +914,11 @@ function StackEditor({ items, onOpen, onRemove, emptyText, renderLine, pct }: an
   return (
     <div className="space-y-4">
       {items.map((comp: any) => (
-        <div key={comp.id} onClick={() => onOpen(comp)} className="bg-[#181818] rounded-2xl p-4 flex justify-between gap-3 cursor-pointer">
+        <div key={comp.id} onClick={() => onOpen(comp)} className={`rounded-[24px] border p-4 flex justify-between gap-3 cursor-pointer transition-all duration-300 active:scale-[0.985] backdrop-blur-xl shadow-xl ${
+  pct
+    ? "border-purple-500/10 bg-gradient-to-br from-purple-500/[0.06] to-[#101010]"
+    : "border-emerald-500/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010]"
+}`}>
           <div>
             <p className="font-semibold">
               {comp.name} {pct && <span className="text-purple-400">(PCT)</span>}
@@ -911,7 +946,7 @@ function SelectCompoundModal({ title, compounds, onSelect, onClose, isOral }: an
     <Modal title={title} onClose={onClose}>
       <div className="space-y-2">
         {compounds.length === 0 ? (
-          <div className="bg-[#111111] rounded-2xl p-6 text-center text-muted-foreground">
+          <div className="rounded-[24px] border border-white/5 bg-white/[0.03] backdrop-blur-md p-6 text-center text-muted-foreground">
             Keine Substanzen vorhanden
           </div>
         ) : (
@@ -949,7 +984,11 @@ function CycleStackMini({ title, items, renderLine, pct }: any) {
       ) : (
         <div className="space-y-2">
           {items.map((item: any) => (
-            <div key={item.id} className="bg-[#111111] rounded-2xl p-3">
+            <div key={item.id} className={`rounded-2xl border p-3 backdrop-blur-md ${
+  pct
+    ? "border-purple-500/10 bg-purple-500/[0.05]"
+    : "border-white/5 bg-white/[0.03]"
+}`}>
               <p className="font-medium text-sm">
                 {item.name} {pct && <span className="text-purple-400">(PCT)</span>}
               </p>

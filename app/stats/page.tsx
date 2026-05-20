@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  ReferenceLine,
 } from "recharts"
 
 interface Compound {
@@ -44,6 +45,9 @@ export default function StatsPage() {
   const [rangeHours, setRangeHours] = useState(168)
   const [loading, setLoading] = useState(true)
 
+
+const currentValue =
+  chartData[chartData.length - 1]?.level || 0
 useEffect(() => {
   loadStats()
 
@@ -297,7 +301,25 @@ const toggleCompound = (name: string) => {
     borderRadius: "20px",
   }}
 />
+{levels
+  .filter((item) => !hiddenCompounds.includes(item.name))
+  .map((item, index) => {
+    const currentValue =
+      chartData[chartData.length - 1]?.[item.name] ?? 0
 
+    if (!currentValue) return null
+
+    return (
+      <ReferenceLine
+        key={`ref-${item.name}`}
+        y={currentValue}
+        stroke="#ef4444"
+strokeOpacity={0.22}
+        strokeDasharray="6 6"
+        
+      />
+    )
+  })}
 {levels
   .filter(
     (item) => !hiddenCompounds.includes(item.name)
@@ -468,7 +490,25 @@ const toggleCompound = (name: string) => {
     borderRadius: "20px",
   }}
 />
+{levels
+  .filter((item) => !hiddenCompounds.includes(item.name))
+  .map((item, index) => {
+    const currentValue =
+      chartData[chartData.length - 1]?.[item.name] ?? 0
 
+    if (!currentValue) return null
+
+    return (
+      <ReferenceLine
+        key={`ref-${item.name}`}
+        y={currentValue}
+        stroke="#ef4444"
+strokeOpacity={0.22}
+        strokeDasharray="6 6"
+        
+      />
+    )
+  })}
 {levels
   .filter(
     (item) => !hiddenCompounds.includes(item.name)

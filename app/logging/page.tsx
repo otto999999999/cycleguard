@@ -5,7 +5,8 @@ import { Syringe, Plus, Trash2, Clock, CalendarDays, CheckCircle } from "lucide-
 import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
-
+import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
 interface Dose {
   id: string
   compound_id?: string | null
@@ -21,7 +22,12 @@ interface Dose {
 
 const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
-
+const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
+const haptic = () => {
+  if (typeof window !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(12)
+  }
+}
 const todayKey = () => dateKeyLocal(new Date())
 const localDateTimeValue = () =>
   new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -331,12 +337,14 @@ const adjustInjectableStock = async (
 
   const handleLogDose = async () => {
     if (!form.compound_id && !isEditing) {
-      alert("Bitte Substanz auswählen!")
+      haptic()
+toast.error("Bitte Substanz auswählen")
       return
     }
 
     if (!form.menge || !form.datum || !form.uhrzeit) {
-      alert("Bitte Menge, Datum und Uhrzeit ausfüllen!")
+      haptic()
+toast.error("Bitte Menge, Datum und Uhrzeit ausfüllen")
       return
     }
 
@@ -345,7 +353,8 @@ const adjustInjectableStock = async (
     } = await supabase.auth.getSession()
 
     if (!session) {
-      alert("Nicht eingeloggt")
+      haptic()
+toast.error("Nicht eingeloggt")
       return
     }
 
@@ -411,14 +420,21 @@ const adjustInjectableStock = async (
         setLastInjectionSite(form.stelle)
       }
 
-      alert(isEditing ? "✅ Änderungen gespeichert!" : "✅ Dosis eingetragen!")
+      haptic()
+
+toast.success(
+  isEditing
+    ? "Änderungen gespeichert"
+    : "Dosis eingetragen"
+)
       setShowLogModal(false)
       setIsEditing(false)
       setEditingId(null)
       setSelectedDose(null)
       await loadData()
     } catch (error: any) {
-      alert("Fehler: " + error.message)
+      haptic()
+toast.error("Fehler: " + error.message)
       console.error(error)
     }
   }
@@ -450,7 +466,8 @@ const adjustInjectableStock = async (
       setSelectedDose(null)
       await loadData()
     } catch (error: any) {
-      alert("Fehler beim Löschen: " + error.message)
+      haptic()
+toast.error("Fehler beim Löschen: " + error.message)
     }
   }
 
@@ -498,7 +515,14 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
 
   return (
     <div className="min-h-screen bg-[#050505] pb-32">
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20 px-5 py-4">
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute top-[180px] right-[-100px] w-[260px] h-[260px] bg-blue-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-purple-500/10 rounded-full blur-3xl" />
+</div>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 px-5 py-4 backdrop-blur-2xl">
         <h1 className="text-2xl font-bold">Logging</h1>
       </header>
 
@@ -613,7 +637,11 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
     {Object.entries(groupedDoses).map(([dateKey, entries]) => (
       <div key={dateKey}>
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-2 h-2 rounded-full bg-primary" />
+          <div className="relative flex items-center justify-center">
+  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+
+  <div className="absolute w-4 h-4 rounded-full bg-emerald-400/20 animate-ping" />
+</div>
 
           <h3 className="text-sm font-semibold text-muted-foreground">
             {getDateLabel(dateKey)}
@@ -629,7 +657,11 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
             return (
               <div
                 key={dose.id}
-                className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01]"
+                className={`group relative overflow-hidden rounded-[28px] border p-5 shadow-2xl transition-all duration-300 active:scale-[0.985] backdrop-blur-xl ${
+  oral
+    ? "border-blue-400/10 bg-gradient-to-br from-blue-500/[0.07] to-[#080808]"
+    : "border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.07] to-[#080808]"
+}`}
                 
               ><div
                 className={`absolute left-0 top-0 h-full w-1 ${
@@ -644,7 +676,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span
-                          className={`text-xs px-3 py-1 rounded-full border ${  
+                          className={`text-[11px] font-medium px-3 py-1 rounded-full border backdrop-blur-md shadow-sm ${
                             oral
                               ? "border-blue-400/20 bg-blue-400/10 text-blue-300"
                               : "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"

@@ -338,7 +338,14 @@ export default function CycleGuardDashboard() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-32">
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20">
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute top-[140px] right-[-100px] w-[260px] h-[260px] bg-blue-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-purple-500/10 rounded-full blur-3xl" />
+</div>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
         <div className="max-w-lg mx-auto px-5 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tighter">CycleGuard</h1>
@@ -381,7 +388,8 @@ export default function CycleGuardDashboard() {
               Lade Dashboard...
             </div>
           ) : activeCycle ? (
-            <div className="bg-gradient-to-br from-[#111111] to-[#0A0A0A] rounded-3xl p-6 border border-emerald-500/20 shadow-[0_0_40px_rgba(16,185,129,0.08)]">
+            <div className="relative overflow-hidden rounded-[32px] border border-emerald-400/15 bg-gradient-to-br from-emerald-500/[0.10] to-[#080808] p-6 shadow-[0_0_40px_rgba(52,211,153,0.10)] backdrop-blur-xl">
+              <div className="absolute top-[-60px] right-[-40px] w-[180px] h-[180px] rounded-full bg-emerald-400/10 blur-3xl" />
               <p className="text-sm text-emerald-400 mb-1">Aktiver Cycle</p>
               <h2 className="text-3xl font-bold">{activeCycle.name}</h2>
 
@@ -390,7 +398,7 @@ export default function CycleGuardDashboard() {
                   <span>Zeit: Woche {timeProgress.week} von {timeProgress.total}</span>
                   <span>{timeProgress.percent}%</span>
                 </div>
-                <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 backdrop-blur-sm">
                   <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full shadow-[0_0_12px_rgba(16,185,129,0.45)]" style={{ width: `${timeProgress.percent}%` }} />
                 </div>
               </div>
@@ -400,21 +408,21 @@ export default function CycleGuardDashboard() {
                   <span>Diese Woche erledigt</span>
                   <span>{weekDone}/{weekTotal} • {adherencePercent}%</span>
                 </div>
-                <div className="h-2.5 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm">
-                  <div className="h-full bg-primary rounded-full" style={{ width: `${adherencePercent}%` }} />
+                <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 backdrop-blur-sm">
+                  <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_14px_rgba(59,130,246,0.45)]" style={{ width: `${adherencePercent}%` }} />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4 text-center text-xs">
-                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
-                    <p className="text-emerald-400 font-semibold">{weekDone}</p>
+                  <div className="rounded-[22px] border border-white/5 bg-white/[0.04] p-3 shadow-xl backdrop-blur-md">
+                    <p className="text-emerald-400 font-bold text-lg">{weekDone}</p>
                     <p className="text-muted-foreground">Erledigt</p>
                   </div>
-                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
-                    <p className="text-orange-400 font-semibold">{weekMissed}</p>
+                  <div className="rounded-[22px] border border-white/5 bg-white/[0.04] p-3 shadow-xl backdrop-blur-md">
+                    <p className="text-orange-400 font-bold text-lg">{weekMissed}</p>
                     <p className="text-muted-foreground">Verpasst</p>
                   </div>
-                  <div className="bg-white/[0.03] backdrop-blur-sm border border-white/5 rounded-2xl p-3 shadow-lg">
-                    <p className="text-blue-400 font-semibold">{weekSkipped}</p>
+                  <div className="rounded-[22px] border border-white/5 bg-white/[0.04] p-3 shadow-xl backdrop-blur-md">
+                    <p className="text-blue-400 font-bold text-lg">{weekSkipped}</p>
                     <p className="text-muted-foreground">Nicht genommen</p>
                   </div>
                 </div>
@@ -482,14 +490,17 @@ export default function CycleGuardDashboard() {
 
         <section className="mt-10">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">{selectedDateLabel} anstehend</h2>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+  <CalendarDays className="w-5 h-5 text-emerald-400" />
+  {selectedDateLabel} anstehend
+</h2>
             <Link href="/logging" className="text-sm text-primary hover:underline">
               Öffnen
             </Link>
           </div>
 
           {selectedDue.length === 0 ? (
-            <div className="bg-[#0A0A0A] rounded-3xl p-6 text-center text-muted-foreground border border-border/30">
+            <div className="rounded-[28px] border border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010] p-6 text-center text-muted-foreground backdrop-blur-xl shadow-xl">
               {activeCycle ? "An diesem Tag ist nichts geplant." : "Noch kein aktiver Cycle."}
             </div>
           ) : (
@@ -508,7 +519,7 @@ export default function CycleGuardDashboard() {
                           ? "border-blue-400/25 bg-blue-400/10 shadow-[0_0_24px_rgba(96,165,250,0.08)]"
                           : status === "missed"
                             ? "border-orange-400/25 bg-orange-400/10 shadow-[0_0_24px_rgba(251,146,60,0.08)]"
-                            : "border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] shadow-xl"
+                            : "border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010] shadow-2xl backdrop-blur-xl"
                     }`}
                   >
                     <div
@@ -578,13 +589,24 @@ export default function CycleGuardDashboard() {
           </h2>
 
           {recentLogs.length === 0 ? (
-            <div className="bg-[#0A0A0A] rounded-3xl p-6 text-center text-muted-foreground border border-border/30">
+            <div className="rounded-[28px] border border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010] p-6 text-center text-muted-foreground backdrop-blur-xl shadow-xl">
               Noch keine Logs.
             </div>
           ) : (
             <div className="space-y-4">
               {recentLogs.map((dose) => (
-                <Link key={dose.id} href="/logging" className="block rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98]">
+                <Link key={dose.id} href="/logging" className={`group relative block overflow-hidden rounded-[28px] border p-5 shadow-2xl backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] ${
+  isOral(dose)
+    ? "border-blue-400/10 bg-gradient-to-br from-blue-500/[0.06] to-[#101010]"
+    : "border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010]"
+}`}>
+                  <div
+  className={`absolute left-0 top-0 h-full w-1 ${
+    isOral(dose)
+      ? "bg-blue-400"
+      : "bg-emerald-400"
+  }`}
+/>
                   <p className="font-semibold">{dose.name}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {dose.menge} mg • {dose.datum} {dose.zeit}
@@ -595,7 +617,7 @@ export default function CycleGuardDashboard() {
           )}
         </section>
 
-        <div className="grid grid-cols-2 gap-3 mt-10">
+        <div className="mt-10">
         <Link
           href="/logging"
           className="bg-gradient-to-r from-emerald-400 to-emerald-500 text-black rounded-2xl py-4 text-sm font-bold flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
@@ -604,13 +626,7 @@ export default function CycleGuardDashboard() {
           Dosis eintragen
         </Link>
 
-        <Link
-          href="/compounds"
-          className="rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm py-4 text-sm font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:bg-white/[0.06] active:scale-[0.98]"
-        >
-          <Plus className="w-4 h-4" />
-          Substanz hinzufügen
-        </Link>
+
       </div>
       </main>
 
