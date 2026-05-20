@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 const daysShort = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 const DAY_KEYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
-const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 
 const dateKeyLocal = (date: Date) => {

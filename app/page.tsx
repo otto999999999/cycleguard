@@ -22,7 +22,7 @@ import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 
-const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const READ_KEY = "cycleguard_read_notifications"
 
@@ -440,7 +440,7 @@ export default function CycleGuardDashboard() {
             </div>
           ) : (
             <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
-              <div className="mx-auto w-16 h-16 bg-[#111111] rounded-2xl flex items-center justify-center mb-5">
+              <div className="mx-auto w-20 h-20 rounded-[28px] border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl flex items-center justify-center mb-6">
                 <PlayCircle className="w-9 h-9 text-muted-foreground" />
               </div>
               <h3 className="text-xl font-medium mb-2">Kein aktiver Cycle</h3>

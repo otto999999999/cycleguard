@@ -20,7 +20,7 @@ interface Dose {
   taken_at?: string | null
 }
 
-const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
 const haptic = () => {
@@ -34,7 +34,7 @@ const localDateTimeValue = () =>
     .toISOString()
     .slice(0, 16)
 const inputClass =
-  "w-full rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-4 outline-none transition-all duration-200 focus:border-emerald-400/40 focus:bg-white/[0.05]"
+  "w-full rounded-[22px] border border-white/8 bg-white/[0.04] backdrop-blur-md p-4 shadow-lg outline-none transition-all duration-300 focus:border-emerald-400/40 focus:bg-white/[0.06] focus:shadow-[0_0_24px_rgba(52,211,153,0.10)]"
 const dateKeyLocal = (date: Date) => {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, "0")

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { ChevronLeft, Pencil, Plus, Syringe, Trash2 } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
-
+import { toast } from "sonner"
 interface Compound {
   id: string
   name: string
@@ -30,14 +30,14 @@ interface Compound {
 const compoundTypes = [
   "Injectable",
   "Oral",
+  "Medication",
   "AI (Aromatase Inhibitor)",
   "SARM",
-  "Peptide",
   "PCT",
   "Supplement",
 ]
 
-const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 export default function CompoundsPage() {
   const [compounds, setCompounds] = useState<Compound[]>([])
@@ -68,7 +68,11 @@ export default function CompoundsPage() {
   })
 
   const isOralType = (type: string) => ORAL_TYPES.includes(type)
-
+const haptic = () => {
+  if (typeof window !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(12)
+  }
+}
   const resetForm = () => {
     setForm({
       name: "",
@@ -111,7 +115,8 @@ export default function CompoundsPage() {
       .order("created_at", { ascending: false })
 
     if (error) {
-      alert("Fehler beim Laden: " + error.message)
+      haptic()
+toast.error("Fehler beim Laden: " + error.message)
       setCompounds([])
     } else {
       setCompounds(data || [])
@@ -158,7 +163,8 @@ export default function CompoundsPage() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.type) {
-      alert("Name und Typ sind erforderlich!")
+      haptic()
+toast.error("Name und Typ sind erforderlich")
       return
     }
 
@@ -167,7 +173,8 @@ export default function CompoundsPage() {
     } = await supabase.auth.getSession()
 
     if (!session) {
-      alert("Du bist nicht eingeloggt.")
+      haptic()
+toast.error("Nicht eingeloggt")
       return
     }
 
@@ -219,12 +226,14 @@ export default function CompoundsPage() {
         if (error) throw error
       }
 
-      alert("✅ Substanz gespeichert!")
+      haptic()
+toast.success("Substanz gespeichert")
       setShowModal(false)
       setEditingCompound(null)
       await loadCompounds()
     } catch (error: any) {
-      alert("Fehler: " + error.message)
+      haptic()
+toast.error("Fehler: " + error.message)
     }
   }
 
@@ -249,7 +258,8 @@ export default function CompoundsPage() {
       .eq("user_id", session.user.id)
 
     if (error) {
-      alert("Fehler beim Löschen: " + error.message)
+      haptic()
+toast.error("Fehler beim Löschen: " + error.message)
       return
     }
 
@@ -285,7 +295,14 @@ export default function CompoundsPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-32">
-      <header className="sticky top-0 z-50 bg-black/60 backdrop-blur-lg border-b border-border/20">
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute top-[180px] right-[-100px] w-[260px] h-[260px] bg-blue-500/10 rounded-full blur-3xl" />
+
+  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-purple-500/10 rounded-full blur-3xl" />
+</div>
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
         <div className="flex items-center justify-between px-5 py-4">
           <Link
             href="/"
@@ -303,7 +320,7 @@ export default function CompoundsPage() {
         {loading ? (
           <p className="text-center text-muted-foreground py-20">Lade Substanzen...</p>
         ) : compounds.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="rounded-[32px] border border-white/5 bg-white/[0.03] backdrop-blur-xl shadow-2xl text-center py-20 px-6">
             <Syringe className="w-20 h-20 mx-auto text-muted-foreground mb-6" />
             <h2 className="text-2xl font-medium">Keine Substanzen</h2>
             <p className="text-muted-foreground mt-3 mb-8">Füge deine ersten Substanzen hinzu</p>
@@ -325,7 +342,11 @@ export default function CompoundsPage() {
               return (
                 <div
                   key={c.id}
-                  className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl transition-all duration-200 hover:scale-[1.01]"
+                  className={`group relative overflow-hidden rounded-[30px] border p-5 shadow-2xl backdrop-blur-xl transition-all duration-300 active:scale-[0.985] ${
+  oral
+    ? "border-blue-400/10 bg-gradient-to-br from-blue-500/[0.06] to-[#101010]"
+    : "border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010]"
+}`}
                 >
                   <div className={`absolute left-0 top-0 h-full w-1 ${oral ? "bg-blue-400" : "bg-emerald-400"}`} />
 
@@ -371,14 +392,14 @@ export default function CompoundsPage() {
                     <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => openEditModal(c)}
-                        className="p-3 rounded-2xl border border-white/10 bg-white/[0.03] transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
+                        className="p-3 rounded-2xl border border-white/5 bg-white/[0.04] backdrop-blur-md shadow-lg transition-all duration-200 hover:bg-white/[0.06] active:scale-95"
                       >
                         <Pencil className="w-5 h-5" />
                       </button>
 
                       <button
                         onClick={() => handleDeleteClick(c.id)}
-                        className="p-3 bg-red-500/10 text-red-400 rounded-2xl transition-all duration-200 hover:bg-red-500/20 active:scale-95"
+                        className="p-3 rounded-2xl border border-red-500/10 bg-red-500/10 text-red-400 backdrop-blur-md shadow-lg transition-all duration-200 hover:bg-red-500/20 active:scale-95"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -393,7 +414,7 @@ export default function CompoundsPage() {
 
       <button
         onClick={openAddModal}
-        className="fixed bottom-32 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_32px_rgba(52,211,153,0.35)] transition-all duration-200 hover:scale-110 active:scale-95"
+        className="fixed bottom-32 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_40px_rgba(52,211,153,0.45)] backdrop-blur-xl transition-all duration-300 hover:scale-110 active:scale-95"
       >
         <Plus className="w-7 h-7" />
       </button>
@@ -401,10 +422,10 @@ export default function CompoundsPage() {
       {showModal && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
           <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[92vh] overflow-y-auto backdrop-blur-2xl">
-            <h2 className="text-2xl font-semibold mb-1">
+            <h2 className="text-3xl font-bold tracking-tight mb-1">
               {editingCompound ? "Substanz bearbeiten" : "Neue Substanz hinzufügen"}
             </h2>
-            <p className="text-sm text-muted-foreground mb-6">
+            <p className="text-sm text-muted-foreground mb-8">
               Trage Dosierung, Bestand, Hersteller und Halbwertszeit ein.
             </p>
 

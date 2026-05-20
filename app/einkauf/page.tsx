@@ -11,7 +11,7 @@ import CountUp from "react-countup"
 import PullToRefresh from "react-simple-pull-to-refresh"
 import { Search } from "lucide-react"
 import { toast } from "sonner"
-const ORAL_TYPES = ["Oral", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 
 export default function EinkaufPage() {
   const [compounds, setCompounds] = useState<any[]>([])
