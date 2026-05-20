@@ -148,10 +148,18 @@ const getEstimatedDaysLeft = (c: any) => {
 
   if (!dailyUsage) return null
 
-  if (isOral(c)) {
-    const remaining = c.remaining_pills || 0
-    return Math.floor(remaining / dailyUsage)
-  }
+if (isOral(c)) {
+  const remainingPills = Number(c.remaining_pills || 0)
+  const dosePerPill = Number(c.dose_per_pill || 0)
+
+  if (!dosePerPill) return null
+
+  const pillsPerDay = dailyUsage / dosePerPill
+
+  if (!pillsPerDay) return null
+
+  return Math.floor(remainingPills / pillsPerDay)
+}
 
   
 
@@ -186,9 +194,14 @@ const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
       if (c.type === "Injectable") acc.injectables++
       if (isOral(c)) acc.orals += c.remaining_pills || 0
 
-      const low = isOral(c)
-        ? (c.remaining_pills || 0) < 20
-        : qty < 1
+const daysLeft = getEstimatedDaysLeft(c)
+
+const low =
+  daysLeft !== null
+    ? daysLeft <= 14
+    : isOral(c)
+      ? (c.remaining_pills || 0) < 20
+      : qty < 1
 
       if (low) acc.lowStock++
       return acc
