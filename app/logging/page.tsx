@@ -50,6 +50,7 @@ export default function LoggingPage() {
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const [selectedDate, setSelectedDate] = useState(todayKey())
 
@@ -339,6 +340,8 @@ const adjustInjectableStock = async (
 }
 
   const handleLogDose = async () => {
+    if (saving) return
+
     if (!form.compound_id && !isEditing) {
       haptic()
 toast.error("Bitte Substanz auswählen")
@@ -379,8 +382,10 @@ toast.error("Nicht eingeloggt")
       
     }
 
-    try {
-      if (isEditing && editingId && selectedDose) {
+      try {
+  setSaving(true)
+
+  if (isEditing && editingId && selectedDose) {
         const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
         const newCompound = compounds.find((c) => c.id === payload.compound_id)
 
@@ -440,10 +445,13 @@ toast.success(
       await loadData()
     } catch (error: any) {
       haptic()
-toast.error("Fehler: " + error.message)
+      toast.error("Fehler: " + error.message)
       console.error(error)
+    } finally {
+      setSaving(false)
     }
   }
+    
 
   const requestDelete = (dose: Dose) => {
     setSelectedDose(dose)
@@ -824,9 +832,25 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                 </>
               )}
 
-              <button onClick={handleLogDose} disabled={!form.menge} className="w-full bg-primary py-5 rounded-2xl font-semibold text-lg disabled:opacity-50">
-                {isEditing ? "Änderungen speichern" : "Dosis eintragen"}
-              </button>
+<button
+  onClick={handleLogDose}
+  disabled={!form.menge || saving}
+  className={`w-full py-5 rounded-2xl font-semibold text-lg transition-all duration-200 active:scale-[0.97] flex items-center justify-center gap-3 ${
+    saving
+      ? "bg-white/10 text-muted-foreground cursor-wait"
+      : "bg-primary text-white shadow-[0_0_24px_rgba(52,211,153,0.18)]"
+  } disabled:opacity-50`}
+>
+  {saving && (
+    <span className="w-5 h-5 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+  )}
+
+  {saving
+    ? "Speichere..."
+    : isEditing
+      ? "Änderungen speichern"
+      : "Dosis eintragen"}
+</button>
 
               <button onClick={() => setShowLogModal(false)} className="w-full py-4 text-red-500 font-medium">
                 Abbrechen
