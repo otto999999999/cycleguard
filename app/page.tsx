@@ -38,6 +38,7 @@ const todayKey = () => dateKeyLocal(new Date())
 export default function CycleGuardDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showMonthCalendar, setShowMonthCalendar] = useState(false)
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
 
@@ -55,7 +56,16 @@ export default function CycleGuardDashboard() {
     if (saved) setReadIds(JSON.parse(saved))
     loadDashboard()
   }, [])
+useEffect(() => {
+  if (!showMonthCalendar) return
 
+  const originalOverflow = document.body.style.overflow
+  document.body.style.overflow = "hidden"
+
+  return () => {
+    document.body.style.overflow = originalOverflow
+  }
+}, [showMonthCalendar])
   const saveReadIds = (ids: string[]) => {
     setReadIds(ids)
     localStorage.setItem(READ_KEY, JSON.stringify(ids))
@@ -329,7 +339,35 @@ export default function CycleGuardDashboard() {
   const markAllRead = () => {
     saveReadIds(notifications.map((n) => n.id))
   }
+const getMonthDays = () => {
+  const base = new Date(selectedDate)
+  const year = base.getFullYear()
+  const month = base.getMonth()
+  const first = new Date(year, month, 1)
+  const last = new Date(year, month + 1, 0)
 
+  const startOffset = first.getDay() === 0 ? 6 : first.getDay() - 1
+
+  const days: (string | null)[] = Array.from({ length: startOffset }, () => null)
+
+  for (let d = 1; d <= last.getDate(); d++) {
+    days.push(dateKeyLocal(new Date(year, month, d)))
+  }
+
+  return days
+}
+
+const monthDays = getMonthDays()
+
+const hasLogOnDate = (dateKey: string) => {
+  return doses.some((dose) => dose.datum === dateKey)
+}
+
+const hasPlanOnDate = (dateKey: string) => {
+  return getDueForDate(dateKey).length > 0
+}
+
+const selectedDateLogs = doses.filter((dose) => dose.datum === selectedDate)
   const selectedDateLabel = new Date(selectedDate).toLocaleDateString("de-DE", {
     weekday: "long",
     day: "2-digit",
@@ -353,6 +391,12 @@ export default function CycleGuardDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+  onClick={() => setShowMonthCalendar(true)}
+  className="w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30 transition-all duration-200 hover:scale-105 active:scale-95"
+>
+  <CalendarDays className="w-5 h-5" />
+</button>
             <button
               onClick={() => setShowNotifications(true)}
               className="relative w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center border border-border/30 transition-all duration-200 hover:scale-105 active:scale-95"
@@ -631,7 +675,170 @@ export default function CycleGuardDashboard() {
       </main>
 
       <BottomNav />
+{showMonthCalendar && (
+  <div className="fixed inset-0 z-[75] flex items-end overflow-hidden bg-black/80 backdrop-blur-md overscroll-none">
+    <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[90vh] overflow-y-auto overscroll-contain backdrop-blur-md">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold">Kalender</h2>
+          <p className="text-sm text-muted-foreground">
+            {new Date(selectedDate).toLocaleDateString("de-DE", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        </div>
 
+        <button
+          onClick={() => setShowMonthCalendar(false)}
+          className="w-10 h-10 rounded-xl bg-[#111111] flex items-center justify-center text-muted-foreground hover:text-white"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-2 text-center text-xs text-muted-foreground mb-3">
+        {["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-2">
+        {monthDays.map((dateKey, index) => {
+          if (!dateKey) return <div key={`empty-${index}`} />
+
+          const day = new Date(dateKey).getDate()
+          const isSelected = dateKey === selectedDate
+          const logged = hasLogOnDate(dateKey)
+          const planned = hasPlanOnDate(dateKey)
+
+          return (
+            <button
+              key={dateKey}
+              onClick={() => setSelectedDate(dateKey)}
+              className={`relative min-h-[54px] rounded-2xl border text-sm font-semibold transition-all duration-300 active:scale-95 ${
+                isSelected
+                  ? "border-emerald-400 bg-emerald-400 text-black shadow-[0_0_28px_rgba(52,211,153,0.35)]"
+                  : logged
+                    ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_20px_rgba(52,211,153,0.16)]"
+                    : planned
+                      ? "border-blue-400/20 bg-blue-400/10 text-blue-200"
+                      : "border-white/5 bg-white/[0.03] text-white/70"
+              }`}
+            >
+              {day}
+
+              {logged && !isSelected && (
+                <span className="absolute inset-0 rounded-2xl bg-emerald-400/5 blur-[1px]" />
+              )}
+
+              {planned && (
+                <span
+                  className={`absolute bottom-2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
+                    logged || isSelected ? "bg-black/70" : "bg-blue-400"
+                  }`}
+                />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="mt-7 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+        <p className="text-sm text-muted-foreground mb-1">Ausgewählter Tag</p>
+        <h3 className="text-lg font-semibold mb-5">
+          {new Date(selectedDate).toLocaleDateString("de-DE", {
+            weekday: "long",
+            day: "2-digit",
+            month: "2-digit",
+          })}
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold mb-3">Geplant</p>
+
+            {selectedDue.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Keine geplanten Dosen.</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedDue.map((item) => {
+                  const status = getStatus(item, selectedDate)
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-white/5 bg-black/30 p-4"
+                    >
+                      <div className="flex justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{item.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {item.doseAmount} {item.doseUnit} • {item.frequency}
+                          </p>
+                        </div>
+
+                        <span
+                          className={`text-xs ${
+                            status === "done"
+                              ? "text-emerald-400"
+                              : status === "skipped"
+                                ? "text-blue-400"
+                                : status === "missed"
+                                  ? "text-orange-400"
+                                  : "text-muted-foreground"
+                          }`}
+                        >
+                          {status === "done"
+                            ? "Erledigt"
+                            : status === "skipped"
+                              ? "Nicht genommen"
+                              : status === "missed"
+                                ? "Verpasst"
+                                : "Offen"}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-3">Logs</p>
+
+            {selectedDateLogs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Noch nichts geloggt.</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedDateLogs.map((dose) => (
+                  <div
+                    key={dose.id}
+                    className="rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.06] p-4 shadow-[0_0_20px_rgba(52,211,153,0.08)]"
+                  >
+                    <p className="font-medium">{dose.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {dose.menge} mg • {dose.zeit || "--:--"}
+                      {dose.stelle ? ` • ${dose.stelle}` : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Link
+          href="/logging"
+          className="mt-5 flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 py-3 font-bold text-black"
+        >
+          Für diesen Tag loggen
+        </Link>
+      </div>
+    </div>
+  </div>
+)}
       {showNotifications && (
         <div className="fixed inset-0 z-[80] flex items-end bg-black/80 backdrop-blur-md">
           <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
