@@ -16,12 +16,14 @@ import {
   Syringe,
   User,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
 } from "lucide-react"
-
+import { motion } from "framer-motion"
 import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
-
 const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const READ_KEY = "cycleguard_read_notifications"
@@ -39,6 +41,10 @@ export default function CycleGuardDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMonthCalendar, setShowMonthCalendar] = useState(false)
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), 1)
+})
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
 
@@ -340,7 +346,7 @@ useEffect(() => {
     saveReadIds(notifications.map((n) => n.id))
   }
 const getMonthDays = () => {
-  const base = new Date(selectedDate)
+  const base = calendarMonth
   const year = base.getFullYear()
   const month = base.getMonth()
   const first = new Date(year, month, 1)
@@ -358,7 +364,13 @@ const getMonthDays = () => {
 }
 
 const monthDays = getMonthDays()
-
+const changeMonth = (direction: number) => {
+  setCalendarMonth((prev) => {
+    const next = new Date(prev)
+    next.setMonth(prev.getMonth() + direction)
+    return new Date(next.getFullYear(), next.getMonth(), 1)
+  })
+}
 const hasLogOnDate = (dateKey: string) => {
   return doses.some((dose) => dose.datum === dateKey)
 }
@@ -368,6 +380,21 @@ const hasPlanOnDate = (dateKey: string) => {
 }
 
 const selectedDateLogs = doses.filter((dose) => dose.datum === selectedDate)
+const deleteDoseFromCalendar = async (doseId: string) => {
+  if (!confirm("Diesen Log wirklich löschen?")) return
+
+  const { error } = await supabase
+    .from("doses")
+    .delete()
+    .eq("id", doseId)
+
+  if (error) {
+    alert("Fehler beim Löschen: " + error.message)
+    return
+  }
+
+  await loadDashboard()
+}
   const selectedDateLabel = new Date(selectedDate).toLocaleDateString("de-DE", {
     weekday: "long",
     day: "2-digit",
@@ -681,12 +708,34 @@ const selectedDateLogs = doses.filter((dose) => dose.datum === selectedDate)
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-semibold">Kalender</h2>
-          <p className="text-sm text-muted-foreground">
-            {new Date(selectedDate).toLocaleDateString("de-DE", {
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
+          <div className="mt-1 flex items-center gap-3">
+  <button
+    onClick={() => changeMonth(-1)}
+    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.04] text-emerald-300 transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:shadow-[0_0_20px_rgba(52,211,153,0.25)] active:scale-95"
+  >
+    <ChevronLeft className="h-4 w-4" />
+  </button>
+
+  <motion.p
+  key={`${calendarMonth.getFullYear()}-${calendarMonth.getMonth()}`}
+  initial={{ opacity: 0, y: 6 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.2 }}
+  className="min-w-[120px] text-center text-sm font-medium text-emerald-200 capitalize"
+>
+    {calendarMonth.toLocaleDateString("de-DE", {
+      month: "long",
+      year: "numeric",
+    })}
+  </motion.p>
+
+  <button
+    onClick={() => changeMonth(1)}
+    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.04] text-emerald-300 transition-all duration-300 hover:border-emerald-400/30 hover:bg-emerald-400/10 hover:shadow-[0_0_20px_rgba(52,211,153,0.25)] active:scale-95"
+  >
+    <ChevronRight className="h-4 w-4" />
+  </button>
+</div>
         </div>
 
         <button
@@ -813,16 +862,28 @@ const selectedDateLogs = doses.filter((dose) => dose.datum === selectedDate)
             ) : (
               <div className="space-y-2">
                 {selectedDateLogs.map((dose) => (
-                  <div
-                    key={dose.id}
-                    className="rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.06] p-4 shadow-[0_0_20px_rgba(52,211,153,0.08)]"
-                  >
-                    <p className="font-medium">{dose.name}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {dose.menge} mg • {dose.zeit || "--:--"}
-                      {dose.stelle ? ` • ${dose.stelle}` : ""}
-                    </p>
-                  </div>
+<div
+  key={dose.id}
+  className="flex items-center gap-3"
+>
+  <Link
+    href={`/logging?dose=${dose.id}`}
+    className="block flex-1 rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.06] p-4 shadow-[0_0_20px_rgba(52,211,153,0.08)] transition-all active:scale-[0.98]"
+  >
+    <p className="font-medium">{dose.name}</p>
+    <p className="text-xs text-muted-foreground mt-1">
+      {dose.menge} mg • {dose.zeit || "--:--"}
+      {dose.stelle ? ` • ${dose.stelle}` : ""}
+    </p>
+  </Link>
+
+  <button
+    onClick={() => deleteDoseFromCalendar(dose.id)}
+    className="self-stretch px-5 rounded-2xl border border-red-400/20 bg-red-500/10 text-red-400 flex items-center justify-center active:scale-95"
+  >
+    <Trash2 className="w-5 h-5" />
+  </button>
+</div>
                 ))}
               </div>
             )}

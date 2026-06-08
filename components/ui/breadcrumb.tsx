@@ -72,7 +72,7 @@ function BreadcrumbSeparator({
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn('[&>svg]:size-3.5', className)}
+      className="h-10 w-10 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:shadow-[0_0_25px_rgba(16,185,129,0.35)] active:scale-95"
       {...props}
     >
       {children ?? <ChevronRight />}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Syringe, Plus, Trash2, Clock, CalendarDays, CheckCircle } from "lucide-react"
 import { WeekCalendar } from "@/components/week-calendar"
 import { BottomNav } from "@/components/bottom-nav"
@@ -46,6 +47,8 @@ const combineDateAndTime = (date: string, time: string) => {
   return `${date}T${time}`
 }
 export default function LoggingPage() {
+  const searchParams = useSearchParams()
+const targetDoseId = searchParams.get("dose")
   const [doses, setDoses] = useState<Dose[]>([])
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
@@ -121,7 +124,14 @@ export default function LoggingPage() {
     const saved = localStorage.getItem("lastInjectionSite")
     if (saved) setLastInjectionSite(saved)
   }, [])
+useEffect(() => {
+  if (!targetDoseId || doses.length === 0) return
 
+  const found = doses.find((dose) => dose.id === targetDoseId)
+  if (!found) return
+
+  openEdit(found)
+}, [targetDoseId, doses])
   const getDueForDate = (dateKey: string) => {
     if (!activeCycle) return []
 
