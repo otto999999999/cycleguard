@@ -1000,14 +1000,30 @@ const deleteDoseFromCalendar = async (doseId: string) => {
                     window.location.href = "/login"
                   }
                 }}
+                
               >
+
                 <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
                   <LogOut className="w-6 h-6 text-red-400" />
                 </div>
                 <p className="font-medium text-red-400">Ausloggen</p>
               </div>
             </div>
+                <Link
+  href="/performance"
+  className="mt-4 bg-[#111111] rounded-2xl p-5 flex items-center gap-4 border border-white/5 active:scale-[0.985]"
+>
+  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
+    <span className="text-emerald-400 text-xl">🏋️</span>
+  </div>
 
+  <div>
+    <p className="font-medium text-emerald-400">Performance</p>
+    <p className="text-xs text-muted-foreground">
+      Strength, Combat & Cardio
+    </p>
+  </div>
+</Link>
             <div className="mt-10 text-center text-xs text-muted-foreground">
               CycleGuard v0.1 • cycleguard.xyz
             </div>
