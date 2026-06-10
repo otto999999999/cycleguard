@@ -106,17 +106,27 @@ for (const cycle of cycles || []) {
 
   if (dueToday.length === 0) continue
 
-  const pushKey = `morning-${cycle.user_id}-${todayKey()}`
+  const pushKey = `reminder-${cycle.user_id}-${todayKey()}`
 
   const alreadySent = await wasPushAlreadySent(cycle.user_id, pushKey)
 
   if (alreadySent) continue
+const { data: doses } = await supabaseAdmin
+  .from("doses")
+  .select("*")
+  .eq("user_id", cycle.user_id)
+  .eq("datum", todayKey())
 
-  const body = dueToday
-    .map((item) => `${item.name}: ${item.doseAmount} ${item.doseUnit}`)
-    .join("\n")
+const openItems = dueToday.filter((item) => {
+  return !(doses || []).some((dose) => dose.compound_id === item.id)
+})
 
-  await sendPushToUser(cycle.user_id, "Heute anstehend", body)
+if (openItems.length === 0) continue
+const body = openItems
+  .map((item) => `${item.name}: ${item.doseAmount} ${item.doseUnit}`)
+  .join("\n")
+
+  await sendPushToUser(cycle.user_id, "Heute noch offen", body)
   await markPushAsSent(cycle.user_id, pushKey)
 }
 

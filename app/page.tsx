@@ -389,10 +389,16 @@ const subscription =
 
   if (!user) return
 
-const { error } = await supabase.from("push_subscriptions").upsert({
-  user_id: user.id,
-  subscription,
-})
+const { error } = await supabase.from("push_subscriptions").upsert(
+  {
+    user_id: user.id,
+    endpoint: subscription.endpoint,
+    subscription,
+  },
+  {
+    onConflict: "user_id,endpoint",
+  }
+)
 
   if (error) {
     alert(error.message)
