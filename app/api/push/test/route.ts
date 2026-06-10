@@ -18,7 +18,7 @@ export async function POST() {
     .from("push_subscriptions")
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(5)
+    .limit(10)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -26,13 +26,15 @@ export async function POST() {
 
   await Promise.all(
     (subscriptions || []).map((sub) =>
-      webpush.sendNotification(
-        sub.subscription,
-        JSON.stringify({
-          title: "CycleGuard Test",
-          body: "Push vom PC aufs Handy funktioniert 🔥",
-        })
-      ).catch(() => null)
+      webpush
+        .sendNotification(
+          sub.subscription,
+          JSON.stringify({
+            title: "CycleGuard Test",
+            body: "Push vom PC aufs Handy funktioniert 🔥",
+          })
+        )
+        .catch(() => null)
     )
   )
 

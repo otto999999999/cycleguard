@@ -389,10 +389,10 @@ const subscription =
 
   if (!user) return
 
-  const { error } = await supabase.from("push_subscriptions").insert({
-    user_id: user.id,
-    subscription,
-  })
+const { error } = await supabase.from("push_subscriptions").upsert({
+  user_id: user.id,
+  subscription,
+})
 
   if (error) {
     alert(error.message)
