@@ -1,0 +1,137 @@
+import { NextResponse } from "next/server"
+import webpush from "web-push"
+import { createClient } from "@supabase/supabase-js"
+
+webpush.setVapidDetails(
+  process.env.VAPID_EMAIL!,
+  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+  process.env.VAPID_PRIVATE_KEY!
+)
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+const ORAL_TYPES = [
+  "Oral",
+  "Medication",
+  "AI (Aromatase Inhibitor)",
+  "SARM",
+  "PCT",
+  "Supplement",
+]
+
+const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
+
+const todayKey = () => {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+const getDueForToday = (cycle: any) => {
+  if (!cycle?.start_date) return []
+
+  const today = new Date()
+  const dateKey = todayKey()
+  const dayShort = DAYS[today.getDay()]
+  const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
+
+  return stack.filter((item) => {
+    const startWeek = item.startWeek || 1
+    const endWeek = item.endWeek || cycle.duration_weeks || 12
+    const start = new Date(cycle.start_date)
+    const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
+
+    if (diffDays < 0) return false
+
+    const currentWeek = Math.floor(diffDays / 7) + 1
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
+
+    return false
+  })
+}
+
+const sendPushToUser = async (userId: string, title: string, body: string) => {
+  const { data: subscriptions } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("*")
+    .eq("user_id", userId)
+
+  await Promise.all(
+    (subscriptions || []).map((sub) =>
+      webpush
+        .sendNotification(
+          sub.subscription,
+          JSON.stringify({
+            title,
+            body,
+          })
+        )
+        .catch(() => null)
+    )
+  )
+}
+
+export async function GET() {
+  const { data: cycles } = await supabaseAdmin
+    .from("cycles")
+    .select("*")
+    .eq("active", true)
+
+  for (const cycle of cycles || []) {
+    const dueToday = getDueForToday(cycle)
+
+    for (const item of dueToday) {
+      await sendPushToUser(
+        cycle.user_id,
+        "Heute anstehend",
+        `${item.name}: ${item.doseAmount} ${item.doseUnit}`
+      )
+    }
+  }
+
+  const { data: compounds } = await supabaseAdmin
+    .from("compounds")
+    .select("*")
+
+  for (const compound of compounds || []) {
+    const isOral = ORAL_TYPES.includes(compound.type)
+
+    if (isOral) {
+      const remaining = compound.remaining_pills ?? 0
+
+      if (remaining > 0 && remaining <= 10) {
+        await sendPushToUser(
+          compound.user_id,
+          "Low Stock",
+          `${compound.name} fast leer: ${remaining} Tabletten übrig`
+        )
+      }
+    } else {
+      const remaining =
+        compound.packaging === "Vial"
+          ? compound.current_vials ?? 0
+          : compound.current_ampoules ?? 0
+
+      if (remaining > 0 && remaining <= 1) {
+        await sendPushToUser(
+          compound.user_id,
+          "Low Stock",
+          `${compound.name} fast leer: ${remaining} ${compound.packaging || "Einheit"} übrig`
+        )
+      }
+    }
+  }
+
+  return NextResponse.json({ success: true })
+}
