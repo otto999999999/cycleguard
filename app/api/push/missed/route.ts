@@ -13,17 +13,24 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const ORAL_TYPES = [
-  "Oral",
-  "Medication",
-  "AI (Aromatase Inhibitor)",
-  "SARM",
-  "PCT",
-  "Supplement",
-]
-
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
+const wasPushAlreadySent = async (userId: string, pushKey: string) => {
+  const { data } = await supabaseAdmin
+    .from("push_logs")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("push_key", pushKey)
+    .maybeSingle()
 
+  return !!data
+}
+
+const markPushAsSent = async (userId: string, pushKey: string) => {
+  await supabaseAdmin.from("push_logs").insert({
+    user_id: userId,
+    push_key: pushKey,
+  })
+}
 const todayKey = () => {
   const d = new Date()
   const y = d.getFullYear()
@@ -36,19 +43,19 @@ const getDueForToday = (cycle: any) => {
   if (!cycle?.start_date) return []
 
   const today = new Date()
-  const dateKey = todayKey()
   const dayShort = DAYS[today.getDay()]
   const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
 
   return stack.filter((item) => {
-    const startWeek = item.startWeek || 1
-    const endWeek = item.endWeek || cycle.duration_weeks || 12
     const start = new Date(cycle.start_date)
     const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
 
     if (diffDays < 0) return false
 
     const currentWeek = Math.floor(diffDays / 7) + 1
+    const startWeek = item.startWeek || 1
+    const endWeek = item.endWeek || cycle.duration_weeks || 12
+
     if (currentWeek < startWeek || currentWeek > endWeek) return false
 
     if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
@@ -77,61 +84,54 @@ const sendPushToUser = async (userId: string, title: string, body: string) => {
             body,
           })
         )
-        .catch(() => null)
+        .catch((err) => {
+          console.error("Push error:", err)
+        })
     )
   )
 }
 
 export async function GET() {
-  const { data: cycles } = await supabaseAdmin
+  const { data: cycles, error } = await supabaseAdmin
     .from("cycles")
     .select("*")
     .eq("active", true)
 
-  for (const cycle of cycles || []) {
-    const dueToday = getDueForToday(cycle)
-
-    for (const item of dueToday) {
-      await sendPushToUser(
-        cycle.user_id,
-        "Heute anstehend",
-        `${item.name}: ${item.doseAmount} ${item.doseUnit}`
-      )
-    }
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const { data: compounds } = await supabaseAdmin
-    .from("compounds")
-    .select("*")
+for (const cycle of cycles || []) {
+  const dueToday = getDueForToday(cycle)
 
-  for (const compound of compounds || []) {
-    const isOral = ORAL_TYPES.includes(compound.type)
+  if (dueToday.length === 0) continue
 
-    if (isOral) {
-      const remaining = compound.remaining_pills ?? 0
+  const pushKey = `missed-${cycle.user_id}-${todayKey()}`
 
-      if (remaining > 0 && remaining <= 10) {
-        await sendPushToUser(
-          compound.user_id,
-          "Low Stock",
-          `${compound.name} fast leer: ${remaining} Tabletten übrig`
-        )
-      }
-    } else {
-      const remaining =
-        compound.packaging === "Vial"
-          ? compound.current_vials ?? 0
-          : compound.current_ampoules ?? 0
+  const alreadySent = await wasPushAlreadySent(cycle.user_id, pushKey)
 
-      if (remaining > 0 && remaining <= 1) {
-        await sendPushToUser(
-          compound.user_id,
-          "Low Stock",
-          `${compound.name} fast leer: ${remaining} ${compound.packaging || "Einheit"} übrig`
-        )
-      }
-    }
-  }
+  if (alreadySent) continue
+const { data: doses } = await supabaseAdmin
+  .from("doses")
+  .select("*")
+  .eq("user_id", cycle.user_id)
+  .eq("datum", todayKey())
 
-  return NextResponse.json({ success: true })
+const openItems = dueToday.filter((item) => {
+  return !(doses || []).some((dose) => dose.compound_id === item.id)
+})
+
+if (openItems.length === 0) continue
+const body = openItems
+  .map((item) => `${item.name} wurde heute noch nicht geloggt.`)
+  .join("\n")
+
+  await sendPushToUser(cycle.user_id, "Vergessen?", body)
+  await markPushAsSent(cycle.user_id, pushKey)
+}
+
+  return NextResponse.json({
+    success: true,
+    message: "Morning push sent",
+  })
 }
