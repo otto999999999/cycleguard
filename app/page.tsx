@@ -345,6 +345,63 @@ useEffect(() => {
   const markAllRead = () => {
     saveReadIds(notifications.map((n) => n.id))
   }
+
+const urlBase64ToUint8Array = (base64String: string) => {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
+  const rawData = window.atob(base64)
+
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
+}
+
+const registerPush = async () => {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push wird nicht unterstützt.")
+    return
+  }
+
+  const permission = await Notification.requestPermission()
+
+  if (permission !== "granted") {
+    alert("Push nicht erlaubt.")
+    return
+  }
+
+const registration = await navigator.serviceWorker.register("/sw.js")
+
+const readyRegistration = await navigator.serviceWorker.ready
+
+const existingSubscription =
+  await readyRegistration.pushManager.getSubscription()
+
+const subscription =
+  existingSubscription ||
+  (await readyRegistration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+    ),
+  }))
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return
+
+  const { error } = await supabase.from("push_subscriptions").insert({
+    user_id: user.id,
+    subscription,
+  })
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  alert("Handy für Push registriert.")
+}
+
 const getMonthDays = () => {
   const base = calendarMonth
   const year = base.getFullYear()
@@ -1009,6 +1066,22 @@ const deleteDoseFromCalendar = async (doseId: string) => {
                 <p className="font-medium text-red-400">Ausloggen</p>
               </div>
             </div>
+<button
+  onClick={registerPush}
+  className="mt-4 w-full rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.08] p-5 flex items-center gap-4 active:scale-[0.985]"
+>
+  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
+    <Bell className="w-6 h-6 text-emerald-400" />
+  </div>
+
+  <div className="text-left">
+    <p className="font-medium text-emerald-400">Push aktivieren</p>
+    <p className="text-xs text-muted-foreground">
+      Handy für Benachrichtigungen registrieren
+    </p>
+  </div>
+</button>
+
                 <Link
   href="/performance"
   className="mt-4 bg-[#111111] rounded-2xl p-5 flex items-center gap-4 border border-white/5 active:scale-[0.985]"
