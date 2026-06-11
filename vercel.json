@@ -15,6 +15,14 @@
     {
       "path": "/api/push/missed",
       "schedule": "0 19 * * *"
+    },
+    {
+  "path": "/api/push/training",
+  "schedule": "30 7 * * *"
+    },
+    {
+  "path": "/api/push/cycle-ending",
+  "schedule": "0 8 * * *"
     }
   ]
 }

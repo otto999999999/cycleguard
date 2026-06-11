@@ -391,12 +391,7 @@ return
         </div>
 
       </header>
-<button
-  onClick={testNotification}
-  className="mt-4 w-full rounded-[24px] bg-emerald-400 py-4 font-black text-black"
->
-  Push testen
-</button>
+
       <main className="mx-auto max-w-lg px-5 pt-8 animate-in fade-in duration-500">
         {trainingDays.length === 0 ? (
           <section className="rounded-[36px] border border-white/10 bg-white/[0.05] p-7 text-center shadow-2xl backdrop-blur-xl">

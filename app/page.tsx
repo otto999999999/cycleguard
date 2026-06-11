@@ -47,6 +47,8 @@ export default function CycleGuardDashboard() {
 })
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(true)
+  const [showPushModal, setShowPushModal] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
 
   const [activeCycle, setActiveCycle] = useState<any>(null)
   const [compounds, setCompounds] = useState<any[]>([])
@@ -57,11 +59,24 @@ export default function CycleGuardDashboard() {
 
   const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
 
-  useEffect(() => {
-    const saved = localStorage.getItem(READ_KEY)
-    if (saved) setReadIds(JSON.parse(saved))
-    loadDashboard()
-  }, [])
+useEffect(() => {
+  const saved = localStorage.getItem(READ_KEY)
+  if (saved) setReadIds(JSON.parse(saved))
+  loadDashboard()
+}, [])
+
+useEffect(() => {
+  const checkPushStatus = async () => {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
+
+    const registration = await navigator.serviceWorker.getRegistration("/sw.js")
+    const subscription = await registration?.pushManager.getSubscription()
+
+    setPushEnabled(!!subscription)
+  }
+
+  checkPushStatus()
+}, [])
 useEffect(() => {
   if (!showMonthCalendar) return
 
@@ -405,7 +420,8 @@ const { error } = await supabase.from("push_subscriptions").upsert(
     return
   }
 
-  alert("Handy für Push registriert.")
+  setPushEnabled(true)
+setShowPushModal(false)
 }
 
 const getMonthDays = () => {
@@ -1026,7 +1042,43 @@ const deleteDoseFromCalendar = async (doseId: string) => {
           </div>
         </div>
       )}
+{showPushModal && (
+  <div className="fixed inset-0 z-[90] flex items-end bg-black/80 backdrop-blur-md">
+    <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 backdrop-blur-2xl">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-emerald-400/20 bg-emerald-400/10">
+        <Bell className="h-8 w-8 text-emerald-400" />
+      </div>
 
+      <h2 className="text-center text-2xl font-bold">
+        {pushEnabled ? "Push ist aktiv" : "Benachrichtigungen aktivieren?"}
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-[320px] text-center text-sm text-muted-foreground">
+        {pushEnabled
+          ? "Dieses Gerät ist bereits registriert. Du bekommst Erinnerungen für Dosen, Training, Low Stock und Cycle-Ende."
+          : "CycleGuard kann dich an Dosen, Training, Low Stock und Cycle-Ende erinnern."}
+      </p>
+
+      <div className="mt-7 space-y-3">
+        {!pushEnabled && (
+          <button
+            onClick={registerPush}
+            className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 py-4 font-bold text-black active:scale-[0.98]"
+          >
+            Push aktivieren
+          </button>
+        )}
+
+        <button
+          onClick={() => setShowPushModal(false)}
+          className="w-full rounded-2xl border border-white/10 bg-white/[0.04] py-4 font-semibold text-white active:scale-[0.98]"
+        >
+          {pushEnabled ? "Schließen" : "Später"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       {showSettings && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
           <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
@@ -1055,25 +1107,10 @@ const deleteDoseFromCalendar = async (doseId: string) => {
                 </div>
               </div>
 
-              <div
-                className="bg-[#111111] rounded-2xl p-5 flex items-center gap-4 cursor-pointer active:scale-[0.985]"
-                onClick={async () => {
-                  if (confirm("Wirklich ausloggen?")) {
-                    await supabase.auth.signOut()
-                    window.location.href = "/login"
-                  }
-                }}
-                
-              >
 
-                <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
-                  <LogOut className="w-6 h-6 text-red-400" />
-                </div>
-                <p className="font-medium text-red-400">Ausloggen</p>
-              </div>
             </div>
 <button
-  onClick={registerPush}
+  onClick={() => setShowPushModal(true)}
   className="mt-4 w-full rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.08] p-5 flex items-center gap-4 active:scale-[0.985]"
 >
   <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center">
@@ -1081,14 +1118,18 @@ const deleteDoseFromCalendar = async (doseId: string) => {
   </div>
 
   <div className="text-left">
-    <p className="font-medium text-emerald-400">Push aktivieren</p>
-    <p className="text-xs text-muted-foreground">
-      Handy für Benachrichtigungen registrieren
-    </p>
+<p className="font-medium text-emerald-400">
+  {pushEnabled ? "Benachrichtigungen aktiv" : "Benachrichtigungen"}
+</p>
+<p className="text-xs text-muted-foreground">
+  {pushEnabled
+    ? "Dieses Gerät ist für Push registriert"
+    : "Push-Erinnerungen auf diesem Gerät aktivieren"}
+</p>
   </div>
 </button>
 
-                <Link
+<Link
   href="/performance"
   className="mt-4 bg-[#111111] rounded-2xl p-5 flex items-center gap-4 border border-white/5 active:scale-[0.985]"
 >
@@ -1103,7 +1144,23 @@ const deleteDoseFromCalendar = async (doseId: string) => {
     </p>
   </div>
 </Link>
-            <div className="mt-10 text-center text-xs text-muted-foreground">
+
+<div
+  className="mt-4 bg-[#111111] rounded-2xl p-5 flex items-center gap-4 cursor-pointer active:scale-[0.985]"
+  onClick={async () => {
+    if (confirm("Wirklich ausloggen?")) {
+      await supabase.auth.signOut()
+      window.location.href = "/login"
+    }
+  }}
+>
+  <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center">
+    <LogOut className="w-6 h-6 text-red-400" />
+  </div>
+
+  <p className="font-medium text-red-400">Ausloggen</p>
+</div>
+<div className="mt-10 text-center text-xs text-muted-foreground">
               CycleGuard v0.1 • cycleguard.xyz
             </div>
           </div>
