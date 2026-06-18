@@ -3,7 +3,7 @@ import webpush from "web-push"
 import { createClient } from "@supabase/supabase-js"
 
 webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
+  process.env.VAPID_EMAIL || "mailto:lenwweith99@gmail.com",
   process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 )
