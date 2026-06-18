@@ -12,6 +12,8 @@ import {
   Play,
   CalendarDays,
   BarChart3,
+Clock,
+ChevronRight,
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabase"
@@ -25,10 +27,42 @@ export default function StrengthPage() {
   const [trainingDays, setTrainingDays] = useState<any[]>([])
 const [dayExercises, setDayExercises] = useState<any[]>([])
 const [finishedSessions, setFinishedSessions] = useState<any[]>([])
+const [recentSessions, setRecentSessions] = useState<any[]>([])
 const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
 
 const weekDays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
+const formatSessionDate = (value: string) => {
+  return new Date(value).toLocaleDateString("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
 
+const formatSessionTime = (value: string) => {
+  return new Date(value).toLocaleTimeString("de-DE", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
+const getDurationMinutes = (session: any) => {
+  if (!session.started_at || !session.finished_at) return 0
+
+  return Math.max(
+    1,
+    Math.round(
+      (new Date(session.finished_at).getTime() -
+        new Date(session.started_at).getTime()) /
+        60000
+    )
+  )
+}
+
+const getTrainingDayName = (session: any) => {
+  const day = trainingDays.find((day) => day.id === session.training_day_id)
+  return day?.name || "Workout"
+}
 const todayIndex = (new Date().getDay() + 6) % 7
 const todayShort = weekDays[todayIndex]
 
@@ -182,9 +216,19 @@ async function loadPlan() {
         .in("training_day_id", dayIds)
         .gte("started_at", weekStart.toISOString())
         .not("finished_at", "is", null)
+.is("cancelled_at", null)
 
       setFinishedSessions(sessionsData || [])
+const { data: recentSessionsData } = await supabase
+  .from("workout_sessions")
+  .select("*")
+  .in("training_day_id", dayIds)
+  .not("finished_at", "is", null)
+  .is("cancelled_at", null)
+  .order("finished_at", { ascending: false })
+  .limit(10)
 
+setRecentSessions(recentSessionsData || [])
       const todayDay = (daysData || []).find((day) =>
         day.weekdays?.includes(todayShort)
       )
@@ -444,12 +488,50 @@ return
     </section>
 
     <section>
-      <h2 className="mb-4 text-2xl font-black">Letzte Workouts</h2>
+  <h2 className="mb-4 text-2xl font-black">Letzte Workouts</h2>
 
-      <div className="rounded-[30px] border border-white/10 bg-white/[0.05] p-6 text-muted-foreground shadow-2xl backdrop-blur-xl">
-        Noch keine Workouts abgeschlossen.
-      </div>
-    </section>
+  {recentSessions.length === 0 ? (
+    <div className="rounded-[30px] border border-white/10 bg-white/[0.05] p-6 text-muted-foreground shadow-2xl backdrop-blur-xl">
+      Noch keine Workouts abgeschlossen.
+    </div>
+  ) : (
+    <div className="space-y-3">
+      {recentSessions.map((session) => (
+        <Link
+          key={session.id}
+          href={`/performance/strength/history/${session.id}`}
+          className="block rounded-[30px] border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.025] p-5 shadow-2xl backdrop-blur-xl active:scale-[0.98]"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h3 className="truncate text-xl font-black">
+                {getTrainingDayName(session)}
+              </h3>
+
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <CalendarDays className="h-4 w-4 text-emerald-300" />
+                  {formatSessionDate(session.started_at)}
+                </span>
+
+                <span className="flex items-center gap-1">
+                  <Clock className="h-4 w-4 text-cyan-300" />
+                  {formatSessionTime(session.started_at)}
+                </span>
+
+                <span className="font-bold text-emerald-300">
+                  {getDurationMinutes(session)} min
+                </span>
+              </div>
+            </div>
+
+            <ChevronRight className="h-6 w-6 shrink-0 text-muted-foreground" />
+          </div>
+        </Link>
+      ))}
+    </div>
+  )}
+</section>
   </div>
 )}
       </main>
