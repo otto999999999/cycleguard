@@ -190,6 +190,15 @@ const formatRestTime = (seconds: number) => {
   return `${min}:${sec}`
 }
 
+const parseNumberInput = (value: string) => {
+  if (value.trim() === "") return null
+
+  const normalized = value.replace(",", ".")
+  const number = Number(normalized)
+
+  return Number.isNaN(number) ? null : number
+}
+
 const startRestTimer = () => {
   setRestSeconds(restTargetSeconds)
   setIsRestRunning(true)
@@ -234,10 +243,10 @@ const toggleSet = async (set: any) => {
 
   await updateSet(set.id, {
     completed: willComplete,
-    weight_kg:
-      set.weight_kg === "" || set.weight_kg == null
-        ? null
-        : Number(set.weight_kg),
+weight_kg:
+  set.weight_kg === "" || set.weight_kg == null
+    ? null
+    : parseNumberInput(String(set.weight_kg)),
     reps_done:
       set.reps_done === "" || set.reps_done == null
         ? null
@@ -517,10 +526,7 @@ const toggleSet = async (set: any) => {
                         value={set.weight_kg ?? ""}
                         onChange={(e) =>
                           updateSet(set.id, {
-                            weight_kg:
-                              e.target.value === ""
-                                ? null
-                                : Number(e.target.value),
+weight_kg: parseNumberInput(e.target.value),
                           })
                         }
                         className="min-w-0 rounded-[18px] border border-white/10 bg-black/45 px-3 py-3.5 text-center text-lg font-black outline-none placeholder:text-white/20 focus:border-emerald-400/40 focus:bg-black/60"
