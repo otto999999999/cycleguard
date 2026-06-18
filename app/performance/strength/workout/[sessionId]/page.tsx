@@ -37,6 +37,7 @@ export default function WorkoutPage() {
   const [openEntryId, setOpenEntryId] = useState<string | null>(null)
   const [restSeconds, setRestSeconds] = useState(0)
   const [isRestRunning, setIsRestRunning] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
   useEffect(() => {
     loadWorkout()
   }, [sessionId])
@@ -257,7 +258,21 @@ weight_kg:
     startRestTimer()
   }
 }
+const cancelWorkout = async () => {
+  const { error } = await supabase
+    .from("workout_sessions")
+    .update({
+      cancelled_at: new Date().toISOString(),
+    })
+    .eq("id", sessionId)
 
+  if (error) {
+    toast.error("Workout konnte nicht abgebrochen werden.")
+    return
+  }
+
+  router.push("/performance/strength")
+}
   const finishWorkout = async () => {
     if (completedCount === 0) {
       toast.error("Logge mindestens einen Satz.")
@@ -297,13 +312,13 @@ weight_kg:
 
 <header className="sticky top-0 z-50 border-b border-white/10 bg-[#050505]/80 backdrop-blur-2xl">
   <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-    <Link
-      href="/performance/strength"
-      className="flex h-12 items-center gap-2 rounded-[22px] border border-red-400/15 bg-red-500/[0.08] px-4 text-sm font-black text-red-300 active:scale-95"
-    >
-      <ChevronLeft className="h-5 w-5" />
-      Abbrechen
-    </Link>
+<button
+  onClick={() => setShowCancelModal(true)}
+  className="flex h-12 items-center gap-2 rounded-[22px] border border-red-400/15 bg-red-500/[0.08] px-4 text-sm font-black text-red-300 active:scale-95"
+>
+  <ChevronLeft className="h-5 w-5" />
+  Abbrechen
+</button>
 
     <div className="min-w-0 px-3 text-center">
       <h1 className="truncate text-lg font-black tracking-tight">
@@ -361,7 +376,7 @@ weight_kg:
     <div className="rounded-[22px] border border-white/10 bg-black/25 p-3 text-center">
       <p className="text-2xl font-black text-cyan-300">
         {sets.reduce((sum, set) => {
-          const kg = Number(set.weight_kg || 0)
+          const kg = parseNumberInput(String(set.weight_kg ?? "")) || 0
           const reps = Number(set.reps_done || 0)
           return sum + kg * reps
         }, 0).toLocaleString("de-DE")}
@@ -595,6 +610,39 @@ weight_kg:
           </button>
         </div>
       </div>
+      {showCancelModal && (
+  <div className="fixed inset-0 z-[90] flex items-end bg-black/80 backdrop-blur-md">
+    <div className="w-full rounded-t-[34px] border-t border-white/10 bg-gradient-to-b from-[#151515] to-[#070707] p-6 shadow-2xl">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-red-400/20 bg-red-500/10">
+        <ChevronLeft className="h-8 w-8 text-red-400" />
+      </div>
+
+      <h2 className="text-center text-2xl font-black">
+        Workout abbrechen?
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-[320px] text-center text-sm text-muted-foreground">
+        Dieses Workout wird als abgebrochen markiert und zählt nicht als abgeschlossenes Training.
+      </p>
+
+      <div className="mt-7 space-y-3">
+        <button
+          onClick={cancelWorkout}
+          className="w-full rounded-[22px] border border-red-400/20 bg-red-500/15 py-4 font-black text-red-300 active:scale-[0.98]"
+        >
+          Ja, abbrechen
+        </button>
+
+        <button
+          onClick={() => setShowCancelModal(false)}
+          className="w-full rounded-[22px] border border-white/10 bg-white/[0.05] py-4 font-black text-white active:scale-[0.98]"
+        >
+          Weiter trainieren
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }
