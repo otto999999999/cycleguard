@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
@@ -37,6 +37,7 @@ export default function WorkoutPage() {
   const [openEntryId, setOpenEntryId] = useState<string | null>(null)
   const [restSeconds, setRestSeconds] = useState(0)
   const [isRestRunning, setIsRestRunning] = useState(false)
+  const restFinishedNotifiedRef = useRef(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   useEffect(() => {
     loadWorkout()
@@ -48,6 +49,12 @@ useEffect(() => {
     setRestSeconds((prev) => {
       if (prev <= 1) {
         setIsRestRunning(false)
+
+        if (!restFinishedNotifiedRef.current) {
+          restFinishedNotifiedRef.current = true
+          notifyRestFinished()
+        }
+
         return 0
       }
 
@@ -184,8 +191,60 @@ setSets(preparedSets)
   const progress =
     totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
   const restTargetSeconds = Number(session?.rest_seconds ?? session?.rest_time ?? 120)
+const notifyRestFinished = async () => {
+  toast.success("Pause vorbei. Weiter trainieren!")
 
+  if ("vibrate" in navigator) {
+    navigator.vibrate([250, 120, 250])
+  }
+
+  if (!("Notification" in window)) return
+  if (Notification.permission !== "granted") return
+
+  const registration = await navigator.serviceWorker.getRegistration("/sw.js")
+
+  if (registration) {
+    registration.showNotification("Pause vorbei", {
+      body: "Weiter trainieren 💪",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "rest-timer-finished",
+    })
+  } else {
+    new Notification("Pause vorbei", {
+      body: "Weiter trainieren 💪",
+      icon: "/icon-192.png",
+    })
+  }
+}
 const formatRestTime = (seconds: number) => {
+    const notifyRestFinished = async () => {
+  toast.success("Pause vorbei. Weiter trainieren!")
+
+  if ("vibrate" in navigator) {
+    navigator.vibrate([250, 120, 250])
+  }
+
+  if (!("Notification" in window)) return
+
+  if (Notification.permission !== "granted") return
+
+  const registration = await navigator.serviceWorker.getRegistration("/sw.js")
+
+  if (registration) {
+    registration.showNotification("Pause vorbei", {
+      body: "Weiter trainieren 💪",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "rest-timer-finished",
+    })
+  } else {
+    new Notification("Pause vorbei", {
+      body: "Weiter trainieren 💪",
+      icon: "/icon-192.png",
+    })
+  }
+}
   const min = Math.floor(seconds / 60)
   const sec = String(seconds % 60).padStart(2, "0")
   return `${min}:${sec}`
@@ -201,6 +260,7 @@ const parseNumberInput = (value: string) => {
 }
 
 const startRestTimer = () => {
+    restFinishedNotifiedRef.current = false
   setRestSeconds(restTargetSeconds)
   setIsRestRunning(true)
 }
@@ -449,7 +509,7 @@ const cancelWorkout = async () => {
         }}
         className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-sm font-bold text-white/80 active:scale-95"
       >
-        {seconds / 60} min
+        {seconds < 60 ? `${seconds}s` : `${seconds / 60} min`}
       </button>
     ))}
   </div>
