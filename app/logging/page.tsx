@@ -824,13 +824,23 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                     </Field>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <Field label="Datum">
-                      <input type="date" value={form.datum} onChange={(e) => setForm({ ...form, datum: e.target.value })} className={inputClass} />
+                      <input
+                        type="date"
+                        value={form.datum}
+                        onChange={(e) => setForm({ ...form, datum: e.target.value })}
+                        className={`${inputClass} text-sm`}
+                      />
                     </Field>
 
                     <Field label="Uhrzeit">
-                      <input type="time" value={form.uhrzeit} onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })} className={inputClass} />
+                      <input
+                        type="time"
+                        value={form.uhrzeit}
+                        onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })}
+                        className={`${inputClass} text-sm`}
+                      />
                     </Field>
                   </div>
 
