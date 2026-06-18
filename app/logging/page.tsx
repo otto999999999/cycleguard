@@ -830,7 +830,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
     onChange={(e) => setForm({ ...form, datum: e.target.value })}
     className={inputClass}
     style={{
-      width: "calc(100% - 36px)",
+      width: "88%",
       marginLeft: "auto",
       marginRight: "auto",
       display: "block",
@@ -845,7 +845,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
     onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })}
     className={inputClass}
     style={{
-      width: "calc(100% - 36px)",
+      width: "88%",
       marginLeft: "auto",
       marginRight: "auto",
       display: "block",
