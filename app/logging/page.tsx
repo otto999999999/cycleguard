@@ -823,25 +823,35 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                       </select>
                     </Field>
                   )}
-<div className="space-y-4">
-  <Field label="Datum">
-    <input
-      type="date"
-      value={form.datum}
-      onChange={(e) => setForm({ ...form, datum: e.target.value })}
-      className={`${inputClass} mx-auto block w-[calc(100%-8px)]`}
-    />
-  </Field>
+<Field label="Datum">
+  <input
+    type="date"
+    value={form.datum}
+    onChange={(e) => setForm({ ...form, datum: e.target.value })}
+    className={inputClass}
+    style={{
+      width: "calc(100% - 16px)",
+      marginLeft: "auto",
+      marginRight: "auto",
+      display: "block",
+    }}
+  />
+</Field>
 
-  <Field label="Uhrzeit">
-    <input
-      type="time"
-      value={form.uhrzeit}
-      onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })}
-      className={`${inputClass} mx-auto block w-[calc(100%-8px)]`}
-    />
-  </Field>
-</div>
+<Field label="Uhrzeit">
+  <input
+    type="time"
+    value={form.uhrzeit}
+    onChange={(e) => setForm({ ...form, uhrzeit: e.target.value })}
+    className={inputClass}
+    style={{
+      width: "calc(100% - 16px)",
+      marginLeft: "auto",
+      marginRight: "auto",
+      display: "block",
+    }}
+  />
+</Field>
 
                   <Field label="Notizen optional">
                     <textarea
