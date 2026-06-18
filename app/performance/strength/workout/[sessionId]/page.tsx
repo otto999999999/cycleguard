@@ -520,17 +520,26 @@ weight_kg:
                         </p>
                       </div>
 
-                      <input
-                        inputMode="decimal"
-                        placeholder="kg"
-                        value={set.weight_kg ?? ""}
-                        onChange={(e) =>
-                          updateSet(set.id, {
-weight_kg: parseNumberInput(e.target.value),
-                          })
-                        }
-                        className="min-w-0 rounded-[18px] border border-white/10 bg-black/45 px-3 py-3.5 text-center text-lg font-black outline-none placeholder:text-white/20 focus:border-emerald-400/40 focus:bg-black/60"
-                      />
+<input
+  inputMode="decimal"
+  placeholder="kg"
+  value={set.weight_kg ?? ""}
+  onChange={(e) => {
+    const value = e.target.value
+
+    setSets((prev) =>
+      prev.map((item) =>
+        item.id === set.id
+          ? {
+              ...item,
+              weight_kg: value,
+            }
+          : item
+      )
+    )
+  }}
+  className="min-w-0 rounded-[18px] border border-white/10 bg-black/45 px-3 py-3.5 text-center text-lg font-black outline-none placeholder:text-white/20 focus:border-emerald-400/40 focus:bg-black/60"
+/>
 
                       <input
                         inputMode="numeric"
