@@ -111,6 +111,19 @@ useEffect(() => {
     if (c.packaging === "Vial") return qty === 1 ? "Vial" : "Vials"
     return qty === 1 ? "Ampulle" : "Ampullen"
   }
+  const formatSchedule = (item: any) => {
+  if (item.frequency === "Custom" && item.customDays?.length) {
+    return item.customDays.join(", ")
+  }
+
+  if (item.frequency === "Daily") return "täglich"
+  if (item.frequency === "Twice Daily") return "2x täglich"
+  if (item.frequency === "EOD") return "jeden 2. Tag"
+  if (item.frequency === "E3D") return "jeden 3. Tag"
+  if (item.frequency === "Weekly") return "wöchentlich"
+
+  return item.frequency || "—"
+}
 const getPlannedWeeklyUsage = (compoundId: string) => {
   if (!activeCycle) return null
 
@@ -208,6 +221,120 @@ const low =
     },
     { gesamtwert: 0, injectables: 0, orals: 0, lowStock: 0 }
   )
+
+const getActiveCycleStack = () => {
+  if (!activeCycle) return []
+
+  return [
+    ...(activeCycle.main_stack || []),
+    ...(activeCycle.pct_stack || []),
+  ]
+}
+
+const getActiveCycleCompounds = () => {
+  const stack = getActiveCycleStack()
+
+  return compounds.filter((compound) =>
+    stack.some((item: any) => item.id === compound.id)
+  )
+}
+
+const getActiveCycleMonthlyCost = () => {
+  if (!activeCycle) return 0
+
+  const stack = getActiveCycleStack()
+
+  return stack.reduce((sum, item: any) => {
+    const compound = compounds.find((c) => c.id === item.id)
+
+    if (!compound) return sum
+
+    const weeklyUsage = getPlannedWeeklyUsage(compound.id)
+    const price = Number(compound.price || 0)
+
+    if (!weeklyUsage || !price) return sum
+
+    const monthlyUsage = weeklyUsage * 4.345
+
+    if (isOral(compound)) {
+      const pillsPerBottle = Number(compound.pills_per_bottle || 0)
+      const dosePerPill = Number(compound.dose_per_pill || 0)
+
+      if (!pillsPerBottle || !dosePerPill) return sum
+
+      const mgPerBottle = pillsPerBottle * dosePerPill
+      const costPerMg = price / mgPerBottle
+
+      return sum + monthlyUsage * costPerMg
+    }
+
+    const concentration = Number(compound.concentration || 0)
+    const sizeMl = Number(compound.size_ml || 0)
+
+    if (!concentration || !sizeMl) return sum
+
+    const mgPerUnit = concentration * sizeMl
+    const costPerMg = price / mgPerUnit
+
+    return sum + monthlyUsage * costPerMg
+  }, 0)
+}
+
+const getActiveCycleMinDaysLeft = () => {
+  const days = getActiveCycleCompounds()
+    .map((compound) => getEstimatedDaysLeft(compound))
+    .filter((value): value is number => value !== null)
+
+  if (days.length === 0) return null
+
+  return Math.min(...days)
+}
+
+const getActiveCycleStockStatus = () => {
+  const days = getActiveCycleCompounds()
+    .map((compound) => getEstimatedDaysLeft(compound))
+    .filter((value): value is number => value !== null)
+
+  if (days.length === 0) {
+    return {
+      label: "—",
+      sublabel: "nicht berechenbar",
+      color: "text-muted-foreground",
+    }
+  }
+
+  const minDays = Math.min(...days)
+
+  if (minDays <= 0) {
+    return {
+      label: "Leer",
+      sublabel: "mindestens 1 Substanz",
+      color: "text-red-400",
+    }
+  }
+
+  if (minDays <= 7) {
+    return {
+      label: `${minDays}T`,
+      sublabel: "kritisch knapp",
+      color: "text-red-400",
+    }
+  }
+
+  if (minDays <= 14) {
+    return {
+      label: `${minDays}T`,
+      sublabel: "bald knapp",
+      color: "text-orange-400",
+    }
+  }
+
+  return {
+    label: `${minDays}T`,
+    sublabel: "Bestand reicht",
+    color: "text-emerald-400",
+  }
+}
 
 const lowStockItems = compounds.filter((c) => {
   const daysLeft = getEstimatedDaysLeft(c)
@@ -573,9 +700,117 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
           )}
         </Panel>
 
-        <Panel title="Vorschau & Planung" icon={<Calendar className="w-5 h-5 text-purple-400" />}>
-          <div className="text-center py-10 text-muted-foreground">Noch kein aktiver Cycle</div>
-        </Panel>
+<Panel title="Vorschau & Planung" icon={<Calendar className="w-5 h-5 text-purple-400" />}>
+  {!activeCycle ? (
+    <div className="text-center py-10 text-muted-foreground">
+      Starte einen Cycle, um eine Einkaufs-Vorschau zu sehen.
+    </div>
+  ) : (
+    <div className="space-y-4">
+      <div className="rounded-[24px] border border-purple-400/10 bg-purple-500/[0.06] p-4">
+        <p className="text-xs font-medium text-purple-300">Aktiver Cycle</p>
+
+        <p className="mt-1 text-xl font-bold">{activeCycle.name}</p>
+
+        <p className="mt-1 text-sm text-muted-foreground">
+          {activeCycle.indefinite || activeCycle.cycle_type === "trt"
+            ? "TRT / dauerhaft"
+            : `${activeCycle.duration_weeks || 0} Wochen`}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-[22px] border border-emerald-400/10 bg-emerald-500/[0.06] p-4 text-center">
+          <p className={`text-2xl font-bold ${getActiveCycleStockStatus().color}`}>
+            {getActiveCycleStockStatus().label}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {getActiveCycleStockStatus().sublabel}
+          </p>
+        </div>
+
+        <div className="rounded-[22px] border border-blue-400/10 bg-blue-500/[0.06] p-4 text-center">
+          <p className="text-2xl font-bold text-blue-400">
+            €{Math.round(getActiveCycleMonthlyCost())}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Preis / Monat
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-[24px] border border-white/5 bg-white/[0.03] p-4">
+        <p className="mb-3 text-sm font-semibold">Cycle Compounds</p>
+
+        {(activeCycle.main_stack || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Keine Cycle Compounds geplant.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(activeCycle.main_stack || []).map((item: any) => {
+              const compound = compounds.find((c) => c.id === item.id)
+              const daysLeft = compound ? getEstimatedDaysLeft(compound) : null
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex justify-between gap-3 rounded-2xl bg-black/30 p-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.doseAmount} {item.doseUnit} • {formatSchedule(item)}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-xs font-bold text-emerald-300">
+                    {daysLeft !== null ? `${daysLeft}T` : "—"}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-[24px] border border-purple-400/10 bg-purple-500/[0.04] p-4">
+        <p className="mb-3 text-sm font-semibold">PCT</p>
+
+        {(activeCycle.pct_stack || []).length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Keine PCT geplant.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {(activeCycle.pct_stack || []).map((item: any) => {
+              const compound = compounds.find((c) => c.id === item.id)
+              const daysLeft = compound ? getEstimatedDaysLeft(compound) : null
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex justify-between gap-3 rounded-2xl bg-black/30 p-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.doseAmount} {item.doseUnit} • {formatSchedule(item)}
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 text-xs font-bold text-purple-300">
+                    {daysLeft !== null ? `${daysLeft}T` : "—"}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+</Panel>
 
         <Panel title="Schnellaktionen">
           
