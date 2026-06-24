@@ -1039,6 +1039,7 @@ function NumberInput({ label, value, onChange }: any) {
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full bg-[#111] rounded-2xl p-4 text-lg"
       />
+      
     </div>
   )
 }
