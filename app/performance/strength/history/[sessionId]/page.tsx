@@ -220,33 +220,35 @@ export default function WorkoutHistoryDetailPage() {
             </div>
           </div>
 
-          <div className="relative mt-4 grid grid-cols-4 gap-2 text-center">
-            <div className="rounded-[22px] border border-white/10 bg-black/25 p-3">
-              <p className="text-2xl font-black text-emerald-300">
+            <div className="relative mt-4 grid grid-cols-2 gap-3 text-center">
+            <div className="rounded-[22px] border border-white/10 bg-black/25 p-4">
+                <p className="text-3xl font-black text-emerald-300">
                 {durationMinutes}
-              </p>
-              <p className="text-xs text-muted-foreground">Min</p>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Min</p>
             </div>
 
-            <div className="rounded-[22px] border border-white/10 bg-black/25 p-3">
-              <p className="text-2xl font-black">{sets.length}</p>
-              <p className="text-xs text-muted-foreground">Sets</p>
-            </div>
-
-            <div className="rounded-[22px] border border-white/10 bg-black/25 p-3">
-              <p className="text-2xl font-black text-cyan-300">
+            <div className="rounded-[22px] border border-white/10 bg-black/25 p-4">
+                <p className="truncate text-3xl font-black text-cyan-300">
                 {Math.round(totalVolume).toLocaleString("de-DE")}
-              </p>
-              <p className="text-xs text-muted-foreground">kg</p>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">kg</p>
             </div>
 
-            <div className="rounded-[22px] border border-white/10 bg-black/25 p-3">
-              <p className="text-2xl font-black text-purple-300">
-                {groupedExercises.length}
-              </p>
-              <p className="text-xs text-muted-foreground">Übungen</p>
+            <div className="rounded-[22px] border border-white/10 bg-black/25 p-4">
+                <p className="text-3xl font-black">
+                {sets.length}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Sets</p>
             </div>
-          </div>
+
+            <div className="rounded-[22px] border border-white/10 bg-black/25 p-4">
+                <p className="text-3xl font-black text-purple-300">
+                {groupedExercises.length}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Übungen</p>
+            </div>
+            </div>
         </section>
 
         <section className="mt-8 space-y-5">
