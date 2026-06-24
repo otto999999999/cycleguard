@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Edit, PlayCircle, Plus, Square, Trash2, X } from "lucide-react"
+import { Edit, PlayCircle, Loader2, Plus, Square, Trash2, X } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -34,6 +34,7 @@ export default function CyclePage() {
   const [showDosingModal, setShowDosingModal] = useState(false)
 
   const [editingCycle, setEditingCycle] = useState<any>(null)
+  const [savingCycle, setSavingCycle] = useState(false)
   const [selectedCompoundForDosing, setSelectedCompoundForDosing] = useState<any>(null)
 
   const [cycleName, setCycleName] = useState("")
@@ -180,17 +181,23 @@ export default function CyclePage() {
     setSelectedCompoundForDosing(null)
   }
 
-  const saveCycle = async () => {
+const saveCycle = async () => {
+  if (savingCycle) return
+
+  setSavingCycle(true)
+
+  try {
     if (!cycleName.trim()) {
       haptic()
-toast.error("Bitte Cycle-Namen eingeben")
+      toast.error("Bitte Cycle-Namen eingeben")
       return
     }
 
     const { data: { session } } = await supabase.auth.getSession()
+
     if (!session) {
       haptic()
-toast.error("Nicht eingeloggt")
+      toast.error("Nicht eingeloggt")
       return
     }
 
@@ -215,12 +222,12 @@ toast.error("Nicht eingeloggt")
 
       if (error) {
         haptic()
-toast.error("Fehler beim Bearbeiten: " + error.message)
+        toast.error("Fehler beim Bearbeiten: " + error.message)
         return
       }
 
       haptic()
-toast.success("Cycle aktualisiert")
+      toast.success("Cycle aktualisiert")
     } else {
       const { error } = await supabase
         .from("cycles")
@@ -232,19 +239,21 @@ toast.success("Cycle aktualisiert")
 
       if (error) {
         haptic()
-toast.error("Fehler beim Erstellen: " + error.message)
+        toast.error("Fehler beim Erstellen: " + error.message)
         return
       }
 
       haptic()
-toast.success("Cycle erstellt")
+      toast.success("Cycle erstellt")
     }
 
     setShowCycleModal(false)
     resetForm()
     await loadData()
+  } finally {
+    setSavingCycle(false)
   }
-
+}
   const startCycle = async (cycle: any) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
@@ -718,9 +727,24 @@ toast.error("Fehler beim Löschen: " + error.message)
                 Abbrechen
               </button>
 
-              <button onClick={saveCycle} className="flex-1 py-4 bg-primary rounded-2xl font-semibold">
-                {editingCycle ? "Speichern" : "Erstellen"}
-              </button>
+<button
+  onClick={saveCycle}
+  disabled={savingCycle}
+  className={`flex flex-1 items-center justify-center gap-2 rounded-2xl py-4 font-semibold active:scale-[0.98] ${
+    savingCycle
+      ? "bg-white/10 text-white/40"
+      : "bg-primary text-white"
+  }`}
+>
+  {savingCycle && <Loader2 className="h-5 w-5 animate-spin" />}
+  {savingCycle
+    ? editingCycle
+      ? "Speichert..."
+      : "Erstellt..."
+    : editingCycle
+      ? "Speichern"
+      : "Erstellen"}
+</button>
             </div>
           </div>
         </Modal>
@@ -828,9 +852,12 @@ toast.error("Fehler beim Löschen: " + error.message)
               )}
             </Card>
 
-            <button onClick={saveDosingConfig} className="w-full bg-primary py-4 rounded-2xl font-semibold">
-              Speichern
-            </button>
+<button
+  onClick={saveDosingConfig}
+  className="w-full rounded-2xl bg-primary py-4 font-semibold"
+>
+  Dosierung speichern
+</button>
           </div>
         </Modal>
       )}
