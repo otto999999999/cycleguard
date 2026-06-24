@@ -23,10 +23,6 @@
     {
   "path": "/api/push/cycle-ending",
   "schedule": "0 8 * * *"
-    },
-    {
-  "path": "/api/push/rest-timer",
-  "schedule": "* * * * *"
     }
   ]
 }
