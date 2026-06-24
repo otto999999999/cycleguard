@@ -36,34 +36,78 @@ export default function WorkoutPage() {
   const [savingSetId, setSavingSetId] = useState<string | null>(null)
   const [openEntryId, setOpenEntryId] = useState<string | null>(null)
   const [restSeconds, setRestSeconds] = useState(0)
+  const [showRestModal, setShowRestModal] = useState(false)
+  const [workoutElapsedSeconds, setWorkoutElapsedSeconds] = useState(0)
   const [isRestRunning, setIsRestRunning] = useState(false)
   const restFinishedNotifiedRef = useRef(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [restEndsAt, setRestEndsAt] = useState<number | null>(null)
   useEffect(() => {
     loadWorkout()
   }, [sessionId])
 useEffect(() => {
-  if (!isRestRunning || restSeconds <= 0) return
+  if (!isRestRunning || !restEndsAt) return
 
-  const interval = setInterval(() => {
-    setRestSeconds((prev) => {
-      if (prev <= 1) {
-        setIsRestRunning(false)
+  const tick = () => {
+    const remaining = Math.max(0, Math.ceil((restEndsAt - Date.now()) / 1000))
 
-        if (!restFinishedNotifiedRef.current) {
-          restFinishedNotifiedRef.current = true
-          notifyRestFinished()
-        }
+    setRestSeconds(remaining)
 
-        return 0
+    if (remaining <= 0) {
+      setIsRestRunning(false)
+      setRestEndsAt(null)
+      localStorage.removeItem("cycleguard_rest_ends_at")
+
+      if (!restFinishedNotifiedRef.current) {
+        restFinishedNotifiedRef.current = true
+        notifyRestFinished()
       }
+    }
+  }
 
-      return prev - 1
-    })
-  }, 1000)
+  tick()
+
+  const interval = setInterval(tick, 1000)
 
   return () => clearInterval(interval)
-}, [isRestRunning, restSeconds])
+}, [isRestRunning, restEndsAt])
+
+useEffect(() => {
+  if (!session?.started_at) return
+
+  const tick = () => {
+    const elapsed = Math.max(
+      0,
+      Math.floor((Date.now() - new Date(session.started_at).getTime()) / 1000)
+    )
+
+    setWorkoutElapsedSeconds(elapsed)
+  }
+
+  tick()
+
+  const interval = setInterval(tick, 1000)
+
+  return () => clearInterval(interval)
+}, [session?.started_at])
+
+useEffect(() => {
+  const savedEndsAt = localStorage.getItem("cycleguard_rest_ends_at")
+
+  if (!savedEndsAt) return
+
+  const endsAt = Number(savedEndsAt)
+  const remaining = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+
+  if (remaining > 0) {
+    setRestEndsAt(endsAt)
+    setRestSeconds(remaining)
+    setIsRestRunning(true)
+  } else {
+    localStorage.removeItem("cycleguard_rest_ends_at")
+  }
+}, [])
+
   const loadWorkout = async () => {
     setLoading(true)
 
@@ -217,34 +261,20 @@ const notifyRestFinished = async () => {
     })
   }
 }
-const formatRestTime = (seconds: number) => {
-    const notifyRestFinished = async () => {
-  toast.success("Pause vorbei. Weiter trainieren!")
 
-  if ("vibrate" in navigator) {
-    navigator.vibrate([250, 120, 250])
+const formatWorkoutTime = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = String(seconds % 60).padStart(2, "0")
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${secs}`
   }
 
-  if (!("Notification" in window)) return
-
-  if (Notification.permission !== "granted") return
-
-  const registration = await navigator.serviceWorker.getRegistration("/sw.js")
-
-  if (registration) {
-    registration.showNotification("Pause vorbei", {
-      body: "Weiter trainieren 💪",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag: "rest-timer-finished",
-    })
-  } else {
-    new Notification("Pause vorbei", {
-      body: "Weiter trainieren 💪",
-      icon: "/icon-192.png",
-    })
-  }
+  return `${minutes}:${secs}`
 }
+
+const formatRestTime = (seconds: number) => {
   const min = Math.floor(seconds / 60)
   const sec = String(seconds % 60).padStart(2, "0")
   return `${min}:${sec}`
@@ -259,10 +289,28 @@ const parseNumberInput = (value: string) => {
   return Number.isNaN(number) ? null : number
 }
 
-const startRestTimer = () => {
-    restFinishedNotifiedRef.current = false
-  setRestSeconds(restTargetSeconds)
+const startRestTimer = (seconds = restTargetSeconds) => {
+  restFinishedNotifiedRef.current = false
+
+  const endsAt = Date.now() + seconds * 1000
+
+  setRestEndsAt(endsAt)
+  setRestSeconds(seconds)
   setIsRestRunning(true)
+
+  localStorage.setItem("cycleguard_rest_ends_at", String(endsAt))
+
+  supabase.auth.getUser().then(({ data }) => {
+    const userId = data.user?.id
+
+    if (!userId) return
+
+    supabase.from("rest_timers").insert({
+      user_id: userId,
+      session_id: sessionId,
+      ends_at: new Date(endsAt).toISOString(),
+    })
+  })
 }
 const getTargetReps = (entry: any) => {
   const raw = String(entry?.reps || "").trim()
@@ -452,66 +500,25 @@ const cancelWorkout = async () => {
     />
   </div>
 </section>
-<section className="mt-5 overflow-hidden rounded-[30px] border border-purple-400/20 bg-gradient-to-br from-purple-500/[0.14] via-white/[0.04] to-[#101010] p-5 shadow-[0_0_36px_rgba(168,85,247,0.12)] backdrop-blur-xl">
+<section className="mt-5 overflow-hidden rounded-[30px] border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[0.14] via-white/[0.04] to-[#101010] p-5 shadow-[0_0_36px_rgba(52,211,153,0.12)] backdrop-blur-xl">
   <div className="flex items-center justify-between gap-4">
     <div>
-      <p className="text-xs font-black uppercase tracking-[0.25em] text-purple-300">
-        Satzpause
+      <p className="text-xs font-black uppercase tracking-[0.25em] text-emerald-300">
+        Workout läuft
       </p>
 
-      <div className="mt-2 flex items-end gap-2">
-        <p className="text-5xl font-black tracking-[-0.06em] text-white">
-          {formatRestTime(restSeconds)}
-        </p>
-        <p className="pb-1 text-sm font-bold text-muted-foreground">
-          / {formatRestTime(restTargetSeconds)}
-        </p>
-      </div>
+      <p className="mt-2 text-5xl font-black tracking-[-0.06em] text-white">
+        {formatWorkoutTime(workoutElapsedSeconds)}
+      </p>
+
+      <p className="mt-2 text-sm font-bold text-muted-foreground">
+        Seit Beginn dieses Trainings
+      </p>
     </div>
 
-    <button
-      onClick={() => {
-        if (restSeconds <= 0) {
-          startRestTimer()
-          return
-        }
-
-        setIsRestRunning((prev) => !prev)
-      }}
-      className={`h-16 w-16 shrink-0 rounded-[24px] border text-sm font-black shadow-2xl active:scale-95 ${
-        restSeconds <= 0
-          ? "border-purple-400/30 bg-purple-400 text-black"
-          : isRestRunning
-            ? "border-orange-400/30 bg-orange-400/15 text-orange-300"
-            : "border-emerald-400/30 bg-emerald-400/15 text-emerald-300"
-      }`}
-    >
-      {restSeconds <= 0 ? "Start" : isRestRunning ? "Stop" : "Go"}
-    </button>
-  </div>
-
-  <div className="mt-5 h-2 overflow-hidden rounded-full bg-black/40">
-    <div
-      className="h-full rounded-full bg-gradient-to-r from-purple-400 to-emerald-400 transition-all duration-500"
-      style={{
-        width: `${restTargetSeconds > 0 ? (restSeconds / restTargetSeconds) * 100 : 0}%`,
-      }}
-    />
-  </div>
-
-  <div className="mt-4 grid grid-cols-3 gap-2">
-    {[60, 120, 180].map((seconds) => (
-      <button
-        key={seconds}
-        onClick={() => {
-          setRestSeconds(seconds)
-          setIsRestRunning(true)
-        }}
-        className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-sm font-bold text-white/80 active:scale-95"
-      >
-        {seconds < 60 ? `${seconds}s` : `${seconds / 60} min`}
-      </button>
-    ))}
+    <div className="flex h-16 w-16 items-center justify-center rounded-[24px] border border-emerald-400/20 bg-emerald-400/10">
+      <Timer className="h-8 w-8 text-emerald-300" />
+    </div>
   </div>
 </section>
         <section className="mt-8 space-y-5">
@@ -661,6 +668,29 @@ const cancelWorkout = async () => {
 
       <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/10 bg-black/80 p-4 backdrop-blur-2xl">
         <div className="mx-auto max-w-lg">
+            <button
+  onClick={() => setShowRestModal(true)}
+  className="mb-3 flex w-full items-center justify-between rounded-[24px] border border-purple-400/20 bg-gradient-to-r from-purple-500/[0.18] to-white/[0.05] px-5 py-4 shadow-2xl backdrop-blur-xl active:scale-[0.98]"
+>
+  <div className="flex items-center gap-3">
+    <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-purple-400/15">
+      <Timer className="h-5 w-5 text-purple-300" />
+    </div>
+
+    <div className="text-left">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-300">
+        Satzpause
+      </p>
+      <p className="text-sm font-bold text-muted-foreground">
+        Tippen zum Bearbeiten
+      </p>
+    </div>
+  </div>
+
+  <p className="text-2xl font-black text-white">
+    {formatRestTime(restSeconds)}
+  </p>
+</button>
           <button
             onClick={finishWorkout}
             className="flex w-full items-center justify-center gap-2 rounded-[24px] bg-gradient-to-r from-emerald-400 to-emerald-500 py-4 text-base font-black text-black shadow-[0_0_30px_rgba(52,211,153,0.35)] active:scale-[0.98]"
@@ -700,6 +730,88 @@ const cancelWorkout = async () => {
           Weiter trainieren
         </button>
       </div>
+    </div>
+  </div>
+)}
+{showRestModal && (
+  <div className="fixed inset-0 z-[95] flex items-end bg-black/80 backdrop-blur-md">
+    <div className="w-full rounded-t-[34px] border-t border-white/10 bg-gradient-to-b from-[#151515] to-[#070707] p-6 shadow-2xl">
+      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-purple-400/20 bg-purple-500/10">
+        <Timer className="h-8 w-8 text-purple-300" />
+      </div>
+
+      <h2 className="text-center text-2xl font-black">Satzpause</h2>
+
+      <p className="mt-3 text-center text-6xl font-black tracking-[-0.07em]">
+        {formatRestTime(restSeconds)}
+      </p>
+
+      <div className="mt-6 h-2 overflow-hidden rounded-full bg-black/40">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-purple-400 to-emerald-400 transition-all duration-500"
+          style={{
+            width: `${restTargetSeconds > 0 ? (restSeconds / restTargetSeconds) * 100 : 0}%`,
+          }}
+        />
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-2">
+        {[60, 120, 180].map((seconds) => (
+          <button
+            key={seconds}
+            onClick={() => startRestTimer(seconds)}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] py-3 text-sm font-black text-white/80 active:scale-95"
+          >
+            {seconds / 60} min
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <button
+            onClick={() => {
+            if (restSeconds <= 0) {
+                startRestTimer()
+                return
+            }
+
+            if (isRestRunning) {
+                setIsRestRunning(false)
+                setRestEndsAt(null)
+                localStorage.removeItem("cycleguard_rest_ends_at")
+                return
+            }
+
+            startRestTimer(restSeconds)
+            }}
+          className={`rounded-[22px] py-4 font-black active:scale-[0.98] ${
+            isRestRunning
+              ? "bg-orange-400/15 text-orange-300"
+              : "bg-emerald-400 text-black"
+          }`}
+        >
+          {restSeconds <= 0 ? "Start" : isRestRunning ? "Pausieren" : "Weiter"}
+        </button>
+
+        <button
+          onClick={() => {
+            setRestSeconds(0)
+            setIsRestRunning(false)
+            setRestEndsAt(null)
+            localStorage.removeItem("cycleguard_rest_ends_at")
+          }}
+          className="rounded-[22px] border border-white/10 bg-white/[0.05] py-4 font-black text-white active:scale-[0.98]"
+        >
+          Reset
+        </button>
+      </div>
+
+      <button
+        onClick={() => setShowRestModal(false)}
+        className="mt-3 w-full rounded-[22px] border border-white/10 bg-white/[0.04] py-4 font-black text-muted-foreground active:scale-[0.98]"
+      >
+        Schließen
+      </button>
     </div>
   </div>
 )}
