@@ -13,10 +13,10 @@ import {
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/compounds", label: "Stack", icon: List },
+  { href: "/compounds", label: "Substanzen", icon: List },
   { href: "/cycle", label: "Cycle", icon: Calendar },
   { href: "/stats", label: "Stats", icon: BarChart3 },
-  { href: "/einkauf", label: "Shop", icon: ShoppingCart },
+  { href: "/einkauf", label: "Vorrat", icon: ShoppingCart },
   { href: "/logging", label: "Log", icon: Syringe },
 ]
 
