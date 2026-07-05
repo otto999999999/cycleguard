@@ -106,12 +106,13 @@ useEffect(() => {
 
     setEmail(session.user.email || "")
 
-    const { data: cycleData } = await supabase
-      .from("cycles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .eq("active", true)
-      .maybeSingle()
+  const { data: cycleData } = await supabase
+    .from("cycles")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .eq("active", true)
+    .eq("plan_category", "cycle")
+    .maybeSingle()
 
     const { data: compoundData } = await supabase
       .from("compounds")

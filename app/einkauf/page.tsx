@@ -58,6 +58,7 @@ const { data: cycleData, error: cycleError } = await supabase
   .select("*")
   .eq("user_id", session.user.id)
   .eq("active", true)
+  .eq("plan_category", "cycle")
   .maybeSingle()
 
 if (cycleError) {
