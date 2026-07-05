@@ -51,6 +51,7 @@ export default function CycleGuardDashboard() {
   const [pushEnabled, setPushEnabled] = useState(false)
 
   const [activeCycle, setActiveCycle] = useState<any>(null)
+  const [activeSupplementPlan, setActiveSupplementPlan] = useState<any>(null)
   const [compounds, setCompounds] = useState<any[]>([])
   const [doses, setDoses] = useState<any[]>([])
   const [missedDoses, setMissedDoses] = useState<any[]>([])
@@ -114,6 +115,14 @@ useEffect(() => {
     .eq("plan_category", "cycle")
     .maybeSingle()
 
+const { data: supplementPlanData } = await supabase
+  .from("cycles")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .eq("plan_category", "supplement")
+  .maybeSingle()
+
     const { data: compoundData } = await supabase
       .from("compounds")
       .select("*")
@@ -133,6 +142,7 @@ useEffect(() => {
       .eq("user_id", session.user.id)
 
     setActiveCycle(cycleData || null)
+    setActiveSupplementPlan(supplementPlanData || null)
     setCompounds(compoundData || [])
     setDoses(doseData || [])
     setMissedDoses(missedData || [])
@@ -296,6 +306,19 @@ useEffect(() => {
   }
 
   const timeProgress = getCycleTimeProgress()
+  const supplementItems = [
+  ...(activeSupplementPlan?.main_stack || []),
+  ...(activeSupplementPlan?.pct_stack || []),
+]
+
+const supplementLoggedToday = supplementItems.filter((item: any) =>
+  doses.some((dose) => dose.compound_id === item.id && dose.datum === todayKey())
+).length
+
+const supplementPercent =
+  supplementItems.length > 0
+    ? Math.round((supplementLoggedToday / supplementItems.length) * 100)
+    : 0
 
   const notifications = useMemo(() => {
     const items: any[] = []
@@ -590,6 +613,7 @@ const deleteDoseFromCalendar = async (doseId: string) => {
               </Link>
             </div>
           ) : (
+            
             <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
               <div className="mx-auto w-20 h-20 rounded-[28px] border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl flex items-center justify-center mb-6">
                 <PlayCircle className="w-9 h-9 text-muted-foreground" />
@@ -604,6 +628,49 @@ const deleteDoseFromCalendar = async (doseId: string) => {
               </Link>
             </div>
           )}
+          {activeSupplementPlan && (
+  <div className="mt-4 relative overflow-hidden rounded-[32px] border border-blue-400/15 bg-gradient-to-br from-blue-500/[0.10] to-[#080808] p-6 shadow-[0_0_40px_rgba(59,130,246,0.10)] backdrop-blur-xl">
+    <div className="absolute top-[-60px] right-[-40px] h-[180px] w-[180px] rounded-full bg-blue-400/10 blur-3xl" />
+
+    <p className="text-sm text-blue-400 mb-1">Aktiver Supplement-Plan</p>
+    <h2 className="text-2xl font-bold">{activeSupplementPlan.name}</h2>
+
+    <div className="mt-5">
+      <div className="mb-2 flex justify-between text-sm">
+        <span>Heute erledigt</span>
+        <span>
+          {supplementLoggedToday}/{supplementItems.length} • {supplementPercent}%
+        </span>
+      </div>
+
+      <div className="h-3 overflow-hidden rounded-full border border-white/5 bg-black/40 backdrop-blur-sm">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-[0_0_14px_rgba(59,130,246,0.45)]"
+          style={{ width: `${supplementPercent}%` }}
+        />
+      </div>
+    </div>
+
+    <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs">
+      <div className="rounded-[22px] border border-white/5 bg-white/[0.04] p-3 shadow-xl backdrop-blur-md">
+        <p className="text-blue-400 text-lg font-bold">{supplementItems.length}</p>
+        <p className="text-muted-foreground">Supplemente</p>
+      </div>
+
+      <div className="rounded-[22px] border border-white/5 bg-white/[0.04] p-3 shadow-xl backdrop-blur-md">
+        <p className="text-emerald-400 text-lg font-bold">{supplementLoggedToday}</p>
+        <p className="text-muted-foreground">Heute</p>
+      </div>
+    </div>
+
+    <Link
+      href="/logging"
+      className="mt-5 block rounded-2xl bg-blue-500 py-4 text-center font-semibold text-white"
+    >
+      Supplemente loggen
+    </Link>
+  </div>
+)}
         </section>
 
         {missedOpen.length > 0 && (
