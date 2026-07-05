@@ -16,7 +16,7 @@ const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "P
 export default function EinkaufPage() {
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
-
+  const [activeSupplementPlan, setActiveSupplementPlan] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [scrolled, setScrolled] = useState(false)
@@ -60,7 +60,13 @@ const { data: cycleData, error: cycleError } = await supabase
   .eq("active", true)
   .eq("plan_category", "cycle")
   .maybeSingle()
-
+const { data: supplementPlanData, error: supplementPlanError } = await supabase
+  .from("cycles")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .eq("plan_category", "supplement")
+  .maybeSingle()
 if (cycleError) {
   haptic()
   toast.error(
@@ -70,6 +76,7 @@ if (cycleError) {
   setActiveCycle(null)
 } else {
   setActiveCycle(cycleData || null)
+  setActiveSupplementPlan(supplementPlanData || null)
 }
 
 if (error) {
@@ -125,19 +132,9 @@ useEffect(() => {
 
   return item.frequency || "—"
 }
-const getPlannedWeeklyUsage = (compoundId: string) => {
-  if (!activeCycle) return null
-
-  const stack = [
-    ...(activeCycle.main_stack || []),
-    ...(activeCycle.pct_stack || []),
-  ]
-
-  const item = stack.find((x) => x.id === compoundId)
-  if (!item) return null
-
+const getWeeklyUsageFromItem = (item: any) => {
   const dose = Number(item.doseAmount || 0)
-  if (!dose) return null
+  if (!dose) return 0
 
   if (item.frequency === "Daily") return dose * 7
   if (item.frequency === "Twice Daily") return dose * 14
@@ -150,7 +147,27 @@ const getPlannedWeeklyUsage = (compoundId: string) => {
     return dose * days
   }
 
-  return null
+  return 0
+}
+
+const getPlannedWeeklyUsage = (compoundId: string) => {
+  const stack = [
+    ...(activeCycle?.main_stack || []),
+    ...(activeCycle?.pct_stack || []),
+    ...(activeSupplementPlan?.main_stack || []),
+    ...(activeSupplementPlan?.pct_stack || []),
+  ]
+
+  const matchingItems = stack.filter((item: any) => item.id === compoundId)
+
+  if (matchingItems.length === 0) return null
+
+  const weeklyUsage = matchingItems.reduce(
+    (sum: number, item: any) => sum + getWeeklyUsageFromItem(item),
+    0
+  )
+
+  return weeklyUsage || null
 }
 
 const getEstimatedDaysLeft = (c: any) => {

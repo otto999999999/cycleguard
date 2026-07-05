@@ -51,6 +51,8 @@ export default function LoggingPage() {
   const [doses, setDoses] = useState<Dose[]>([])
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
+  const [activeSupplementPlan, setActiveSupplementPlan] = useState<any>(null)
+  const [selectedSupplementIds, setSelectedSupplementIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -111,10 +113,18 @@ const { data: cycleData } = await supabase
   .eq("active", true)
   .eq("plan_category", "cycle")
   .maybeSingle()
+const { data: supplementPlanData } = await supabase
+  .from("cycles")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .eq("plan_category", "supplement")
+  .maybeSingle()
 
     setCompounds(comps || [])
     setDoses(doseData || [])
     setActiveCycle(cycleData || null)
+    setActiveSupplementPlan(supplementPlanData || null)
     setLoading(false)
   }
 
@@ -136,20 +146,20 @@ useEffect(() => {
 
   openEdit(found)
 }, [targetDoseId, doses])
-  const getDueForDate = (dateKey: string) => {
-    if (!activeCycle) return []
+const getDueForPlanDate = (plan: any, dateKey: string) => {
+  if (!plan) return []
 
-    const stack = [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
+  const stack = [...(plan.main_stack || []), ...(plan.pct_stack || [])]
     const date = new Date(dateKey)
     const dayShort = DAYS[date.getDay()]
 
     return stack.filter((item) => {
-      if (!activeCycle.start_date) return false
+      if (!plan.start_date) return false
 
       const startWeek = item.startWeek || 1
-      const endWeek = item.endWeek || activeCycle.duration_weeks || 12
+      const endWeek = item.endWeek || plan.duration_weeks || 9999
 
-      const start = new Date(activeCycle.start_date)
+      const start = new Date(plan.start_date)
       const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
       if (diffDays < 0) return false
@@ -166,6 +176,10 @@ useEffect(() => {
       return false
     })
   }
+const getDueForDate = (dateKey: string) => {
+  return getDueForPlanDate(activeCycle, dateKey)
+}
+
 
   const getWeekMarkedDates = () => {
     const today = new Date()
@@ -184,6 +198,7 @@ useEffect(() => {
   }
 
   const selectedDue = getDueForDate(selectedDate)
+  const selectedSupplementDue = getDueForPlanDate(activeSupplementPlan, selectedDate)
 
   const isPlannedDone = (item: any, dateKey: string) => {
     return doses.some(
@@ -192,6 +207,108 @@ useEffect(() => {
         dose.datum === dateKey
     )
   }
+
+const logSelectedSupplements = async () => {
+  if (saving) return
+
+  if (!activeSupplementPlan) {
+    toast.error("Kein aktiver Supplement-Plan")
+    return
+  }
+
+  const selectedItems = selectedSupplementDue.filter((item: any) =>
+    selectedSupplementIds.includes(item.id)
+  )
+
+  if (selectedItems.length === 0) {
+    toast.error("Keine Supplemente ausgewählt")
+    return
+  }
+
+  setSaving(true)
+
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      toast.error("Nicht eingeloggt")
+      return
+    }
+
+    const now = new Date()
+    const time = now.toTimeString().slice(0, 5)
+
+    const rows = selectedItems.map((item: any) => ({
+      user_id: session.user.id,
+      compound_id: item.id,
+      name: item.name,
+      menge: Number(item.doseAmount || 0),
+      methode: "Oral",
+      stelle: null,
+      notes: "Aus Supplement-Plan gesammelt geloggt",
+      datum: selectedDate,
+      zeit: time,
+      taken_at: now.toISOString(),
+    }))
+
+    const { error } = await supabase.from("doses").insert(rows)
+
+    if (error) {
+      toast.error("Fehler: " + error.message)
+      return
+    }
+
+for (const item of selectedItems) {
+  const compound = compounds.find((c) => c.id === item.id)
+
+  if (!compound) continue
+  if (!ORAL_TYPES.includes(compound.type)) continue
+
+  const currentRemaining = Number(compound.remaining_pills || 0)
+  const doseAmount = Number(item.doseAmount || 0)
+  const dosePerPill = Number(compound.dose_per_pill || 0)
+
+  if (!doseAmount || !dosePerPill) {
+    console.log("Stock skip:", {
+      name: item.name,
+      doseAmount,
+      dosePerPill,
+    })
+    continue
+  }
+
+  const pillsUsed = Math.max(1, Math.ceil(doseAmount / dosePerPill))
+  const nextRemaining = Math.max(0, currentRemaining - pillsUsed)
+
+  const { error: stockError } = await supabase
+    .from("compounds")
+    .update({ remaining_pills: nextRemaining })
+    .eq("id", compound.id)
+    .eq("user_id", session.user.id)
+
+  if (stockError) {
+    toast.error(`Bestand Fehler bei ${compound.name}: ${stockError.message}`)
+    return
+  }
+
+  console.log("Stock updated:", {
+    name: compound.name,
+    before: currentRemaining,
+    used: pillsUsed,
+    after: nextRemaining,
+  })
+}
+
+    haptic()
+    toast.success(`${rows.length} Supplemente geloggt`)
+    setSelectedSupplementIds([])
+    await loadData()
+  } finally {
+    setSaving(false)
+  }
+}
 
   const openNewLog = () => {
     setIsEditing(false)
@@ -613,6 +730,85 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
               })}
             </div>
           )}
+          {activeSupplementPlan && selectedSupplementDue.length > 0 && (
+  <div className="mt-5 rounded-[28px] border border-blue-400/10 bg-gradient-to-br from-blue-500/[0.08] to-[#101010] p-5 shadow-2xl backdrop-blur-xl">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h3 className="font-semibold">Supplemente heute</h3>
+        <p className="text-sm text-muted-foreground">
+          Wähle aus, was du genommen hast.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          setSelectedSupplementIds(
+            selectedSupplementDue.map((item: any) => item.id)
+          )
+        }
+        className="rounded-2xl bg-white/5 px-4 py-2 text-sm"
+      >
+        Alle
+      </button>
+    </div>
+
+    <div className="space-y-3">
+      {selectedSupplementDue.map((item: any) => {
+        const checked = selectedSupplementIds.includes(item.id)
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() =>
+              setSelectedSupplementIds((prev) =>
+                checked
+                  ? prev.filter((id) => id !== item.id)
+                  : [...prev, item.id]
+              )
+            }
+            className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all active:scale-[0.98] ${
+              checked
+                ? "border-blue-400/30 bg-blue-500/15"
+                : "border-white/5 bg-white/[0.03]"
+            }`}
+          >
+            <div>
+              <p className="font-medium">{item.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {item.doseAmount} {item.doseUnit} • {item.frequency}
+              </p>
+            </div>
+
+            <div
+              className={`flex h-7 w-7 items-center justify-center rounded-full border ${
+                checked
+                  ? "border-blue-400 bg-blue-400 text-black"
+                  : "border-white/20"
+              }`}
+            >
+              {checked ? "✓" : ""}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+
+<button
+  type="button"
+  onClick={logSelectedSupplements}
+  disabled={saving || selectedSupplementIds.length === 0}
+  className={`mt-4 w-full rounded-2xl py-4 font-semibold text-white ${
+    saving || selectedSupplementIds.length === 0
+      ? "bg-white/10 text-white/40"
+      : "bg-blue-500"
+  }`}
+>
+  {saving ? "Speichert..." : "Ausgewählte loggen"}
+</button>
+  </div>
+)}
         </div>
 
         <div className="mb-4 flex items-center justify-between">
