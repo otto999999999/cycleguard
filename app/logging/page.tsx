@@ -104,12 +104,13 @@ export default function LoggingPage() {
       .order("datum", { ascending: false })
       .order("zeit", { ascending: false })
 
-    const { data: cycleData } = await supabase
-      .from("cycles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .eq("active", true)
-      .maybeSingle()
+const { data: cycleData } = await supabase
+  .from("cycles")
+  .select("*")
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .eq("plan_category", "cycle")
+  .maybeSingle()
 
     setCompounds(comps || [])
     setDoses(doseData || [])
