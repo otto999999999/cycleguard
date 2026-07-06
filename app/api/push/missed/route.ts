@@ -106,7 +106,7 @@ for (const cycle of cycles || []) {
 
   if (dueToday.length === 0) continue
 
-  const pushKey = `missed-${cycle.user_id}-${todayKey()}`
+  const pushKey = `missed-${cycle.user_id}-${cycle.id}-${todayKey()}`
 
   const alreadySent = await wasPushAlreadySent(cycle.user_id, pushKey)
 
@@ -126,12 +126,16 @@ const body = openItems
   .map((item) => `${item.name} wurde heute noch nicht geloggt.`)
   .join("\n")
 
-  await sendPushToUser(cycle.user_id, "Vergessen?", body)
+  const title =
+  cycle.plan_category === "supplement"
+    ? "Supplemente vergessen?"
+    : "Dosis vergessen?"
+  await sendPushToUser(cycle.user_id, title, body)
   await markPushAsSent(cycle.user_id, pushKey)
 }
 
   return NextResponse.json({
     success: true,
-    message: "Morning push sent",
+    message: "Missed dose push checked",
   })
 }
