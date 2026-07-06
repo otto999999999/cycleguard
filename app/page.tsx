@@ -3,6 +3,8 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Bell, Dumbbell, HeartPulse, LogOut, Settings, Sparkles, Syringe, User, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
+import { motion, AnimatePresence } from "framer-motion"
 
 const areas = [
   {
@@ -56,7 +58,16 @@ export default function HomeMenuPage() {
   const [showPushModal, setShowPushModal] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [email, setEmail] = useState("")
+  const router = useRouter()
+  const [openingArea, setOpeningArea] = useState<string | null>(null)
+const openArea = (href: string, title: string) => {
+  setOpeningArea(title)
 
+  setTimeout(() => {
+    router.push(href)
+  }, 450)
+}
+  
 const logout = async () => {
   await supabase.auth.signOut()
   window.location.href = "/login"
@@ -282,10 +293,11 @@ const registerPush = async () => {
             const Icon = area.icon
 
             return (
-              <Link
-                key={area.title}
-                href={area.href}
-                className={`group relative block overflow-hidden rounded-[32px] border p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] ${area.className}`}
+              <button
+  key={area.title}
+  type="button"
+  onClick={() => openArea(area.href, area.title)}
+                className={`group relative block overflow-hidden rounded-[32px] w-full text-left border p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] ${area.className}`}
               >
                 <div className="absolute right-[-30px] top-[-30px] h-[110px] w-[110px] rounded-full bg-white/[0.035] blur-2xl" />
 
@@ -313,7 +325,7 @@ const registerPush = async () => {
                     →
                   </span>
                 </div>
-              </Link>
+              </button>
             )
           })}
         </section>
@@ -355,6 +367,35 @@ const registerPush = async () => {
     </div>
   </div>
 )}
+<AnimatePresence>
+  {openingArea && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-xl"
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0, y: 14 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ duration: 0.28, ease: "easeOut" }}
+        className="rounded-[36px] border border-white/10 bg-white/[0.06] px-8 py-7 text-center shadow-2xl"
+      >
+        <div className="mx-auto mb-4 h-14 w-14 rounded-2xl border border-white/10 bg-white/[0.06] flex items-center justify-center">
+          <Sparkles className="h-7 w-7 text-white" />
+        </div>
+
+        <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">
+          Öffne Bereich
+        </p>
+
+        <h2 className="mt-2 text-2xl font-black">{openingArea}</h2>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
+
     </div>
   )
 
