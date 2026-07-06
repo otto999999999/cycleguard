@@ -183,7 +183,7 @@ toast.error("Nicht eingeloggt")
       type: form.type,
       manufacturer: form.manufacturer.trim() || null,
       price: form.price || null,
-      half_life_hours: form.halfLifeHours || null,
+      half_life_hours: form.type === "Supplement" ? null : form.halfLifeHours || null,
       user_id: session.user.id,
     }
 
@@ -451,6 +451,7 @@ toast.error("Fehler beim Löschen: " + error.message)
                   </select>
                 </Field>
 
+              {form.type !== "Supplement" && (
                 <Field label="Halbwertszeit in Stunden">
                   <input
                     type="number"
@@ -465,6 +466,7 @@ toast.error("Fehler beim Löschen: " + error.message)
                     Beispiel: 120 = ca. 5 Tage. Wird später für Level-Charts benutzt.
                   </p>
                 </Field>
+              )}
               </div>
 
               {isOralType(form.type) && (

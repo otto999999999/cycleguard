@@ -185,9 +185,11 @@ async function loadPlan() {
       .in("plan_id", planIds)
       .order("created_at", { ascending: true })
 
-    setTrainingDays(daysData || [])
+const safeDaysData = daysData || []
 
-    const dayIds = (daysData || []).map((day) => day.id)
+setTrainingDays(safeDaysData)
+
+const dayIds = safeDaysData.map((day) => day.id)
 
     if (dayIds.length > 0) {
       const { data: exercisesData } = await supabase
@@ -229,15 +231,15 @@ const { data: recentSessionsData } = await supabase
   .limit(10)
 
 setRecentSessions(recentSessionsData || [])
-      const todayDay = (daysData || []).find((day) =>
-        day.weekdays?.includes(todayShort)
-      )
+const todayDay = safeDaysData.find((day) =>
+  day.weekdays?.includes(todayShort)
+)
 
-      if (todayDay) {
-        setSelectedDayId(todayDay.id)
-      } else if ((daysData || []).length > 0) {
-        setSelectedDayId(daysData[0].id)
-      }
+if (todayDay) {
+  setSelectedDayId(todayDay.id)
+} else if (safeDaysData.length > 0) {
+  setSelectedDayId(safeDaysData[0].id)
+}
     }
   }
 
@@ -287,7 +289,7 @@ return
 
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-          <Link href="/performance" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] active:scale-95">
+          <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] active:scale-95">
             <ChevronLeft className="h-5 w-5" />
           </Link>
 

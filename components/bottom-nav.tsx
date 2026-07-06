@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 
 const navItems = [
-  { href: "/", label: "Home", icon: Home },
+  { href: "/steroids", label: "Home", icon: Home },
   { href: "/compounds", label: "Substanzen", icon: List },
   { href: "/cycle", label: "Cycle", icon: Calendar },
   { href: "/stats", label: "Stats", icon: BarChart3 },
@@ -30,9 +30,7 @@ export function BottomNav() {
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(item.href)
+pathname.startsWith(item.href)
 
             return (
               <Link

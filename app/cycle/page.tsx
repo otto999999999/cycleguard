@@ -39,6 +39,7 @@ export default function CyclePage() {
 
   const [cycleName, setCycleName] = useState("")
   const [cycleType, setCycleType] = useState<"normal" | "trt">("normal")
+  const [planCategory, setPlanCategory] = useState<"cycle" | "supplement">("cycle")
   const [durationWeeks, setDurationWeeks] = useState(12)
   const [description, setDescription] = useState("")
   const [mainStack, setMainStack] = useState<any[]>([])
@@ -84,6 +85,7 @@ export default function CyclePage() {
     setEditingCycle(null)
     setCycleName("")
     setCycleType("normal")
+    setPlanCategory("cycle")
     setDurationWeeks(12)
     setDescription("")
     setMainStack([])
@@ -99,6 +101,7 @@ export default function CyclePage() {
     setEditingCycle(cycle)
     setCycleName(cycle.name || "")
     setCycleType(cycle.cycle_type || (cycle.indefinite ? "trt" : "normal"))
+    setPlanCategory(cycle.plan_category || "cycle")
     setDurationWeeks(cycle.duration_weeks || 12)
     setDescription(cycle.description || "")
     setMainStack(cycle.main_stack || [])
@@ -204,6 +207,7 @@ const saveCycle = async () => {
     const payload = {
       name: cycleName.trim(),
       cycle_type: cycleType,
+      plan_category: planCategory,
       indefinite: cycleType === "trt",
       duration_weeks: cycleType === "trt" ? null : durationWeeks,
       description: description.trim() || null,
@@ -258,11 +262,14 @@ const saveCycle = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) return
 
-    const { error: stopError } = await supabase
-      .from("cycles")
-      .update({ active: false })
-      .eq("user_id", session.user.id)
-      .eq("active", true)
+const planCategory = cycle.plan_category || "cycle"
+
+const { error: stopError } = await supabase
+  .from("cycles")
+  .update({ active: false })
+  .eq("user_id", session.user.id)
+  .eq("active", true)
+  .eq("plan_category", planCategory)
 
     if (stopError) {
       alert("Fehler beim Stoppen alter Cycles: " + stopError.message)
@@ -417,7 +424,15 @@ toast.error("Fehler beim Löschen: " + error.message)
 
     return null
   }
+const availableMainCompounds =
+  planCategory === "supplement"
+    ? userCompounds.filter((compound) => compound.type === "Supplement")
+    : userCompounds
 
+const availablePCTCompounds =
+  planCategory === "supplement"
+    ? []
+    : userCompounds
   const getStackAnalysis = (cycle: any) => {
     const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
 
@@ -631,6 +646,36 @@ toast.error("Fehler beim Löschen: " + error.message)
         <Modal title={editingCycle ? "Cycle bearbeiten" : "Neuen Cycle erstellen"} onClose={() => setShowCycleModal(false)}>
           <div className="space-y-6">
             <Card title="Grunddaten" subtitle="Name, Typ und Beschreibung.">
+              <Field label="Plan-Art">
+  <div className="grid grid-cols-2 gap-3">
+    <button
+      type="button"
+      onClick={() => {
+        setPlanCategory("cycle")
+      }}
+      className={`rounded-2xl py-4 font-medium ${
+        planCategory === "cycle" ? "bg-primary text-white" : "bg-[#181818]"
+      }`}
+    >
+      Cycle
+    </button>
+
+    <button
+      type="button"
+      onClick={() => {
+        setPlanCategory("supplement")
+        setCycleType("trt")
+        setPctStack([])
+        setMainStack((prev) => prev.filter((item) => item.type === "Supplement"))
+      }}
+      className={`rounded-2xl py-4 font-medium ${
+        planCategory === "supplement" ? "bg-primary text-white" : "bg-[#181818]"
+      }`}
+    >
+      Supplement-Plan
+    </button>
+  </div>
+</Field>
               <Field label="Cycle Name">
                 <input
                   value={cycleName}
@@ -640,31 +685,33 @@ toast.error("Fehler beim Löschen: " + error.message)
                 />
               </Field>
 
-              <Field label="Cycle Typ">
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCycleType("normal")}
-                    className={`py-4 rounded-2xl font-medium ${
-                      cycleType === "normal" ? "bg-primary text-white" : "bg-[#181818]"
-                    }`}
-                  >
-                    Normal
-                  </button>
+{planCategory === "cycle" && (
+  <Field label="Cycle Typ">
+    <div className="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        onClick={() => setCycleType("normal")}
+        className={`py-4 rounded-2xl font-medium ${
+          cycleType === "normal" ? "bg-primary text-white" : "bg-[#181818]"
+        }`}
+      >
+        Normal
+      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setCycleType("trt")}
-                    className={`py-4 rounded-2xl font-medium ${
-                      cycleType === "trt" ? "bg-primary text-white" : "bg-[#181818]"
-                    }`}
-                  >
-                    TRT / dauerhaft
-                  </button>
-                </div>
-              </Field>
+      <button
+        type="button"
+        onClick={() => setCycleType("trt")}
+        className={`py-4 rounded-2xl font-medium ${
+          cycleType === "trt" ? "bg-primary text-white" : "bg-[#181818]"
+        }`}
+      >
+        TRT / dauerhaft
+      </button>
+    </div>
+  </Field>
+)}
 
-              {cycleType === "normal" && (
+              {planCategory === "cycle" && cycleType === "normal" && (
                 <Field label="Dauer in Wochen">
                   <input
                     type="number"
@@ -707,20 +754,22 @@ toast.error("Fehler beim Löschen: " + error.message)
               />
             </Card>
 
-            <Card title="PCT Stack" subtitle="Optionaler Plan nach dem Cycle.">
-              <button onClick={() => setShowPCTModal(true)} className="w-full bg-primary py-4 rounded-2xl font-medium mb-4">
-                PCT Substanzen auswählen
-              </button>
+{planCategory === "cycle" && (
+  <Card title="PCT Stack" subtitle="Optionaler Plan nach dem Cycle.">
+    <button onClick={() => setShowPCTModal(true)} className="w-full bg-primary py-4 rounded-2xl font-medium mb-4">
+      PCT Substanzen auswählen
+    </button>
 
-              <StackEditor
-                items={pctStack}
-                onOpen={(c: any) => openDosingModal(c, "pct")}
-                onRemove={(id: string) => setPctStack((prev) => prev.filter((c) => c.id !== id))}
-                emptyText="Noch keine PCT Substanzen"
-                renderLine={renderLine}
-                pct
-              />
-            </Card>
+    <StackEditor
+      items={pctStack}
+      onOpen={(c: any) => openDosingModal(c, "pct")}
+      onRemove={(id: string) => setPctStack((prev) => prev.filter((c) => c.id !== id))}
+      emptyText="Noch keine PCT Substanzen"
+      renderLine={renderLine}
+      pct
+    />
+  </Card>
+)}
 
             <div className="flex gap-3 pt-2">
               <button onClick={() => setShowCycleModal(false)} className="flex-1 py-4 bg-[#111111] rounded-2xl">
@@ -753,7 +802,7 @@ toast.error("Fehler beim Löschen: " + error.message)
       {showCompoundModal && (
         <SelectCompoundModal
           title="Substanzen auswählen"
-          compounds={userCompounds}
+          compounds={availableMainCompounds}
           onSelect={addToMainStack}
           onClose={() => setShowCompoundModal(false)}
           isOral={isOral}
@@ -763,7 +812,7 @@ toast.error("Fehler beim Löschen: " + error.message)
       {showPCTModal && (
         <SelectCompoundModal
           title="PCT Substanzen auswählen"
-          compounds={userCompounds}
+          compounds={availablePCTCompounds}
           onSelect={addToPCTStack}
           onClose={() => setShowPCTModal(false)}
           isOral={isOral}
