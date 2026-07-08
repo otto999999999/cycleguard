@@ -416,28 +416,28 @@ return
         </span>
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-white/10 text-center">
-<div>
-  <p className="text-3xl font-black text-emerald-300">
-    {weekWorkoutCount}
-  </p>
-  <p className="mt-1 text-sm text-muted-foreground">Einheiten</p>
-</div>
+<div className="grid grid-cols-2 gap-3 text-center">
+  <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+    <p className="text-3xl font-black text-emerald-300">
+      {weekWorkoutCount}
+    </p>
+    <p className="mt-1 text-sm text-muted-foreground">Einheiten</p>
+  </div>
 
-<div>
-  <p className="text-3xl font-black text-white">
-    {weekWorkoutCount > 0 ? `${weekAverageMinutes} min` : "--"}
-  </p>
-  <p className="mt-1 text-sm text-muted-foreground">Ø Dauer</p>
-</div>
+  <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+    <p className="text-3xl font-black text-white">
+      {weekWorkoutCount > 0 ? `${weekAverageMinutes} min` : "--"}
+    </p>
+    <p className="mt-1 text-sm text-muted-foreground">Ø Dauer</p>
+  </div>
 
-<div>
-  <p className="text-3xl font-black text-cyan-300">
-    {weeklyVolume > 0 ? `${weeklyVolume.toLocaleString("de-DE")} kg` : "--"}
-  </p>
-  <p className="mt-1 text-sm text-muted-foreground">Volumen</p>
+  <div className="col-span-2 rounded-[22px] border border-cyan-400/15 bg-cyan-400/[0.06] p-4">
+    <p className="text-3xl font-black text-cyan-300">
+      {weeklyVolume > 0 ? `${weeklyVolume.toLocaleString("de-DE")} kg` : "--"}
+    </p>
+    <p className="mt-1 text-sm text-muted-foreground">Volumen</p>
+  </div>
 </div>
-      </div>
     </section>
 
 <section>
