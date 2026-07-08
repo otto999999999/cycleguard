@@ -150,32 +150,50 @@ const getDueForPlanDate = (plan: any, dateKey: string) => {
   if (!plan) return []
 
   const stack = [...(plan.main_stack || []), ...(plan.pct_stack || [])]
-    const date = new Date(dateKey)
-    const dayShort = DAYS[date.getDay()]
+  const date = new Date(dateKey)
+  const dayShort = DAYS[date.getDay()]
 
-    return stack.filter((item) => {
-      if (!plan.start_date) return false
+  const start = new Date(plan.start_date)
+  const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
-      const startWeek = item.startWeek || 1
-      const endWeek = item.endWeek || plan.duration_weeks || 9999
+  if (!plan.start_date || diffDays < 0) return []
 
-      const start = new Date(plan.start_date)
-      const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
+  const hasInjectionDueToday = stack.some((item) => {
+    if (item.method === "Oral") return false
+    if (ORAL_TYPES.includes(item.type)) return false
 
-      if (diffDays < 0) return false
+    const startWeek = item.startWeek || 1
+    const endWeek = item.endWeek || plan.duration_weeks || 9999
+    const currentWeek = Math.floor(diffDays / 7) + 1
 
-      const currentWeek = Math.floor(diffDays / 7) + 1
-      if (currentWeek < startWeek || currentWeek > endWeek) return false
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
 
-      if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-      if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
-      if (item.frequency === "EOD") return diffDays % 2 === 0
-      if (item.frequency === "E3D") return diffDays % 3 === 0
-      if (item.frequency === "Weekly") return diffDays % 7 === 0
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
 
-      return false
-    })
-  }
+    return false
+  })
+
+  return stack.filter((item) => {
+    const startWeek = item.startWeek || 1
+    const endWeek = item.endWeek || plan.duration_weeks || 9999
+    const currentWeek = Math.floor(diffDays / 7) + 1
+
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
+    if (item.frequency === "Injection Days") return hasInjectionDueToday
+
+    return false
+  })
+}
 const getDueForDate = (dateKey: string) => {
   return getDueForPlanDate(activeCycle, dateKey)
 }

@@ -541,17 +541,17 @@ const cancelWorkout = async () => {
   className="flex w-full items-center justify-between gap-4 p-5 text-left active:scale-[0.99]"
 >
   <div className="min-w-0">
-    <div className="flex items-center gap-2">
-      <h3 className="truncate text-xl font-black tracking-tight">
-        {entry.exercise_library?.name || entry.name || "Übung"}
-      </h3>
+<div className="flex items-start gap-2">
+  <h3 className="min-w-0 flex-1 break-words text-xl font-black leading-tight tracking-tight">
+    {entry.exercise_library?.name || entry.name || "Übung"}
+  </h3>
 
-      {sets.some((set: any) => set.completed) && (
-        <div className="rounded-full bg-emerald-400/15 px-2 py-1">
-          <Trophy className="h-4 w-4 text-amber-300" />
-        </div>
-      )}
+  {sets.some((set: any) => set.completed) && (
+    <div className="shrink-0 rounded-full bg-emerald-400/15 px-2 py-1">
+      <Trophy className="h-4 w-4 text-amber-300" />
     </div>
+  )}
+</div>
 
     <p className="mt-1 text-sm text-muted-foreground">
       {entry.sets || 3} Sätze • {entry.reps || "--"} Wdh.

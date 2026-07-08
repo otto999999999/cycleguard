@@ -39,6 +39,8 @@ const todayKey = () => {
   return `${y}-${m}-${day}`
 }
 
+const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+
 const getDueForToday = (cycle: any) => {
   if (!cycle?.start_date) return []
 
@@ -46,15 +48,18 @@ const getDueForToday = (cycle: any) => {
   const dayShort = DAYS[today.getDay()]
   const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
 
-  return stack.filter((item) => {
-    const start = new Date(cycle.start_date)
-    const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
+  const start = new Date(cycle.start_date)
+  const diffDays = Math.floor((today.getTime() - start.getTime()) / 86400000)
 
-    if (diffDays < 0) return false
+  if (diffDays < 0) return []
+
+  const hasInjectionDueToday = stack.some((item) => {
+    if (item.method === "Oral") return false
+    if (ORAL_TYPES.includes(item.type)) return false
 
     const currentWeek = Math.floor(diffDays / 7) + 1
     const startWeek = item.startWeek || 1
-    const endWeek = item.endWeek || cycle.duration_weeks || 12
+    const endWeek = item.endWeek || cycle.duration_weeks || 9999
 
     if (currentWeek < startWeek || currentWeek > endWeek) return false
 
@@ -63,6 +68,23 @@ const getDueForToday = (cycle: any) => {
     if (item.frequency === "EOD") return diffDays % 2 === 0
     if (item.frequency === "E3D") return diffDays % 3 === 0
     if (item.frequency === "Weekly") return diffDays % 7 === 0
+
+    return false
+  })
+
+  return stack.filter((item) => {
+    const currentWeek = Math.floor(diffDays / 7) + 1
+    const startWeek = item.startWeek || 1
+    const endWeek = item.endWeek || cycle.duration_weeks || 9999
+
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
+    if (item.frequency === "Injection Days") return hasInjectionDueToday
 
     return false
   })

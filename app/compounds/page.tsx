@@ -68,6 +68,12 @@ export default function CompoundsPage() {
   })
 
   const isOralType = (type: string) => ORAL_TYPES.includes(type)
+  const parseDecimal = (value: string) => {
+  const normalized = value.replace(",", ".")
+  const parsed = Number(normalized)
+
+  return Number.isNaN(parsed) ? 0 : parsed
+}
 const haptic = () => {
   if (typeof window !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(12)
@@ -440,16 +446,24 @@ toast.error("Fehler beim Löschen: " + error.message)
                   />
                 </Field>
 
-                <Field label="Kategorie">
-                  <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className={inputClass}>
-                    <option value="">Bitte auswählen...</option>
-                    {compoundTypes.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+<Field label="Kategorie">
+  <select
+    value={form.type}
+    onChange={(e) => setForm({ ...form, type: e.target.value })}
+    className={`${inputClass} bg-[#181818] text-white`}
+    style={{ colorScheme: "dark" }}
+  >
+    <option value="" className="bg-[#111111] text-white">
+      Bitte auswählen...
+    </option>
+
+    {compoundTypes.map((t) => (
+      <option key={t} value={t} className="bg-[#111111] text-white">
+        {t}
+      </option>
+    ))}
+  </select>
+</Field>
 
               {form.type !== "Supplement" && (
                 <Field label="Halbwertszeit in Stunden">
@@ -481,9 +495,12 @@ toast.error("Fehler beim Löschen: " + error.message)
                   <Field label="Dosierung pro Pille">
                     <div className="grid grid-cols-2 gap-3">
                       <input
-                        type="number"
+                        type="text"
+inputMode="decimal"
                         value={form.dosePerPill}
-                        onChange={(e) => setForm({ ...form, dosePerPill: Number(e.target.value) })}
+                        onChange={(e) =>
+  setForm({ ...form, dosePerPill: parseDecimal(e.target.value) })
+}
                         className={inputClass}
                       />
 

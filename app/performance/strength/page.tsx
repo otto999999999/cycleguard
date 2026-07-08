@@ -27,6 +27,7 @@ export default function StrengthPage() {
   const [trainingDays, setTrainingDays] = useState<any[]>([])
 const [dayExercises, setDayExercises] = useState<any[]>([])
 const [finishedSessions, setFinishedSessions] = useState<any[]>([])
+const [weeklyVolume, setWeeklyVolume] = useState(0)
 const [recentSessions, setRecentSessions] = useState<any[]>([])
 const [selectedDayId, setSelectedDayId] = useState<string | null>(null)
 
@@ -58,6 +59,16 @@ const getDurationMinutes = (session: any) => {
     )
   )
 }
+
+const weekWorkoutCount = finishedSessions.length
+
+const weekTotalMinutes = finishedSessions.reduce(
+  (total, session) => total + getDurationMinutes(session),
+  0
+)
+
+const weekAverageMinutes =
+  weekWorkoutCount > 0 ? Math.round(weekTotalMinutes / weekWorkoutCount) : 0
 
 const getTrainingDayName = (session: any) => {
   const day = trainingDays.find((day) => day.id === session.training_day_id)
@@ -221,6 +232,27 @@ const dayIds = safeDaysData.map((day) => day.id)
 .is("cancelled_at", null)
 
       setFinishedSessions(sessionsData || [])
+      const weekSessionIds = (sessionsData || []).map((session) => session.id)
+
+if (weekSessionIds.length > 0) {
+  const { data: weekSetsData } = await supabase
+    .from("workout_sets")
+    .select("weight_kg, reps_done")
+    .in("session_id", weekSessionIds)
+    .eq("completed", true)
+
+  const volume = (weekSetsData || []).reduce((sum, set) => {
+    const kg = Number(set.weight_kg || 0)
+    const reps = Number(set.reps_done || 0)
+
+    return sum + kg * reps
+  }, 0)
+
+  setWeeklyVolume(volume)
+} else {
+  setWeeklyVolume(0)
+}
+
 const { data: recentSessionsData } = await supabase
   .from("workout_sessions")
   .select("*")
@@ -385,20 +417,26 @@ return
       </div>
 
       <div className="grid grid-cols-3 divide-x divide-white/10 text-center">
-        <div>
-          <p className="text-3xl font-black text-emerald-300">0</p>
-          <p className="mt-1 text-sm text-muted-foreground">Einheiten</p>
-        </div>
+<div>
+  <p className="text-3xl font-black text-emerald-300">
+    {weekWorkoutCount}
+  </p>
+  <p className="mt-1 text-sm text-muted-foreground">Einheiten</p>
+</div>
 
-        <div>
-          <p className="text-3xl font-black text-white">--</p>
-          <p className="mt-1 text-sm text-muted-foreground">Ø Dauer</p>
-        </div>
+<div>
+  <p className="text-3xl font-black text-white">
+    {weekWorkoutCount > 0 ? `${weekAverageMinutes} min` : "--"}
+  </p>
+  <p className="mt-1 text-sm text-muted-foreground">Ø Dauer</p>
+</div>
 
-        <div>
-          <p className="text-3xl font-black text-cyan-300">0 kg</p>
-          <p className="mt-1 text-sm text-muted-foreground">Volumen</p>
-        </div>
+<div>
+  <p className="text-3xl font-black text-cyan-300">
+    {weeklyVolume > 0 ? `${weeklyVolume.toLocaleString("de-DE")} kg` : "--"}
+  </p>
+  <p className="mt-1 text-sm text-muted-foreground">Volumen</p>
+</div>
       </div>
     </section>
 

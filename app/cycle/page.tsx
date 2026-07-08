@@ -330,10 +330,11 @@ toast.error("Fehler beim Löschen: " + error.message)
     await loadData()
   }
 
-  const formatSchedule = (c: any) => {
-    if (c.frequency === "Custom" && c.customDays?.length) return c.customDays.join(", ")
-    return c.frequency
-  }
+const formatSchedule = (c: any) => {
+  if (c.frequency === "Custom" && c.customDays?.length) return c.customDays.join(", ")
+  if (c.frequency === "Injection Days") return "An Injektionstagen"
+  return c.frequency
+}
 
   const renderLine = (c: any) => {
     const endText = c.endWeek >= 9999 ? "dauerhaft" : `Woche ${c.startWeek}–${c.endWeek}`
@@ -385,7 +386,28 @@ toast.error("Fehler beim Löschen: " + error.message)
     const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
     if (diffDays < 0) return []
+const hasInjectionDueToday = stack.some((item) => {
+  if (item.method === "Oral") return false
+  if (ORAL_TYPES.includes(item.type)) return false
 
+  const startWeek = item.startWeek || 1
+  const endWeek =
+    cycle.indefinite || cycle.cycle_type === "trt"
+      ? 9999
+      : item.endWeek || cycle.duration_weeks || 12
+
+  const currentWeek = Math.floor(diffDays / 7) + 1
+
+  if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+  if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+  if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+  if (item.frequency === "EOD") return diffDays % 2 === 0
+  if (item.frequency === "E3D") return diffDays % 3 === 0
+  if (item.frequency === "Weekly") return diffDays % 7 === 0
+if (item.frequency === "Injection Days") return hasInjectionDueToday
+  return false
+})
     return stack.filter((item) => {
       const startWeek = item.startWeek || 1
       const endWeek =
@@ -875,6 +897,7 @@ const availablePCTCompounds =
                   <option value="E3D">E3D - Jeden 3. Tag</option>
                   <option value="Weekly">Weekly - Wöchentlich</option>
                   <option value="Custom">Custom Days</option>
+                  <option value="Injection Days">Injection Days - An Injektionstagen</option>
                 </select>
               </Field>
 
