@@ -215,16 +215,20 @@ const getDueForDate = (dateKey: string) => {
       .filter((dateKey) => getDueForDate(dateKey).length > 0)
   }
 
-  const selectedDue = getDueForDate(selectedDate)
-  const selectedSupplementDue = getDueForPlanDate(activeSupplementPlan, selectedDate)
+const selectedDue = getDueForDate(selectedDate)
+const selectedSupplementDue = getDueForPlanDate(activeSupplementPlan, selectedDate)
 
-  const isPlannedDone = (item: any, dateKey: string) => {
-    return doses.some(
-      (dose) =>
-        dose.compound_id === item.id &&
-        dose.datum === dateKey
-    )
-  }
+const isPlannedDone = (item: any, dateKey: string) => {
+  return doses.some(
+    (dose) =>
+      dose.compound_id === item.id &&
+      dose.datum === dateKey
+  )
+}
+
+const openSupplementDue = selectedSupplementDue.filter(
+  (item: any) => !isPlannedDone(item, selectedDate)
+)
 
 const logSelectedSupplements = async () => {
   if (saving) return
@@ -234,9 +238,9 @@ const logSelectedSupplements = async () => {
     return
   }
 
-  const selectedItems = selectedSupplementDue.filter((item: any) =>
-    selectedSupplementIds.includes(item.id)
-  )
+const selectedItems = openSupplementDue.filter((item: any) =>
+  selectedSupplementIds.includes(item.id)
+)
 
   if (selectedItems.length === 0) {
     toast.error("Keine Supplemente ausgewählt")
@@ -748,83 +752,141 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
               })}
             </div>
           )}
-          {activeSupplementPlan && selectedSupplementDue.length > 0 && (
-  <div className="mt-5 rounded-[28px] border border-blue-400/10 bg-gradient-to-br from-blue-500/[0.08] to-[#101010] p-5 shadow-2xl backdrop-blur-xl">
-    <div className="mb-4 flex items-center justify-between gap-3">
+{activeSupplementPlan && selectedSupplementDue.length > 0 && (
+  <div className="mt-6 relative overflow-hidden rounded-[34px] border border-blue-400/20 bg-gradient-to-br from-blue-500/[0.14] via-white/[0.045] to-[#080808] p-5 shadow-[0_0_45px_rgba(59,130,246,0.13)] backdrop-blur-2xl">
+    <div className="absolute right-[-60px] top-[-70px] h-[170px] w-[170px] rounded-full bg-blue-400/15 blur-3xl" />
+    <div className="absolute bottom-[-80px] left-[-60px] h-[150px] w-[150px] rounded-full bg-cyan-400/10 blur-3xl" />
+
+    <div className="relative mb-5 flex items-start justify-between gap-4">
       <div>
-        <h3 className="font-semibold">Supplemente heute</h3>
-        <p className="text-sm text-muted-foreground">
-          Wähle aus, was du genommen hast.
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1.5 text-xs font-bold text-blue-300">
+          Supplement-Plan
+        </div>
+
+        <h3 className="text-2xl font-black tracking-tight">Supplemente heute</h3>
+
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Wähle aus, was du genommen hast, und logge alles gesammelt.
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={() =>
-          setSelectedSupplementIds(
-            selectedSupplementDue.map((item: any) => item.id)
-          )
-        }
-        className="rounded-2xl bg-white/5 px-4 py-2 text-sm"
-      >
-        Alle
-      </button>
+      <div className="shrink-0 rounded-[22px] border border-blue-400/20 bg-blue-400/10 px-4 py-3 text-center">
+        <p className="text-2xl font-black text-blue-300">
+          {selectedSupplementIds.length}/{openSupplementDue.length}
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          gewählt
+        </p>
+      </div>
     </div>
 
-    <div className="space-y-3">
+    <div className="relative mb-4 h-2 overflow-hidden rounded-full bg-black/40">
+      <div
+        className="h-full rounded-full bg-gradient-to-r from-blue-400 to-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.35)] transition-all duration-500"
+style={{
+  width: `${
+    openSupplementDue.length > 0
+      ? Math.round((selectedSupplementIds.length / openSupplementDue.length) * 100)
+      : 100
+  }%`,
+}}
+      />
+    </div>
+
+<div className="relative mb-4">
+<button
+  type="button"
+  onClick={() =>
+    setSelectedSupplementIds(
+      openSupplementDue.map((item: any) => item.id)
+    )
+  }
+  disabled={openSupplementDue.length === 0}
+  className={`w-full rounded-[22px] border py-3 text-sm font-black active:scale-[0.98] ${
+    openSupplementDue.length === 0
+      ? "border-white/10 bg-white/[0.04] text-white/30"
+      : "border-blue-400/20 bg-blue-400/10 text-blue-300"
+  }`}
+>
+  {openSupplementDue.length === 0
+    ? "Alles bereits geloggt"
+    : `${openSupplementDue.length} offene auswählen`}
+</button>
+</div>
+
+    <div className="relative space-y-3">
       {selectedSupplementDue.map((item: any) => {
         const checked = selectedSupplementIds.includes(item.id)
+        const done = isPlannedDone(item, selectedDate)
 
         return (
           <button
             key={item.id}
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (done) return
+
               setSelectedSupplementIds((prev) =>
                 checked
                   ? prev.filter((id) => id !== item.id)
                   : [...prev, item.id]
               )
-            }
-            className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition-all active:scale-[0.98] ${
-              checked
-                ? "border-blue-400/30 bg-blue-500/15"
-                : "border-white/5 bg-white/[0.03]"
+            }}
+            disabled={done}
+            className={`relative flex w-full items-center justify-between gap-4 overflow-hidden rounded-[24px] border p-4 text-left transition-all active:scale-[0.98] ${
+              done
+                ? "border-emerald-400/20 bg-emerald-400/10 opacity-80"
+                : checked
+                  ? "border-blue-400/35 bg-blue-500/15 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
+                  : "border-white/10 bg-black/25"
             }`}
           >
-            <div>
-              <p className="font-medium">{item.name}</p>
-              <p className="text-sm text-muted-foreground">
+            <div
+              className={`absolute left-0 top-0 h-full w-1 ${
+                done ? "bg-emerald-400" : checked ? "bg-blue-400" : "bg-white/10"
+              }`}
+            />
+
+            <div className="min-w-0 pl-2">
+              <p className="truncate font-black">{item.name}</p>
+
+              <p className="mt-1 text-sm text-muted-foreground">
                 {item.doseAmount} {item.doseUnit} • {item.frequency}
               </p>
             </div>
 
             <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full border ${
-                checked
-                  ? "border-blue-400 bg-blue-400 text-black"
-                  : "border-white/20"
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border font-black ${
+                done
+                  ? "border-emerald-400 bg-emerald-400 text-black"
+                  : checked
+                    ? "border-blue-400 bg-blue-400 text-black"
+                    : "border-white/20 bg-white/[0.04] text-white/30"
               }`}
             >
-              {checked ? "✓" : ""}
+              {done || checked ? <CheckCircle className="h-5 w-5" /> : ""}
             </div>
           </button>
         )
       })}
     </div>
 
-<button
-  type="button"
-  onClick={logSelectedSupplements}
-  disabled={saving || selectedSupplementIds.length === 0}
-  className={`mt-4 w-full rounded-2xl py-4 font-semibold text-white ${
-    saving || selectedSupplementIds.length === 0
-      ? "bg-white/10 text-white/40"
-      : "bg-blue-500"
-  }`}
->
-  {saving ? "Speichert..." : "Ausgewählte loggen"}
-</button>
+    <button
+      type="button"
+      onClick={logSelectedSupplements}
+      disabled={saving || selectedSupplementIds.length === 0}
+      className={`relative mt-5 w-full rounded-[24px] py-4 font-black transition-all active:scale-[0.98] ${
+        saving || selectedSupplementIds.length === 0
+          ? "border border-white/10 bg-white/[0.05] text-white/35"
+          : "bg-gradient-to-r from-blue-400 to-cyan-300 text-black shadow-[0_0_30px_rgba(34,211,238,0.28)]"
+      }`}
+    >
+      {saving
+        ? "Speichert..."
+        : selectedSupplementIds.length > 0
+          ? `${selectedSupplementIds.length} Supplemente loggen`
+          : "Supplemente auswählen"}
+    </button>
   </div>
 )}
         </div>
