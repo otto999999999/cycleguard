@@ -45,6 +45,18 @@ export default function WorkoutPage() {
   useEffect(() => {
     loadWorkout()
   }, [sessionId])
+
+useEffect(() => {
+  if (!sessionId) return
+
+  localStorage.setItem("cycleguard_active_workout_session", sessionId)
+
+  return () => {
+    // Nicht hier löschen, weil iOS/PWA die Seite nur neu laden kann.
+    // Gelöscht wird nur bei Abbrechen oder Fertig.
+  }
+}, [sessionId])
+
 useEffect(() => {
   if (!isRestRunning || !restEndsAt) return
 
@@ -378,7 +390,7 @@ const cancelWorkout = async () => {
     toast.error("Workout konnte nicht abgebrochen werden.")
     return
   }
-
+  localStorage.removeItem("cycleguard_active_workout_session")
   router.push("/performance/strength")
 }
   const finishWorkout = async () => {
@@ -399,8 +411,9 @@ const cancelWorkout = async () => {
       return
     }
 
-    toast.success("Workout abgeschlossen.")
-    router.push("/performance/strength")
+localStorage.removeItem("cycleguard_active_workout_session")
+toast.success("Workout abgeschlossen.")
+router.push("/performance/strength")
   }
 
   if (loading) {

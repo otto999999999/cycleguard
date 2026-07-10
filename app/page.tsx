@@ -60,6 +60,15 @@ export default function HomeMenuPage() {
   const [email, setEmail] = useState("")
   const router = useRouter()
   const [openingArea, setOpeningArea] = useState<string | null>(null)
+  useEffect(() => {
+  const activeWorkoutSession = localStorage.getItem(
+    "cycleguard_active_workout_session"
+  )
+
+  if (activeWorkoutSession) {
+    router.replace(`/performance/strength/workout/${activeWorkoutSession}`)
+  }
+}, [router])
 const openArea = (href: string, title: string) => {
   setOpeningArea(title)
 
