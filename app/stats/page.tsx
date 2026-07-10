@@ -58,6 +58,14 @@ useEffect(() => {
   return () => clearInterval(interval)
 }, [rangeHours])
 
+const formatMg = (value: number) => {
+  return value.toLocaleString("de-DE", {
+    minimumFractionDigits: value < 10 ? 1 : 0,
+    maximumFractionDigits: 2,
+  })
+}
+
+
 const toggleCompound = (name: string) => {
   setHiddenCompounds((prev) =>
     prev.includes(name)
@@ -128,7 +136,7 @@ const toggleCompound = (name: string) => {
       Object.entries(activeMap)
         .map(([name, data]) => ({
           name,
-          amount: Math.round(data.amount),
+          amount: Number(data.amount.toFixed(2)),
           halfLife: data.halfLife,
         }))
         .sort((a, b) => b.amount - a.amount)
@@ -177,7 +185,7 @@ const toggleCompound = (name: string) => {
           )
         }
 
-        point[compound.name] = Math.round(total)
+        point[compound.name] = Number(total.toFixed(2))
       }
 
       points.push(point)
@@ -413,7 +421,7 @@ strokeOpacity={0.22}
 
                       <div className="text-right">
                         <p className="text-3xl font-bold text-emerald-400">
-                          {item.amount}mg
+                          {formatMg(item.amount)} mg
                         </p>
 
                         <p className="text-xs text-muted-foreground">

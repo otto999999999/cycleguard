@@ -1055,7 +1055,9 @@ style={{
               {!isEditing && (
                 <Field label="Substanz">
                   <select value={form.compound_id} onChange={(e) => handleCompoundChange(e.target.value)} className={inputClass}>
-                    <option value="">Substanz auswählen...</option>
+                    <option value="" className="bg-[#111111] text-white">
+  Substanz auswählen...
+</option>
                     {compounds.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}

@@ -326,8 +326,8 @@ return
           </Link>
 
           <div className="text-center">
-            <h1 className="text-xl font-bold">Strength</h1>
-            <p className="text-xs text-muted-foreground">Training Plans</p>
+            <h1 className="text-xl font-black">Gym</h1>
+<p className="text-xs text-muted-foreground">Aktuelles Training</p>
           </div>
 
           <div className="h-10 w-10" />
