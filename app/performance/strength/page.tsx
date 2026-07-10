@@ -548,12 +548,21 @@ return
               />
             </div>
           </div>
-          <a
-  href={stepsShortcutUrl}
-  className="col-span-2 flex items-center justify-center rounded-[22px] border border-cyan-400/20 bg-cyan-400/10 py-3 text-sm font-black text-cyan-300 active:scale-[0.98]"
->
-  Schritte aktualisieren
-</a>
+<div className="col-span-2 grid grid-cols-2 gap-3">
+  <a
+    href={stepsShortcutUrl}
+    className="flex items-center justify-center rounded-[22px] border border-cyan-400/20 bg-cyan-400/10 py-3 text-sm font-black text-cyan-300 active:scale-[0.98]"
+  >
+    Aktualisieren
+  </a>
+
+  <Link
+    href="/performance/steps/setup"
+    className="flex items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] py-3 text-sm font-black text-white/80 active:scale-[0.98]"
+  >
+    Info
+  </Link>
+</div>
         </div>
       ) : (
         <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
