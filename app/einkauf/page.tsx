@@ -129,9 +129,57 @@ useEffect(() => {
   if (item.frequency === "EOD") return "jeden 2. Tag"
   if (item.frequency === "E3D") return "jeden 3. Tag"
   if (item.frequency === "Weekly") return "wöchentlich"
-
+  if (item.frequency === "Injection Days") return "an Injektionstagen"
   return item.frequency || "—"
 }
+const getInjectionDaysPerWeek = () => {
+  const stack = [
+    ...(activeCycle?.main_stack || []),
+    ...(activeCycle?.pct_stack || []),
+  ]
+
+  const injectionDays = new Set<string>()
+
+  stack.forEach((item: any) => {
+    const compound = compounds.find((c) => c.id === item.id)
+
+    if (!compound) return
+    if (isOral(compound)) return
+
+    if (item.frequency === "Daily") {
+      ;["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((day) =>
+        injectionDays.add(day)
+      )
+      return
+    }
+
+    if (item.frequency === "Custom") {
+      ;(item.customDays || []).forEach((day: string) => injectionDays.add(day))
+      return
+    }
+
+    if (item.frequency === "EOD") {
+      injectionDays.add("EOD")
+      return
+    }
+
+    if (item.frequency === "E3D") {
+      injectionDays.add("E3D")
+      return
+    }
+
+    if (item.frequency === "Weekly") {
+      injectionDays.add("Weekly")
+    }
+  })
+
+  if (injectionDays.has("EOD")) return 3.5
+  if (injectionDays.has("E3D")) return 7 / 3
+  if (injectionDays.has("Weekly")) return Math.max(1, injectionDays.size)
+
+  return injectionDays.size
+}
+
 const getWeeklyUsageFromItem = (item: any) => {
   const dose = Number(item.doseAmount || 0)
   if (!dose) return 0
@@ -141,6 +189,10 @@ const getWeeklyUsageFromItem = (item: any) => {
   if (item.frequency === "EOD") return dose * 3.5
   if (item.frequency === "E3D") return dose * (7 / 3)
   if (item.frequency === "Weekly") return dose
+
+  if (item.frequency === "Injection Days") {
+    return dose * getInjectionDaysPerWeek()
+  }
 
   if (item.frequency === "Custom") {
     const days = item.customDays?.length || 0
