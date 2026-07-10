@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronLeft, Copy, CheckCircle, Smartphone, Activity } from "lucide-react"
+import {
+  ChevronLeft,
+  Copy,
+  CheckCircle,
+  Smartphone,
+  Activity,
+} from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -11,6 +17,8 @@ export default function StepsSetupPage() {
   const [loading, setLoading] = useState(true)
 
   const syncUrl = "https://cycleguard.xyz/api/steps/sync"
+  const shortcutUrl =
+    "https://www.icloud.com/shortcuts/9f2413835d6d457c92d786bdda876aa9"
 
   useEffect(() => {
     loadToken()
@@ -76,7 +84,9 @@ export default function StepsSetupPage() {
 
           <div className="text-center">
             <h1 className="text-xl font-black">Schritte einrichten</h1>
-            <p className="text-xs text-muted-foreground">Apple Health über Kurzbefehle</p>
+            <p className="text-xs text-muted-foreground">
+              Apple Health über Kurzbefehle
+            </p>
           </div>
 
           <div className="h-10 w-10" />
@@ -110,7 +120,7 @@ export default function StepsSetupPage() {
 
               <button
                 onClick={() => copyText(syncUrl, "URL")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300 active:scale-95"
               >
                 <Copy className="h-4 w-4" />
               </button>
@@ -132,13 +142,20 @@ export default function StepsSetupPage() {
 
                 <button
                   onClick={() => copyText(token, "Token")}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 active:scale-95"
                 >
                   <Copy className="h-4 w-4" />
                 </button>
               </div>
             )}
           </div>
+
+          <a
+            href={shortcutUrl}
+            className="mt-4 flex w-full items-center justify-center rounded-[22px] bg-gradient-to-r from-cyan-400 to-blue-400 py-4 font-black text-black shadow-[0_0_25px_rgba(34,211,238,0.25)] active:scale-[0.98]"
+          >
+            Kurzbefehl installieren
+          </a>
         </section>
 
         <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
@@ -149,17 +166,24 @@ export default function StepsSetupPage() {
 
           <div className="space-y-4">
             {[
-              "Öffne auf dem iPhone die App „Kurzbefehle“.",
-              "Erstelle einen neuen Kurzbefehl.",
-              "Füge „Health-Daten suchen“ hinzu und wähle „Schritte“.",
-              "Stelle Zeitraum auf Heute: Start 00:00 bis Jetzt.",
-              "Füge „Statistik berechnen“ hinzu und wähle „Summe“.",
-              "Füge „Datum formatieren“ hinzu mit Format yyyy-MM-dd.",
-              "Füge „Inhalte von URL abrufen“ hinzu.",
-              "Methode: POST, Body: JSON, URL und Token von oben nutzen.",
-              "Danach Automation erstellen: täglich z. B. 23:55 ausführen."
+              "Drücke oben auf „Kurzbefehl installieren“.",
+              "Der iCloud-Link öffnet die Kurzbefehle-App.",
+              "Füge den Kurzbefehl zu deiner Sammlung hinzu.",
+              "Kopiere deinen CycleGuard Token von oben.",
+              "Öffne den importierten Kurzbefehl.",
+              "Wenn eine abfrage kommt auf immer erlauben drücken.",
+              "Gehe zur Aktion „Inhalte von URL abrufen“.",
+              "Prüfe: URL muss https://cycleguard.xyz/api/steps/sync sein.",
+              "Prüfe: Methode muss POST sein.",
+              "Gehe zu „Haupttext anfordern: JSON“.",
+              "Ersetze bei token den Platzhalter mit deinem echten Token.",
+              "Drücke Play zum Testen.",
+              "Wenn success true kommt, ist alles richtig.",
             ].map((step, index) => (
-              <div key={step} className="flex gap-3 rounded-[22px] border border-white/10 bg-white/[0.035] p-4">
+              <div
+                key={step}
+                className="flex gap-3 rounded-[22px] border border-white/10 bg-white/[0.035] p-4"
+              >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-400 text-sm font-black text-black">
                   {index + 1}
                 </div>
