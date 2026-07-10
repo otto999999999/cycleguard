@@ -304,11 +304,14 @@ for (const item of selectedItems) {
   const pillsUsed = Math.max(1, Math.ceil(doseAmount / dosePerPill))
   const nextRemaining = Math.max(0, currentRemaining - pillsUsed)
 
-  const { error: stockError } = await supabase
-    .from("compounds")
-    .update({ remaining_pills: nextRemaining })
-    .eq("id", compound.id)
-    .eq("user_id", session.user.id)
+const { error: stockError } = await supabase
+  .from("compounds")
+  .update({
+    remaining_pills: nextRemaining,
+    bottles_in_stock: nextRemaining <= 0 ? 0 : compound.bottles_in_stock,
+  })
+  .eq("id", compound.id)
+  .eq("user_id", session.user.id)
 
   if (stockError) {
     toast.error(`Bestand Fehler bei ${compound.name}: ${stockError.message}`)
@@ -439,7 +442,7 @@ takenAt: dose.taken_at
 
     const { data: comp, error: fetchError } = await supabase
       .from("compounds")
-      .select("id, type, remaining_pills")
+      .select("id, type, remaining_pills, bottles_in_stock")
       .eq("id", compoundId)
       .single()
 
@@ -449,10 +452,13 @@ takenAt: dose.taken_at
     const current = comp.remaining_pills ?? 0
     const next = Math.max(0, current - pillDelta)
 
-    const { error } = await supabase
-      .from("compounds")
-      .update({ remaining_pills: next })
-      .eq("id", compoundId)
+const { error } = await supabase
+  .from("compounds")
+  .update({
+    remaining_pills: next,
+    bottles_in_stock: next <= 0 ? 0 : comp.bottles_in_stock,
+  })
+  .eq("id", compoundId)
 
     if (error) throw error
   }
