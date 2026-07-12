@@ -308,7 +308,7 @@ const { error: stockError } = await supabase
   .from("compounds")
   .update({
     remaining_pills: nextRemaining,
-    bottles_in_stock: nextRemaining <= 0 ? 0 : compound.bottles_in_stock,
+    current_bottles: nextRemaining <= 0 ? 0 : compound.current_bottles,
   })
   .eq("id", compound.id)
   .eq("user_id", session.user.id)
@@ -442,7 +442,7 @@ takenAt: dose.taken_at
 
     const { data: comp, error: fetchError } = await supabase
       .from("compounds")
-      .select("id, type, remaining_pills, bottles_in_stock")
+      .select("id, type, remaining_pills, current_bottles")
       .eq("id", compoundId)
       .single()
 
@@ -456,7 +456,7 @@ const { error } = await supabase
   .from("compounds")
   .update({
     remaining_pills: next,
-    bottles_in_stock: next <= 0 ? 0 : comp.bottles_in_stock,
+    current_bottles: next <= 0 ? 0 : comp.current_bottles,
   })
   .eq("id", compoundId)
 

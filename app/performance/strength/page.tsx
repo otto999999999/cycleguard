@@ -138,6 +138,23 @@ useEffect(() => {
   loadPlan()
 }, [])
 
+useEffect(() => {
+  const reloadWhenVisible = () => {
+    if (document.visibilityState === "visible") {
+      setTimeout(() => {
+        loadPlan()
+      }, 1200)
+    }
+  }
+
+  window.addEventListener("focus", reloadWhenVisible)
+  document.addEventListener("visibilitychange", reloadWhenVisible)
+
+  return () => {
+    window.removeEventListener("focus", reloadWhenVisible)
+    document.removeEventListener("visibilitychange", reloadWhenVisible)
+  }
+}, [])
 
 const startWorkout = async (day: any) => {
   const exercises = getExercisesForDay(day.id)
