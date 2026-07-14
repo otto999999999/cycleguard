@@ -315,12 +315,12 @@ if (weekSessionIds.length > 0) {
     .in("session_id", weekSessionIds)
     .eq("completed", true)
 
-  const volume = (weekSetsData || []).reduce((sum, set) => {
-    const kg = Number(set.weight_kg || 0)
-    const reps = Number(set.reps_done || 0)
+const volume = (weekSetsData || []).reduce((sum, set) => {
+  const kg = Number(set.weight_kg || 0)
+  const reps = Number(set.reps_done || 0)
 
-    return sum + kg * reps
-  }, 0)
+  return sum + kg * reps
+}, 0)
 
   setWeeklyVolume(volume)
 } else {

@@ -142,6 +142,14 @@ export default function WorkoutHistoryDetailPage() {
     })
   }
 
+const isSecondsExercise = (entry: any) => {
+  return entry?.tracking_type === "seconds"
+}
+
+const getRepsLabel = (entry: any) => {
+  return isSecondsExercise(entry) ? "Sek." : "Wdh"
+}
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
@@ -302,7 +310,9 @@ export default function WorkoutHistoryDetailPage() {
                       </div>
 
                       <div className="rounded-[18px] border border-white/10 bg-black/40 px-3 py-3 text-center">
-                        <p className="text-xs text-muted-foreground">Wdh</p>
+                        <p className="text-xs text-muted-foreground">
+  {getRepsLabel(entry)}
+</p>
                         <p className="text-lg font-black">
                           {set.reps_done ?? "-"}
                         </p>

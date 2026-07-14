@@ -4,6 +4,20 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  arrayMove,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
   CalendarPlus,
   ChevronLeft,
   Pencil,
@@ -11,10 +25,80 @@ import {
   Search,
   Trash2,
   X,
+  
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { supabase } from "@/lib/supabase"
+
+function SortableExerciseCard({
+  entry,
+  onEdit,
+  onDelete,
+}: {
+  entry: any
+  onEdit: () => void
+  onDelete: (e: any) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: entry.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={onEdit}
+      className={`group flex cursor-grab touch-none items-center justify-between gap-3 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl transition-all active:scale-[0.985] hover:border-emerald-400/20 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)] ${
+        isDragging ? "z-50 scale-[1.03] border-emerald-400/40 opacity-80" : ""
+      }`}
+    >
+      <div>
+        <p className="font-bold">
+          {entry.exercise_library?.name}
+        </p>
+
+        <p className="mt-1 text-xs text-muted-foreground">
+          {entry.exercise_library?.muscle_group}
+        </p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
+            {entry.sets || 3} Sätze
+          </span>
+
+          <span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
+            {entry.reps || 10} {entry.tracking_type === "seconds" ? "Sek." : "Reps"}
+          </span>
+
+          <span className="rounded-full border border-orange-400/15 bg-orange-400/10 px-3 py-1 text-xs font-bold text-orange-300">
+            {entry.warmup_sets || 0} Warmup
+          </span>
+        </div>
+      </div>
+
+<button
+  onPointerDown={(e) => e.stopPropagation()}
+  onClick={onDelete}
+  className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400 active:scale-95"
+>
+  <Trash2 className="h-4 w-4" />
+</button>
+    </div>
+  )
+}
 
 export default function StrengthPlanPage() {
   const params = useParams()
@@ -45,7 +129,56 @@ const [exerciseWarmups, setExerciseWarmups] = useState(0)
 const [editingExerciseEntry, setEditingExerciseEntry] = useState<any>(null)
   const weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
   const restOptions = ["30s", "60s", "90s", "2 min", "3 min", "5 min"]
+  const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: {
+      delay: 180,
+      tolerance: 6,
+    },
+  })
+)
 
+const handleExerciseDragEnd = async (dayId: string, event: any) => {
+  const { active, over } = event
+
+  if (!over || active.id === over.id) return
+
+  const exercisesForDay = getExercisesForDay(dayId)
+  const oldIndex = exercisesForDay.findIndex((entry) => entry.id === active.id)
+  const newIndex = exercisesForDay.findIndex((entry) => entry.id === over.id)
+
+  if (oldIndex === -1 || newIndex === -1) return
+
+  const reordered = arrayMove(exercisesForDay, oldIndex, newIndex)
+
+  setDayExercises((prev) => {
+    const others = prev.filter((entry) => entry.training_day_id !== dayId)
+
+    return [
+      ...others,
+      ...reordered.map((entry, index) => ({
+        ...entry,
+        position: index,
+      })),
+    ]
+  })
+
+  await Promise.all(
+    reordered.map((entry, index) =>
+      supabase
+        .from("training_day_exercises")
+        .update({ position: index })
+        .eq("id", entry.id)
+    )
+  )
+}
+const isSecondsExercise = (exercise: any) => {
+  return exercise?.tracking_type === "seconds"
+}
+
+const getRepsSetupLabel = (exercise: any) => {
+  return isSecondsExercise(exercise) ? "Sekunden" : "Reps"
+}
   useEffect(() => {
     loadPlan()
   }, [])
@@ -287,15 +420,16 @@ const matchesCategory =
 
     if (!user) return
 
-    const { error } = await supabase.from("training_day_exercises").insert({
+const { error } = await supabase.from("training_day_exercises").insert({
   user_id: user.id,
   training_day_id: exerciseTargetDay.id,
   exercise_id: exercise.id,
-  position: 0,
+  position: getExercisesForDay(exerciseTargetDay.id).length,
   sets: exerciseSets,
   reps: exerciseReps,
   warmup_sets: exerciseWarmups,
-    })
+  tracking_type: exercise.tracking_type || "reps",
+})
 
     if (error) {
       toast.error("Übung konnte nicht hinzugefügt werden.")
@@ -310,7 +444,9 @@ const matchesCategory =
     setExerciseSearch("")
   }
 const getExercisesForDay = (dayId: string) => {
-  return dayExercises.filter((entry) => entry.training_day_id === dayId)
+  return dayExercises
+    .filter((entry) => entry.training_day_id === dayId)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 }
 
 
@@ -490,53 +626,36 @@ return
                         Noch keine Übungen hinzugefügt.
                     </p>
                     ) : (
-                    <div className="space-y-3">
-                        {getExercisesForDay(day.id).map((entry) => (
-                        <div
-                            key={entry.id}
-                            onClick={() => {
-  setEditingExerciseEntry(entry)
-  setSelectedExerciseToAdd(entry.exercise_library)
-  setExerciseSets(entry.sets || 3)
-  setExerciseReps(entry.reps || 10)
-  setExerciseWarmups(entry.warmup_sets || 0)
-}}
-                            className="group flex cursor-pointer items-center justify-between gap-3 rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl transition-all active:scale-[0.985] hover:border-emerald-400/20 active:scale-[0.985] hover:border-emerald-400/20 hover:shadow-[0_0_30px_rgba(16,185,129,0.08)]"
-                        >
-                            <div>
-                            <p className="font-bold">
-                                {entry.exercise_library?.name}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                {entry.exercise_library?.muscle_group}
-                            </p>
-                            <div className="mt-3 flex flex-wrap gap-2">
-  <span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
-    {entry.sets || 3} Sätze
-  </span>
-
-<span className="rounded-full border border-emerald-400/15 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
-  {entry.reps || 10} Reps
-</span>
-
-<span className="rounded-full border border-orange-400/15 bg-orange-400/10 px-3 py-1 text-xs font-bold text-orange-300">
-  {entry.warmup_sets || 0} Warmup
-</span>
-</div>
-                            </div>
-
-                            <button
-                            onClick={(e) => {
-  e.stopPropagation()
-  deleteExerciseFromDay(entry.id)
-}}
-                            className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 text-red-400 active:scale-95"
-                            >
-                            <Trash2 className="h-4 w-4" />
-                            </button>
-                        </div>
-                        ))}
-                    </div>
+<DndContext
+  sensors={sensors}
+  collisionDetection={closestCenter}
+  onDragEnd={(event) => handleExerciseDragEnd(day.id, event)}
+>
+  <SortableContext
+    items={getExercisesForDay(day.id).map((entry) => entry.id)}
+    strategy={verticalListSortingStrategy}
+  >
+    <div className="space-y-3">
+      {getExercisesForDay(day.id).map((entry) => (
+        <SortableExerciseCard
+          key={entry.id}
+          entry={entry}
+          onEdit={() => {
+            setEditingExerciseEntry(entry)
+            setSelectedExerciseToAdd(entry.exercise_library)
+            setExerciseSets(entry.sets || 3)
+            setExerciseReps(entry.reps || 10)
+            setExerciseWarmups(entry.warmup_sets || 0)
+          }}
+          onDelete={(e) => {
+            e.stopPropagation()
+            deleteExerciseFromDay(entry.id)
+          }}
+        />
+      ))}
+    </div>
+  </SortableContext>
+</DndContext>
                     )}
 
                     <button
@@ -841,11 +960,11 @@ return
       </p>
 
       <div className="mt-6 space-y-4">
-        {[
-          ["Sätze", exerciseSets, setExerciseSets],
-          ["Reps", exerciseReps, setExerciseReps],
-          ["Warmup", exerciseWarmups, setExerciseWarmups],
-        ].map(([label, value, setter]: any) => (
+{[
+  ["Sätze", exerciseSets, setExerciseSets],
+  [getRepsSetupLabel(selectedExerciseToAdd), exerciseReps, setExerciseReps],
+  ["Warmup", exerciseWarmups, setExerciseWarmups],
+].map(([label, value, setter]: any) => (
           <div
             key={label}
             className="flex items-center justify-between rounded-[24px] border border-white/10 bg-white/[0.05] p-4"

@@ -332,6 +332,15 @@ const getTargetReps = (entry: any) => {
   const match = raw.match(/\d+/)
   return match ? Number(match[0]) : ""
 }
+
+const isSecondsExercise = (entry: any) => {
+  return entry?.tracking_type === "seconds"
+}
+
+const getRepsLabel = (entry: any) => {
+  return isSecondsExercise(entry) ? "Sek." : "Wdh."
+}
+
   const updateSet = async (setId: string, updates: any) => {
     setSavingSetId(setId)
 
@@ -567,7 +576,8 @@ router.push("/performance/strength")
 </div>
 
     <p className="mt-1 text-sm text-muted-foreground">
-      {entry.sets || 3} Sätze • {entry.reps || "--"} Wdh.
+      {entry.sets || 3} Sätze • {entry.reps || "--"}{" "}
+      {isSecondsExercise(entry) ? "Sek." : "Wdh."}
       {entry.warmup_sets > 0 ? ` • ${entry.warmup_sets} Warmup` : ""}
     </p>
   </div>
@@ -638,7 +648,7 @@ router.push("/performance/strength")
 
                       <input
                         inputMode="numeric"
-                        placeholder="Wdh"
+                        placeholder={getRepsLabel(entry)}
                         value={set.reps_done ?? ""}
                         onChange={(e) =>
                           updateSet(set.id, {
