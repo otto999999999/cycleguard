@@ -136,14 +136,14 @@ const backParts: MusclePart[] = [
 
 const getLayerClass = (status: MuscleStatus) => {
   if (status === "fresh") {
-    return "opacity-90 drop-shadow-[0_0_10px_rgba(34,211,238,0.45)]"
+    return "opacity-100 drop-shadow-[0_0_16px_rgba(34,211,238,0.85)]"
   }
 
   if (status === "recovery") {
-    return "opacity-65 drop-shadow-[0_0_8px_rgba(59,130,246,0.35)]"
+    return "opacity-85 drop-shadow-[0_0_14px_rgba(59,130,246,0.75)]"
   }
 
-  return "opacity-30"
+  return "opacity-28"
 }
 
 export default function MuscleBodyMap({
@@ -161,8 +161,8 @@ export default function MuscleBodyMap({
         {side === "front" ? "Vorne" : "Hinten"}
       </p>
 
-      <div className="relative mx-auto h-[500px] w-full max-w-[240px] overflow-hidden rounded-[28px] border border-white/10 bg-black">
-        <div className="absolute inset-0 scale-[1.85] translate-y-[12px]">
+        <div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
+        <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
           <img
             src={baseSrc}
             alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
@@ -177,7 +177,7 @@ export default function MuscleBodyMap({
                 key={part.key}
                 src={`${part.src}/${status}.png`}
                 alt={part.label}
-                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-screen transition-all duration-300 ${getLayerClass(
+                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten" transition-all duration-300 ${getLayerClass(
                   status
                 )}`}
                 onError={(event) => {
