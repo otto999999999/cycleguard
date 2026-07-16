@@ -515,88 +515,88 @@ return
 </div>
     </section>
 
-    <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">
-            Aktivität
-          </p>
-          <h2 className="mt-1 text-2xl font-black">Schritte</h2>
-        </div>
+<section className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.03] p-6 opacity-55 shadow-2xl backdrop-blur-xl grayscale">
+  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+    <div className="-rotate-12 rounded-2xl border border-yellow-300/40 bg-yellow-300/15 px-8 py-3 text-2xl font-black uppercase tracking-[0.25em] text-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.18)]">
+      In Arbeit
+    </div>
+  </div>
 
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
-          <Footprints className="h-6 w-6" />
-        </div>
+  <div className="pointer-events-none">
+    <div className="mb-6 flex items-center justify-between">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">
+          Aktivität
+        </p>
+        <h2 className="mt-1 text-2xl font-black">Schritte</h2>
       </div>
 
-      {stepsToken ? (
-        <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-3xl font-black text-cyan-300">
-              {todaySteps !== null ? todaySteps.toLocaleString("de-DE") : "--"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">Heute</p>
-          </div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-300">
+        <Footprints className="h-6 w-6" />
+      </div>
+    </div>
 
-          <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-3xl font-black text-white">
-              {weekSteps > 0 ? weekSteps.toLocaleString("de-DE") : "--"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">Diese Woche</p>
-          </div>
-
-          <div className="col-span-2 rounded-[22px] border border-cyan-400/15 bg-cyan-400/[0.06] p-4">
-            <p className="text-3xl font-black text-cyan-300">
-              {todaySteps !== null
-                ? `${Math.min(100, Math.round((todaySteps / 10000) * 100))}%`
-                : "--"}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">10.000 Ziel heute</p>
-
-            <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/40">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-400 shadow-[0_0_18px_rgba(34,211,238,0.35)]"
-                style={{
-                  width: `${
-                    todaySteps !== null
-                      ? Math.min(100, Math.round((todaySteps / 10000) * 100))
-                      : 0
-                  }%`,
-                }}
-              />
-            </div>
-          </div>
-<div className="col-span-2 grid grid-cols-2 gap-3">
-  <a
-    href={stepsShortcutUrl}
-    className="flex items-center justify-center rounded-[22px] border border-cyan-400/20 bg-cyan-400/10 py-3 text-sm font-black text-cyan-300 active:scale-[0.98]"
-  >
-    Aktualisieren
-  </a>
-
-  <Link
-    href="/performance/steps/setup"
-    className="flex items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] py-3 text-sm font-black text-white/80 active:scale-[0.98]"
-  >
-    Info
-  </Link>
-</div>
-        </div>
-      ) : (
-        <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
-          <p className="text-sm leading-6 text-muted-foreground">
-            Verbinde Apple Health über Kurzbefehle, damit deine Schritte automatisch in CycleGuard landen.
+    {stepsToken ? (
+      <div className="grid grid-cols-2 gap-3 text-center">
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-3xl font-black text-cyan-300">
+            {todaySteps !== null ? todaySteps.toLocaleString("de-DE") : "--"}
           </p>
-
-          <Link
-            href="/performance/steps/setup"
-            className="mt-4 flex w-full items-center justify-center rounded-[22px] bg-gradient-to-r from-cyan-400 to-blue-400 py-4 font-black text-black shadow-[0_0_25px_rgba(34,211,238,0.25)] active:scale-[0.98]"
-          >
-            Einrichten
-          </Link>
+          <p className="mt-1 text-sm text-muted-foreground">Heute</p>
         </div>
-      )}
-    </section>
+
+        <div className="rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-3xl font-black text-white">
+            {weekSteps > 0 ? weekSteps.toLocaleString("de-DE") : "--"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Diese Woche</p>
+        </div>
+
+        <div className="col-span-2 rounded-[22px] border border-cyan-400/15 bg-cyan-400/[0.06] p-4">
+          <p className="text-3xl font-black text-cyan-300">
+            {todaySteps !== null
+              ? `${Math.min(100, Math.round((todaySteps / 10000) * 100))}%`
+              : "--"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">10.000 Ziel heute</p>
+
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-black/40">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-400 shadow-[0_0_18px_rgba(34,211,238,0.35)]"
+              style={{
+                width: `${
+                  todaySteps !== null
+                    ? Math.min(100, Math.round((todaySteps / 10000) * 100))
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="col-span-2 grid grid-cols-2 gap-3">
+          <span className="flex cursor-not-allowed items-center justify-center rounded-[22px] border border-cyan-400/20 bg-cyan-400/10 py-3 text-sm font-black text-cyan-300">
+            Aktualisieren
+          </span>
+
+          <span className="flex cursor-not-allowed items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.05] py-3 text-sm font-black text-white/80">
+            Info
+          </span>
+        </div>
+      </div>
+    ) : (
+      <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+        <p className="text-sm leading-6 text-muted-foreground">
+          Verbinde Apple Health über Kurzbefehle, damit deine Schritte automatisch in CycleGuard landen.
+        </p>
+
+        <span className="mt-4 flex w-full cursor-not-allowed items-center justify-center rounded-[22px] bg-gradient-to-r from-cyan-400 to-blue-400 py-4 font-black text-black shadow-[0_0_25px_rgba(34,211,238,0.25)]">
+          Einrichten
+        </span>
+      </div>
+    )}
+  </div>
+</section>
 
 
 <section>
