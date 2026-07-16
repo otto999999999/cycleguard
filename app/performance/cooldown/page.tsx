@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ChevronLeft, Clock, Dumbbell, Flame, CheckCircle2 } from "lucide-react"
+import { ChevronLeft, Clock, Dumbbell, Flame, CheckCircle2, Zap } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import GymBottomNav from "@/components/gym-bottom-nav"
 import MuscleBodyMap from "@/components/muscle-body-map"
@@ -14,9 +14,39 @@ const getHoursAgo = (date: string) => {
   return Math.max(0, Math.round(diff / (1000 * 60 * 60)))
 }
 
-const getStatusFromHours = (hours: number): Status => {
-  if (hours <= 24) return "fresh"
-  if (hours <= 72) return "recovery"
+const getRecoveryLimit = (group: string, enhancedRecovery: boolean) => {
+  const normal: Record<string, number> = {
+    Brust: 72,
+    Rücken: 72,
+    Quadrizeps: 84,
+    Glutes: 84,
+    "Unterer Rücken": 84,
+    Bizeps: 60,
+    Trizeps: 60,
+    Griffkraft: 48,
+    Waden: 48,
+    Bauch: 48,
+    Nacken: 60,
+    "Vordere Schulter": 60,
+    "Hintere Schulter": 60,
+    "Seitliche Schulter": 60,
+  }
+
+  const multiplier = enhancedRecovery ? 0.75 : 1
+
+  return Math.round((normal[group] || 72) * multiplier)
+}
+
+const getStatusFromHours = (
+  hours: number,
+  group = "default",
+  enhancedRecovery = false
+): Status => {
+  const recoveryLimit = getRecoveryLimit(group, enhancedRecovery)
+  const freshLimit = Math.round(recoveryLimit * 0.3)
+
+  if (hours <= freshLimit) return "fresh"
+  if (hours <= recoveryLimit) return "recovery"
   return "ready"
 }
 
@@ -52,12 +82,33 @@ const getTimeText = (hours: number) => {
   return days === 1 ? "vor 1 Tag trainiert" : `vor ${days} Tagen trainiert`
 }
 
+
+
 export default function CooldownPage() {
+  const [enhancedRecovery, setEnhancedRecovery] = useState(true)
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<any[]>([])
   const [sets, setSets] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
   const [days, setDays] = useState<any[]>([])
+
+useEffect(() => {
+  const saved = localStorage.getItem("cycleguard_enhanced_recovery")
+
+  if (saved === null) {
+    setEnhancedRecovery(true)
+    return
+  }
+
+  setEnhancedRecovery(saved === "true")
+}, [])
+
+  useEffect(() => {
+    localStorage.setItem(
+      "cycleguard_enhanced_recovery",
+      String(enhancedRecovery)
+    )
+  }, [enhancedRecovery])
 
   useEffect(() => {
     loadCooldown()
@@ -160,7 +211,11 @@ const muscleGroups = Array.from(
 )
 
       const hours = getHoursAgo(session.finished_at || session.started_at)
-      const status = getStatusFromHours(hours)
+      const status = getStatusFromHours(
+  hours,
+  muscleGroups[0] || "default",
+  enhancedRecovery
+)
 
       return {
         id: session.id,
@@ -170,27 +225,33 @@ const muscleGroups = Array.from(
         muscleGroups,
       }
     })
-  }, [sessions, sets, entries, days])
+  }, [sessions, sets, entries, days, enhancedRecovery])
 
-  const activeMuscles = useMemo(() => {
-    const map: Record<string, Status> = {}
+const activeMuscles = useMemo(() => {
+  const map: Record<string, Status> = {}
 
-    recentTrainingDays.forEach((item) => {
-      item.muscleGroups.forEach((muscle: string) => {
-        const current = map[muscle]
+  recentTrainingDays.forEach((item) => {
+    item.muscleGroups.forEach((muscle: string) => {
+      const status = getStatusFromHours(
+        item.hours,
+        muscle,
+        enhancedRecovery
+      )
 
-        if (!current) {
-          map[muscle] = item.status
-          return
-        }
+      const current = map[muscle]
 
-        if (current === "ready" && item.status !== "ready") map[muscle] = item.status
-        if (current === "recovery" && item.status === "fresh") map[muscle] = item.status
-      })
+      if (!current) {
+        map[muscle] = status
+        return
+      }
+
+      if (current === "ready" && status !== "ready") map[muscle] = status
+      if (current === "recovery" && status === "fresh") map[muscle] = status
     })
+  })
 
-    return map
-  }, [recentTrainingDays])
+  return map
+}, [recentTrainingDays, enhancedRecovery])
 
 const getStatusForGroup = (group: string): Status => {
   return activeMuscles[group] || "ready"
@@ -203,23 +264,34 @@ const getStatusForGroup = (group: string): Status => {
         <div className="absolute bottom-[-120px] right-[-100px] h-[360px] w-[360px] rounded-full bg-blue-500/10 blur-[140px]" />
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-          <Link
-            href="/performance/strength"
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] active:scale-95"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </Link>
+<header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
+  <div className="relative mx-auto flex max-w-lg items-center justify-between px-5 py-4">
+    <Link
+      href="/performance/strength"
+      className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] active:scale-95"
+    >
+      <ChevronLeft className="h-6 w-6" />
+    </Link>
 
-          <div className="text-center">
-            <h1 className="text-xl font-black">Cooldown</h1>
-            <p className="text-xs text-muted-foreground">Muskel-Erholung</p>
-          </div>
+    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+      <h1 className="text-xl font-black">Cooldown</h1>
+      <p className="text-xs text-muted-foreground">Muskel-Erholung</p>
+    </div>
 
-          <div className="h-12 w-12" />
-        </div>
-      </header>
+    <button
+      type="button"
+      onClick={() => setEnhancedRecovery((prev) => !prev)}
+      className={`flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-[10px] font-black transition-all active:scale-95 ${
+        enhancedRecovery
+          ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.18)]"
+          : "border-white/10 bg-white/[0.04] text-white/45"
+      }`}
+    >
+      <Zap className="h-3 w-3" />
+      Enhanced
+    </button>
+  </div>
+</header>
 
       <main className="mx-auto max-w-xl px-4 pt-6">
         <section className="rounded-[34px] border border-cyan-400/20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[0_0_45px_rgba(34,211,238,0.10)] backdrop-blur-2xl">
