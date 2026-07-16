@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import GymBottomNav from "@/components/gym-bottom-nav"
 import {
   ChevronLeft,
   Dumbbell,
@@ -791,6 +792,7 @@ return
           </div>
         </div>
       )}
+      <GymBottomNav active="training" />
     </div>
   )
 }
