@@ -156,13 +156,13 @@ export default function MuscleBodyMap({
   const parts = side === "front" ? frontParts : backParts
 
   return (
-    <div className="rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.055] to-white/[0.02] px-3 pt-4 pb-5">
+    <div className="rounded-[30px] border border-white/10 bg-gradient-to-b from-white/[0.055] to-white/[0.02] px-3 pb-5 pt-4">
       <p className="mb-3 text-center text-sm font-black text-white/70">
         {side === "front" ? "Vorne" : "Hinten"}
       </p>
 
-        <div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
-        <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
+      <div className="relative mx-auto h-[360px] w-full max-w-[190px] overflow-hidden rounded-[28px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
+        <div className="absolute inset-0 scale-[2.35] translate-y-[22px] sm:scale-[2.05] sm:translate-y-[24px]">
           <img
             src={baseSrc}
             alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
@@ -177,7 +177,7 @@ export default function MuscleBodyMap({
                 key={part.key}
                 src={`${part.src}/${status}.png`}
                 alt={part.label}
-                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten" transition-all duration-300 ${getLayerClass(
+                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten transition-all duration-300 ${getLayerClass(
                   status
                 )}`}
                 onError={(event) => {
