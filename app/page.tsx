@@ -39,6 +39,7 @@ className:
     iconClass: "bg-orange-400/12 text-orange-300",
     badgeClass: "border-orange-400/20 bg-orange-400/10 text-orange-300",
     badge: "Coming Soon",
+    disabled: true,
   },
   {
     title: "Pflege",
@@ -50,6 +51,7 @@ className:
     iconClass: "bg-blue-400/12 text-blue-300",
     badgeClass: "border-blue-400/20 bg-blue-400/10 text-blue-300",
     badge: "Coming Soon",
+    disabled: true,
   },
 ]
 
@@ -302,12 +304,27 @@ const registerPush = async () => {
             const Icon = area.icon
 
             return (
-              <button
+<button
   key={area.title}
   type="button"
-  onClick={() => openArea(area.href, area.title)}
-                className={`group relative block overflow-hidden rounded-[32px] w-full text-left border p-5 backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] ${area.className}`}
-              >
+  onClick={() => {
+    if (area.disabled) return
+    openArea(area.href, area.title)
+  }}
+  disabled={area.disabled}
+  className={`group relative block overflow-hidden rounded-[32px] w-full text-left border p-5 backdrop-blur-xl transition-all duration-300 ${
+    area.disabled
+      ? "cursor-not-allowed opacity-45 grayscale"
+      : "hover:scale-[1.01] active:scale-[0.98]"
+  } ${area.className}`}
+>
+  {area.disabled && (
+  <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+    <div className="-rotate-12 rounded-2xl border border-yellow-300/40 bg-yellow-300/15 px-6 py-2 text-lg font-black uppercase tracking-[0.22em] text-yellow-200 shadow-[0_0_30px_rgba(253,224,71,0.18)]">
+      In Arbeit
+    </div>
+  </div>
+)}
                 <div className="absolute right-[-30px] top-[-30px] h-[110px] w-[110px] rounded-full bg-white/[0.035] blur-2xl" />
 
                 <div className="relative flex items-center gap-4">
