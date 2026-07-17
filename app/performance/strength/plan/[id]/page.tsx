@@ -789,9 +789,9 @@ return
         </div>
       )}
 
-      {showExerciseLibrary && (
-        <div className="fixed inset-0 z-[100] bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="mx-auto min-h-screen max-w-lg px-5 pt-6">
+{showExerciseLibrary && (
+  <div className="fixed inset-0 z-[100] overflow-hidden bg-black/85 backdrop-blur-md animate-in fade-in duration-300">
+    <div className="mx-auto flex h-dvh max-w-lg flex-col px-5 pt-6">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => {
@@ -819,8 +819,8 @@ return
               />
             </div>
 
-            {!selectedCategory ? (
-              <div className="mt-6 space-y-3">
+{!selectedCategory ? (
+  <div className="mt-6 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pb-28 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
                 <button
   onClick={() => setSelectedCategory("Alle")}
   className="w-full rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 p-5 text-left"
@@ -851,7 +851,7 @@ return
                 ))}
               </div>
             ) : (
-              <div className="mt-6">
+               <div className="mt-6 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-28 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className="mb-4 text-sm font-bold text-emerald-300"

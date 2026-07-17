@@ -161,35 +161,35 @@ export default function MuscleBodyMap({
         {side === "front" ? "Vorne" : "Hinten"}
       </p>
 
-        <div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
-        <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
-          <img
-            src={baseSrc}
-            alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
-            className="absolute inset-0 z-10 h-full w-full object-contain"
-          />
+<div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
+  <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
+    <img
+      src={baseSrc}
+      alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
+      className="absolute inset-0 z-10 h-full w-full object-contain"
+    />
 
-          {parts.map((part) => {
-            const status = getStatusForGroup(part.group)
+    {parts.map((part) => {
+      const status = getStatusForGroup(part.group)
 
-            return (
-              <img
-                key={part.key}
-                src={`${part.src}/${status}.png`}
-                alt={part.label}
-                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten" transition-all duration-300 ${getLayerClass(
-                  status
-                )}`}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none"
-                }}
-              />
-            )
-          })}
-        </div>
+      return (
+        <img
+          key={part.key}
+          src={`${part.src}/${status}.png`}
+          alt={part.label}
+          className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten transition-all duration-300 ${getLayerClass(
+            status
+          )}`}
+          onError={(event) => {
+            event.currentTarget.style.display = "none"
+          }}
+        />
+      )
+    })}
+  </div>
 
-        <div className="pointer-events-none absolute inset-0 z-30 bg-gradient-to-b from-white/[0.08] via-transparent to-black/20" />
-      </div>
+  <div className="pointer-events-none absolute inset-0 z-30 bg-gradient-to-b from-white/[0.08] via-transparent to-black/20" />
+</div>
     </div>
   )
 }
