@@ -320,26 +320,53 @@ return false
   const lowStock = getLowStock()
   const recentLogs = doses.slice(0, 3)
 
-  const getCycleTimeProgress = () => {
-    if (!activeCycle?.start_date || !activeCycle?.duration_weeks) {
-      return { week: 0, total: 0, percent: 0, endDate: null as string | null }
-    }
-
-    const start = new Date(activeCycle.start_date)
-    const now = new Date()
-    const diffDays = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000))
-    const week = Math.min(activeCycle.duration_weeks, Math.floor(diffDays / 7) + 1)
-
-    const end = new Date(start)
-    end.setDate(start.getDate() + activeCycle.duration_weeks * 7)
-
+const getCycleTimeProgress = () => {
+  if (!activeCycle?.start_date) {
     return {
-      week,
-      total: activeCycle.duration_weeks,
-      percent: Math.min(100, Math.round((week / activeCycle.duration_weeks) * 100)),
-      endDate: dateKeyLocal(end),
+      week: 0,
+      total: 0,
+      percent: 0,
+      endDate: null as string | null,
+      indefinite: false,
+      label: "Noch nicht gestartet",
     }
   }
+
+  const start = new Date(activeCycle.start_date)
+  const now = new Date()
+  const diffDays = Math.max(
+    0,
+    Math.floor((now.getTime() - start.getTime()) / 86400000)
+  )
+  const runningDays = diffDays + 1
+
+  if (activeCycle.indefinite || activeCycle.cycle_type === "trt") {
+    return {
+      week: Math.floor(diffDays / 7) + 1,
+      total: null as number | null,
+      percent: 100,
+      endDate: null as string | null,
+      indefinite: true,
+      label: `Läuft seit ${runningDays} Tagen`,
+    }
+  }
+
+  const totalWeeks = activeCycle.duration_weeks || 1
+  const totalDays = totalWeeks * 7
+  const week = Math.min(totalWeeks, Math.floor(diffDays / 7) + 1)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + totalDays)
+
+  return {
+    week,
+    total: totalWeeks,
+    percent: Math.min(100, Math.round((runningDays / totalDays) * 100)),
+    endDate: dateKeyLocal(end),
+    indefinite: false,
+    label: `Woche ${week} von ${totalWeeks}`,
+  }
+}
 
   const timeProgress = getCycleTimeProgress()
   const supplementItems = [
@@ -608,7 +635,7 @@ const deleteDoseFromCalendar = async (doseId: string) => {
 
               <div className="mt-5">
                 <div className="flex justify-between text-sm mb-2">
-                  <span>Zeit: Woche {timeProgress.week} von {timeProgress.total}</span>
+                  <span>Zeit: {timeProgress.label}</span>
                   <span>{timeProgress.percent}%</span>
                 </div>
                 <div className="h-3 bg-black/40 rounded-full overflow-hidden border border-white/5 backdrop-blur-sm">
