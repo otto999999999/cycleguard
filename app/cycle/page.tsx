@@ -27,7 +27,7 @@ export default function CyclePage() {
   const [cycles, setCycles] = useState<any[]>([])
   const [userCompounds, setUserCompounds] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
+  const [trainingDays, setTrainingDays] = useState<any[]>([])
   const [showCycleModal, setShowCycleModal] = useState(false)
   const [showCompoundModal, setShowCompoundModal] = useState(false)
   const [showPCTModal, setShowPCTModal] = useState(false)
@@ -75,10 +75,17 @@ export default function CyclePage() {
       .eq("user_id", session.user.id)
       .order("name")
 
-    if (compoundsError) alert("Fehler beim Laden der Substanzen: " + compoundsError.message)
-    setUserCompounds(compoundsData || [])
+if (compoundsError) alert("Fehler beim Laden der Substanzen: " + compoundsError.message)
+setUserCompounds(compoundsData || [])
 
-    setLoading(false)
+const { data: trainingDaysData } = await supabase
+  .from("training_days")
+  .select("id, name, weekdays")
+  .eq("user_id", session.user.id)
+
+setTrainingDays(trainingDaysData || [])
+
+setLoading(false)
   }
 
   const resetForm = () => {
@@ -333,9 +340,16 @@ toast.error("Fehler beim Löschen: " + error.message)
 const formatSchedule = (c: any) => {
   if (c.frequency === "Custom" && c.customDays?.length) return c.customDays.join(", ")
   if (c.frequency === "Injection Days") return "An Injektionstagen"
+  if (c.frequency === "Training Days") return "An Trainingstagen"
   return c.frequency
 }
+const isTrainingDay = (date: Date) => {
+  const dayShort = DAY_KEYS[date.getDay()]
 
+  return trainingDays.some((day) =>
+    (day.weekdays || []).includes(dayShort)
+  )
+}
   const renderLine = (c: any) => {
     const endText = c.endWeek >= 9999 ? "dauerhaft" : `Woche ${c.startWeek}–${c.endWeek}`
     return `${endText} • ${c.doseAmount} ${c.doseUnit} • ${formatSchedule(c)}`
@@ -376,58 +390,53 @@ const formatSchedule = (c: any) => {
     }
   }
 
-  const getDueForCycleDate = (cycle: any, dateKey: string) => {
-    if (!cycle.active || !cycle.start_date) return []
+const getDueForCycleDate = (cycle: any, dateKey: string) => {
+  if (!cycle.active || !cycle.start_date) return []
 
-    const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
-    const date = new Date(dateKey)
-    const dayShort = DAY_KEYS[date.getDay()]
-    const start = new Date(cycle.start_date)
-    const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
+  const stack = [...(cycle.main_stack || []), ...(cycle.pct_stack || [])]
+  const date = new Date(dateKey)
+  const dayShort = DAY_KEYS[date.getDay()]
+  const start = new Date(cycle.start_date)
+  const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
-    if (diffDays < 0) return []
-const hasInjectionDueToday = stack.some((item) => {
-  if (item.method === "Oral") return false
-  if (ORAL_TYPES.includes(item.type)) return false
+  if (diffDays < 0) return []
 
-  const startWeek = item.startWeek || 1
-  const endWeek =
-    cycle.indefinite || cycle.cycle_type === "trt"
-      ? 9999
-      : item.endWeek || cycle.duration_weeks || 12
+  const isDueByFrequency = (item: any) => {
+    const startWeek = item.startWeek || 1
+    const endWeek =
+      cycle.indefinite || cycle.cycle_type === "trt"
+        ? 9999
+        : item.endWeek || cycle.duration_weeks || 12
 
-  const currentWeek = Math.floor(diffDays / 7) + 1
+    const currentWeek = Math.floor(diffDays / 7) + 1
 
-  if (currentWeek < startWeek || currentWeek > endWeek) return false
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
 
-  if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-  if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
-  if (item.frequency === "EOD") return diffDays % 2 === 0
-  if (item.frequency === "E3D") return diffDays % 3 === 0
-  if (item.frequency === "Weekly") return diffDays % 7 === 0
-if (item.frequency === "Injection Days") return hasInjectionDueToday
-  return false
-})
-    return stack.filter((item) => {
-      const startWeek = item.startWeek || 1
-      const endWeek =
-        cycle.indefinite || cycle.cycle_type === "trt"
-          ? 9999
-          : item.endWeek || cycle.duration_weeks || 12
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
+    if (item.frequency === "Training Days") return isTrainingDay(date)
 
-      const currentWeek = Math.floor(diffDays / 7) + 1
-
-      if (currentWeek < startWeek || currentWeek > endWeek) return false
-
-      if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-      if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
-      if (item.frequency === "EOD") return diffDays % 2 === 0
-      if (item.frequency === "E3D") return diffDays % 3 === 0
-      if (item.frequency === "Weekly") return diffDays % 7 === 0
-
-      return false
-    })
+    return false
   }
+
+  const hasInjectionDueToday = stack.some((item) => {
+    if (item.method === "Oral") return false
+    if (ORAL_TYPES.includes(item.type)) return false
+
+    return isDueByFrequency(item)
+  })
+
+  return stack.filter((item) => {
+    if (item.frequency === "Injection Days") {
+      return hasInjectionDueToday
+    }
+
+    return isDueByFrequency(item)
+  })
+}
 
   const getNextDose = (cycle: any) => {
     for (let i = 0; i < 60; i++) {
@@ -898,6 +907,7 @@ const availablePCTCompounds =
                   <option value="Weekly">Weekly - Wöchentlich</option>
                   <option value="Custom">Custom Days</option>
                   <option value="Injection Days">Injection Days - An Injektionstagen</option>
+                  <option value="Training Days">Training Days - An Trainingstagen</option>
                 </select>
               </Field>
 

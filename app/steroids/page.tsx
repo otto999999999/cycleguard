@@ -53,6 +53,8 @@ export default function CycleGuardDashboard() {
   const [activeCycle, setActiveCycle] = useState<any>(null)
   const [activeSupplementPlan, setActiveSupplementPlan] = useState<any>(null)
   const [compounds, setCompounds] = useState<any[]>([])
+  
+  const [trainingDays, setTrainingDays] = useState<any[]>([])
   const [doses, setDoses] = useState<any[]>([])
   const [missedDoses, setMissedDoses] = useState<any[]>([])
   const [readIds, setReadIds] = useState<string[]>([])
@@ -129,6 +131,11 @@ const { data: supplementPlanData } = await supabase
       .eq("user_id", session.user.id)
       .order("name")
 
+    const { data: trainingDaysData } = await supabase
+    .from("training_days")
+    .select("id, name, weekdays")
+    .eq("user_id", session.user.id)
+
     const { data: doseData } = await supabase
       .from("doses")
       .select("*")
@@ -141,7 +148,10 @@ const { data: supplementPlanData } = await supabase
       .select("*")
       .eq("user_id", session.user.id)
 
+
+
     setActiveCycle(cycleData || null)
+    setTrainingDays(trainingDaysData || [])
     setActiveSupplementPlan(supplementPlanData || null)
     setCompounds(compoundData || [])
     setDoses(doseData || [])
@@ -155,6 +165,9 @@ const getDueForDate = (dateKey: string) => {
   const stack = [...(activeCycle.main_stack || []), ...(activeCycle.pct_stack || [])]
   const date = new Date(dateKey)
   const dayShort = DAYS[date.getDay()]
+  const trainingDayToday = trainingDays.some((day) =>
+  (day.weekdays || []).includes(dayShort)
+)
   const start = new Date(activeCycle.start_date)
   const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
 
@@ -171,13 +184,14 @@ const getDueForDate = (dateKey: string) => {
 
     if (currentWeek < startWeek || currentWeek > endWeek) return false
 
-    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
-    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
-    if (item.frequency === "EOD") return diffDays % 2 === 0
-    if (item.frequency === "E3D") return diffDays % 3 === 0
-    if (item.frequency === "Weekly") return diffDays % 7 === 0
+if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+if (item.frequency === "EOD") return diffDays % 2 === 0
+if (item.frequency === "E3D") return diffDays % 3 === 0
+if (item.frequency === "Weekly") return diffDays % 7 === 0
+if (item.frequency === "Training Days") return trainingDayToday
 
-    return false
+return false
   }
 
   const hasInjectionDueToday = stack.some((item) => {
@@ -189,6 +203,8 @@ const getDueForDate = (dateKey: string) => {
 
     return isDueByFrequency(item)
   })
+
+
 
   return stack.filter((item) => {
     if (item.frequency === "Injection Days") {

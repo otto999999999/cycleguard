@@ -17,6 +17,7 @@ export default function EinkaufPage() {
   const [compounds, setCompounds] = useState<any[]>([])
   const [activeCycle, setActiveCycle] = useState<any>(null)
   const [activeSupplementPlan, setActiveSupplementPlan] = useState<any>(null)
+  const [trainingDays, setTrainingDays] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [scrolled, setScrolled] = useState(false)
@@ -83,8 +84,12 @@ if (error) {
   haptic()
   toast.error("Fehler beim Laden: " + error.message)
 }
-
+const { data: trainingDaysData } = await supabase
+  .from("training_days")
+  .select("id, name, weekdays")
+  .eq("user_id", session.user.id)
 setCompounds(data || [])
+setTrainingDays(trainingDaysData || [])
 setLoading(false)
   }
 
@@ -130,6 +135,7 @@ useEffect(() => {
   if (item.frequency === "E3D") return "jeden 3. Tag"
   if (item.frequency === "Weekly") return "wöchentlich"
   if (item.frequency === "Injection Days") return "an Injektionstagen"
+  if (item.frequency === "Training Days") return "an Trainingstagen"
   return item.frequency || "—"
 }
 const getInjectionDaysPerWeek = () => {
@@ -180,6 +186,16 @@ const getInjectionDaysPerWeek = () => {
   return injectionDays.size
 }
 
+const getTrainingDaysPerWeek = () => {
+  const days = new Set<string>()
+
+  trainingDays.forEach((day) => {
+    ;(day.weekdays || []).forEach((weekday: string) => days.add(weekday))
+  })
+
+  return days.size
+}
+
 const getWeeklyUsageFromItem = (item: any) => {
   const dose = Number(item.doseAmount || 0)
   if (!dose) return 0
@@ -193,6 +209,10 @@ const getWeeklyUsageFromItem = (item: any) => {
   if (item.frequency === "Injection Days") {
     return dose * getInjectionDaysPerWeek()
   }
+
+if (item.frequency === "Training Days") {
+  return dose * getTrainingDaysPerWeek()
+}
 
   if (item.frequency === "Custom") {
     const days = item.customDays?.length || 0
