@@ -60,16 +60,33 @@ export default function HomeMenuPage() {
   const [showPushModal, setShowPushModal] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [email, setEmail] = useState("")
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
   const [openingArea, setOpeningArea] = useState<string | null>(null)
-  useEffect(() => {
-  const activeWorkoutSession = localStorage.getItem(
-    "cycleguard_active_workout_session"
-  )
+useEffect(() => {
+  const checkAuth = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
 
-  if (activeWorkoutSession) {
-    router.replace(`/performance/strength/workout/${activeWorkoutSession}`)
+    if (!session?.user) {
+      router.replace("/login")
+      return
+    }
+
+    setEmail(session.user.email || "")
+    setCheckingAuth(false)
+
+    const activeWorkoutSession = localStorage.getItem(
+      "cycleguard_active_workout_session"
+    )
+
+    if (activeWorkoutSession) {
+      router.replace(`/performance/strength/workout/${activeWorkoutSession}`)
+    }
   }
+
+  checkAuth()
 }, [router])
 const openArea = (href: string, title: string) => {
   setOpeningArea(title)
@@ -86,11 +103,16 @@ const logout = async () => {
 
 useEffect(() => {
   const loadUserAndPush = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+const {
+  data: { session },
+} = await supabase.auth.getSession()
 
-    setEmail(user?.email || "")
+if (!session?.user) {
+  router.replace("/login")
+  return
+}
+
+setEmail(session.user.email || "")
 
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
 
@@ -103,14 +125,7 @@ useEffect(() => {
   loadUserAndPush()
 }, [])
 
-useEffect(() => {
-  const loadUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    setEmail(user?.email || "")
-  }
 
-  loadUser()
-}, [])
 const urlBase64ToUint8Array = (base64String: string) => {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/")
@@ -170,6 +185,16 @@ const registerPush = async () => {
 
   setPushEnabled(true)
   setShowPushModal(false)
+}
+if (checkingAuth) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#050505] text-white">
+      <div className="text-center">
+        <div className="mx-auto mb-5 h-10 w-10 animate-spin rounded-full border-2 border-emerald-400 border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Sitzung wird geprüft...</p>
+      </div>
+    </div>
+  )
 }
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-20">
