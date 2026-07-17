@@ -37,6 +37,9 @@ const dateKeyLocal = (date: Date) => {
 
 const todayKey = () => dateKeyLocal(new Date())
 
+
+
+
 export default function CycleGuardDashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
@@ -229,10 +232,75 @@ return false
     })
   }
 
-  const getWeekMarkedDates = () => {
-    return getWeekDates().filter((dateKey) => getDueForDate(dateKey).length > 0)
-  }
+const getWeekMarkedDates = () => {
+  return getWeekDates().filter((dateKey) => {
+    const hasCycle = getDueForDate(dateKey).length > 0
+    const hasSupplement = getDueForSupplementDate(dateKey).length > 0
 
+    return hasCycle || hasSupplement
+  })
+}
+
+const getDueForSupplementDate = (dateKey: string) => {
+  if (!activeSupplementPlan || !activeSupplementPlan.start_date) return []
+
+  const stack = [
+    ...(activeSupplementPlan.main_stack || []),
+    ...(activeSupplementPlan.pct_stack || []),
+  ]
+
+  const date = new Date(dateKey)
+  const dayShort = DAYS[date.getDay()]
+  const trainingDayToday = trainingDays.some((day) =>
+    (day.weekdays || []).includes(dayShort)
+  )
+
+  const start = new Date(activeSupplementPlan.start_date)
+  const diffDays = Math.floor((date.getTime() - start.getTime()) / 86400000)
+
+  if (diffDays < 0) return []
+
+  return stack.filter((item: any) => {
+    const startWeek = item.startWeek || 1
+    const endWeek =
+      activeSupplementPlan.indefinite || activeSupplementPlan.cycle_type === "trt"
+        ? 9999
+        : item.endWeek || activeSupplementPlan.duration_weeks || 9999
+
+    const currentWeek = Math.floor(diffDays / 7) + 1
+
+    if (currentWeek < startWeek || currentWeek > endWeek) return false
+
+    if (item.frequency === "Daily" || item.frequency === "Twice Daily") return true
+    if (item.frequency === "Custom") return (item.customDays || []).includes(dayShort)
+    if (item.frequency === "EOD") return diffDays % 2 === 0
+    if (item.frequency === "E3D") return diffDays % 3 === 0
+    if (item.frequency === "Weekly") return diffDays % 7 === 0
+    if (item.frequency === "Training Days") return trainingDayToday
+
+    return false
+  })
+}
+
+const getWeekMarkedDateTypes = () => {
+  const dates = getWeekDates()
+  const types: Record<string, "cycle" | "supplement" | "both"> = {}
+
+  dates.forEach((dateKey) => {
+    const hasCycle = getDueForDate(dateKey).length > 0
+    const hasSupplement = getDueForSupplementDate(dateKey).length > 0
+
+    if (hasCycle && hasSupplement) {
+      types[dateKey] = "both"
+    } else if (hasCycle) {
+      types[dateKey] = "cycle"
+    } else if (hasSupplement) {
+      types[dateKey] = "supplement"
+    }
+  })
+
+  return types
+}
   const isLogged = (item: any, dateKey: string) => {
     return doses.some((dose) => dose.compound_id === item.id && dose.datum === dateKey)
   }
@@ -541,11 +609,23 @@ const hasLogOnDate = (dateKey: string) => {
   return doses.some((dose) => dose.datum === dateKey)
 }
 
+const getPlanTypeOnDate = (dateKey: string): "cycle" | "supplement" | "both" | null => {
+  const hasCycle = getDueForDate(dateKey).length > 0
+  const hasSupplement = getDueForSupplementDate(dateKey).length > 0
+
+  if (hasCycle && hasSupplement) return "both"
+  if (hasCycle) return "cycle"
+  if (hasSupplement) return "supplement"
+
+  return null
+}
+
 const hasPlanOnDate = (dateKey: string) => {
-  return getDueForDate(dateKey).length > 0
+  return getPlanTypeOnDate(dateKey) !== null
 }
 
 const selectedDateLogs = doses.filter((dose) => dose.datum === selectedDate)
+const selectedSupplementDue = getDueForSupplementDate(selectedDate)
 const deleteDoseFromCalendar = async (doseId: string) => {
   if (!confirm("Diesen Log wirklich löschen?")) return
 
@@ -616,11 +696,12 @@ const deleteDoseFromCalendar = async (doseId: string) => {
       </header>
 
       <main className="max-w-lg mx-auto px-5 pt-6">
-        <WeekCalendar
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          markedDates={getWeekMarkedDates()}
-        />
+<WeekCalendar
+  selectedDate={selectedDate}
+  onSelectDate={setSelectedDate}
+  markedDates={getWeekMarkedDates()}
+  markedDateTypes={getWeekMarkedDateTypes()}
+/>
 
         <section className="mt-10">
           {loading ? (
@@ -972,7 +1053,8 @@ const deleteDoseFromCalendar = async (doseId: string) => {
           const day = new Date(dateKey).getDate()
           const isSelected = dateKey === selectedDate
           const logged = hasLogOnDate(dateKey)
-          const planned = hasPlanOnDate(dateKey)
+          const planType = getPlanTypeOnDate(dateKey)
+          const planned = planType !== null
 
           return (
             <button
@@ -983,9 +1065,13 @@ const deleteDoseFromCalendar = async (doseId: string) => {
                   ? "border-emerald-400 bg-emerald-400 text-black shadow-[0_0_28px_rgba(52,211,153,0.35)]"
                   : logged
                     ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200 shadow-[0_0_20px_rgba(52,211,153,0.16)]"
-                    : planned
-                      ? "border-blue-400/20 bg-blue-400/10 text-blue-200"
-                      : "border-white/5 bg-white/[0.03] text-white/70"
+: planned
+  ? planType === "both"
+    ? "border-purple-400/25 bg-purple-500/10 text-purple-200"
+    : planType === "supplement"
+      ? "border-blue-400/25 bg-blue-500/10 text-blue-200"
+      : "border-emerald-400/25 bg-emerald-500/10 text-emerald-200"
+  : "border-white/5 bg-white/[0.03] text-white/70"
               }`}
             >
               {day}
@@ -994,13 +1080,19 @@ const deleteDoseFromCalendar = async (doseId: string) => {
                 <span className="absolute inset-0 rounded-2xl bg-emerald-400/5 blur-[1px]" />
               )}
 
-              {planned && (
-                <span
-                  className={`absolute bottom-2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
-                    logged || isSelected ? "bg-black/70" : "bg-blue-400"
-                  }`}
-                />
-              )}
+{planned && (
+  <span
+    className={`absolute bottom-2 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
+      isSelected
+        ? "bg-black/70"
+        : planType === "both"
+          ? "bg-purple-400 shadow-[0_0_10px_rgba(192,132,252,0.8)]"
+          : planType === "supplement"
+            ? "bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]"
+            : "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"
+    }`}
+  />
+)}
             </button>
           )
         })}
@@ -1017,55 +1109,89 @@ const deleteDoseFromCalendar = async (doseId: string) => {
         </h3>
 
         <div className="space-y-4">
-          <div>
-            <p className="text-sm font-semibold mb-3">Geplant</p>
+<div>
+  <p className="text-sm font-semibold mb-3">Cycle</p>
 
-            {selectedDue.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Keine geplanten Dosen.</p>
-            ) : (
-              <div className="space-y-2">
-                {selectedDue.map((item) => {
-                  const status = getStatus(item, selectedDate)
+  {selectedDue.length === 0 ? (
+    <p className="text-sm text-muted-foreground">Keine Cycle-Dosen geplant.</p>
+  ) : (
+    <div className="space-y-2">
+      {selectedDue.map((item) => {
+        const status = getStatus(item, selectedDate)
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-white/5 bg-black/30 p-4"
-                    >
-                      <div className="flex justify-between gap-3">
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {item.doseAmount} {item.doseUnit} • {item.frequency}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`text-xs ${
-                            status === "done"
-                              ? "text-emerald-400"
-                              : status === "skipped"
-                                ? "text-blue-400"
-                                : status === "missed"
-                                  ? "text-orange-400"
-                                  : "text-muted-foreground"
-                          }`}
-                        >
-                          {status === "done"
-                            ? "Erledigt"
-                            : status === "skipped"
-                              ? "Nicht genommen"
-                              : status === "missed"
-                                ? "Verpasst"
-                                : "Offen"}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
+        return (
+          <div
+            key={`cycle-${item.id}`}
+            className="rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.04] p-4"
+          >
+            <div className="flex justify-between gap-3">
+              <div>
+                <p className="font-medium">{item.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {item.doseAmount} {item.doseUnit} • {item.frequency}
+                </p>
               </div>
-            )}
+
+              <span
+                className={`text-xs ${
+                  status === "done"
+                    ? "text-emerald-400"
+                    : status === "skipped"
+                      ? "text-blue-400"
+                      : status === "missed"
+                        ? "text-orange-400"
+                        : "text-muted-foreground"
+                }`}
+              >
+                {status === "done"
+                  ? "Erledigt"
+                  : status === "skipped"
+                    ? "Nicht genommen"
+                    : status === "missed"
+                      ? "Verpasst"
+                      : "Offen"}
+              </span>
+            </div>
           </div>
+        )
+      })}
+    </div>
+  )}
+</div>
+
+<div>
+  <p className="text-sm font-semibold mb-3 text-blue-300">Supplements</p>
+
+  {selectedSupplementDue.length === 0 ? (
+    <p className="text-sm text-muted-foreground">Keine Supplements geplant.</p>
+  ) : (
+    <div className="space-y-2">
+      {selectedSupplementDue.map((item) => {
+        const done = isLogged(item, selectedDate)
+
+        return (
+          <div
+            key={`supplement-${item.id}`}
+            className="rounded-2xl border border-blue-400/10 bg-blue-500/[0.06] p-4"
+          >
+            <div className="flex justify-between gap-3">
+              <div>
+                <p className="font-medium">{item.name}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {item.doseAmount} {item.doseUnit} • {item.frequency}
+                </p>
+              </div>
+
+              <span className={`text-xs ${done ? "text-emerald-400" : "text-blue-300"}`}>
+                {done ? "Erledigt" : "Offen"}
+              </span>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )}
+</div>
 
           <div>
             <p className="text-sm font-semibold mb-3">Logs</p>

@@ -6,6 +6,7 @@ type WeekCalendarProps = {
   selectedDate?: string
   onSelectDate?: (date: string) => void
   markedDates?: string[]
+  markedDateTypes?: Record<string, "cycle" | "supplement" | "both">
 }
 
 const dateKeyLocal = (date: Date) => {
@@ -24,6 +25,7 @@ export function WeekCalendar({
   selectedDate,
   onSelectDate,
   markedDates = [],
+  markedDateTypes = {},
 }: WeekCalendarProps) {
   const today = new Date()
   const todayKey = dateKeyLocal(today)
@@ -51,6 +53,7 @@ export function WeekCalendar({
         isToday: key === todayKey,
         isSelected: key === selectedKey,
         isMarked: markedDates.includes(key),
+        markType: markedDateTypes[key],
       }
     })
   }
@@ -76,7 +79,7 @@ export function WeekCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1.5">
-        {weekDates.map(({ tag, key, date, isToday, isSelected, isMarked }) => (
+        {weekDates.map(({ tag, key, date, isToday, isSelected, isMarked, markType }) => (
           <button
             key={key}
             onClick={() => onSelectDate?.(key)}
@@ -105,13 +108,19 @@ export function WeekCalendar({
 
             <span className="text-lg font-bold">{date}</span>
 
-            {isMarked && (
-              <div
-                className={`absolute bottom-2 h-1.5 w-1.5 rounded-full ${
-                  isSelected ? "bg-black/70" : "bg-emerald-400"
-                }`}
-              />
-            )}
+{isMarked && (
+  <div
+    className={`absolute bottom-2 h-1.5 w-1.5 rounded-full ${
+      isSelected
+        ? "bg-black/70"
+        : markType === "both"
+          ? "bg-purple-400 shadow-[0_0_10px_rgba(192,132,252,0.8)]"
+          : markType === "supplement"
+            ? "bg-blue-400 shadow-[0_0_10px_rgba(96,165,250,0.8)]"
+            : "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"
+    }`}
+  />
+)}
           </button>
         ))}
       </div>

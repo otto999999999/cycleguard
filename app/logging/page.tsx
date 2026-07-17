@@ -208,22 +208,56 @@ const getDueForDate = (dateKey: string) => {
 }
 
 
-  const getWeekMarkedDates = () => {
-    const today = new Date()
-    const dayOfWeek = today.getDay()
-    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
-    const monday = new Date(today)
-    monday.setDate(today.getDate() + mondayOffset)
+const getWeekMarkedDates = () => {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + mondayOffset)
 
-    return Array.from({ length: 7 })
-      .map((_, i) => {
-        const date = new Date(monday)
-        date.setDate(monday.getDate() + i)
-        return dateKeyLocal(date)
-      })
-      .filter((dateKey) => getDueForDate(dateKey).length > 0)
-  }
+  return Array.from({ length: 7 })
+    .map((_, i) => {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + i)
+      return dateKeyLocal(date)
+    })
+    .filter((dateKey) => {
+      const hasCycle = getDueForPlanDate(activeCycle, dateKey).length > 0
+      const hasSupplement = getDueForPlanDate(activeSupplementPlan, dateKey).length > 0
 
+      return hasCycle || hasSupplement
+    })
+}
+
+
+const getWeekMarkedDateTypes = () => {
+  const today = new Date()
+  const dayOfWeek = today.getDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + mondayOffset)
+
+  const types: Record<string, "cycle" | "supplement" | "both"> = {}
+
+  Array.from({ length: 7 }).forEach((_, i) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + i)
+
+    const dateKey = dateKeyLocal(date)
+    const hasCycle = getDueForPlanDate(activeCycle, dateKey).length > 0
+    const hasSupplement = getDueForPlanDate(activeSupplementPlan, dateKey).length > 0
+
+    if (hasCycle && hasSupplement) {
+      types[dateKey] = "both"
+    } else if (hasCycle) {
+      types[dateKey] = "cycle"
+    } else if (hasSupplement) {
+      types[dateKey] = "supplement"
+    }
+  })
+
+  return types
+}
 const selectedDue = getDueForDate(selectedDate)
 const selectedSupplementDue = getDueForPlanDate(activeSupplementPlan, selectedDate)
 
@@ -709,11 +743,12 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
       </header>
 
       <div className="px-5 pt-4">
-        <WeekCalendar
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          markedDates={getWeekMarkedDates()}
-        />
+<WeekCalendar
+  selectedDate={selectedDate}
+  onSelectDate={setSelectedDate}
+  markedDates={getWeekMarkedDates()}
+  markedDateTypes={getWeekMarkedDateTypes()}
+/>
 
         <div className="mt-8 mb-8">
           <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
