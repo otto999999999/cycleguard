@@ -161,8 +161,8 @@ export default function MuscleBodyMap({
         {side === "front" ? "Vorne" : "Hinten"}
       </p>
 
-      <div className="relative mx-auto h-[360px] w-full max-w-[190px] overflow-hidden rounded-[28px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
-        <div className="absolute inset-0 scale-[2.35] translate-y-[22px] sm:scale-[2.05] sm:translate-y-[24px]">
+      <div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
+        <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
           <img
             src={baseSrc}
             alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
