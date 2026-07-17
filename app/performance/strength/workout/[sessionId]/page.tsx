@@ -174,20 +174,39 @@ if (!openEntryId && entriesData && entriesData.length > 0) {
   setOpenEntryId(entriesData[0].id)
 }
 
-const { data: oldSets } = await supabase
-  .from("workout_sets")
-  .select(`
-    *,
-    workout_sessions (
-      started_at,
-      finished_at
-    )
-  `)
-  .in("exercise_entry_id", entryIds)
-  .neq("session_id", sessionId)
-  .eq("completed", true)
+const exerciseIds = Array.from(
+  new Set(
+    (entriesData || [])
+      .map((entry: any) => entry.exercise_id)
+      .filter(Boolean)
+  )
+)
 
-const lastWeightByEntryAndSet = new Map<string, number>()
+const { data: oldSets } =
+  exerciseIds.length > 0
+    ? await supabase
+        .from("workout_sets")
+        .select(`
+          *,
+          workout_sessions!inner (
+            id,
+            started_at,
+            finished_at,
+            cancelled_at
+          ),
+          training_day_exercises!inner (
+            id,
+            exercise_id
+          )
+        `)
+        .in("training_day_exercises.exercise_id", exerciseIds)
+        .neq("session_id", sessionId)
+        .eq("completed", true)
+        .not("workout_sessions.finished_at", "is", null)
+        .is("workout_sessions.cancelled_at", null)
+    : { data: [] }
+
+const lastWeightByExerciseAndSet = new Map<string, number>()
 
 ;(oldSets || [])
   .sort((a: any, b: any) => {
@@ -206,10 +225,13 @@ const lastWeightByEntryAndSet = new Map<string, number>()
     return bTime - aTime
   })
   .forEach((set: any) => {
-    const key = `${set.exercise_entry_id}-${set.set_number}`
+    const exerciseId = set.training_day_exercises?.exercise_id
+    if (!exerciseId) return
 
-    if (!lastWeightByEntryAndSet.has(key) && set.weight_kg != null) {
-      lastWeightByEntryAndSet.set(key, set.weight_kg)
+    const key = `${exerciseId}-${set.set_number}`
+
+    if (!lastWeightByExerciseAndSet.has(key) && set.weight_kg != null) {
+      lastWeightByExerciseAndSet.set(key, set.weight_kg)
     }
   })
 
@@ -218,12 +240,12 @@ const preparedSets = (setsData || []).map((set: any) => {
     (entry: any) => entry.id === set.exercise_entry_id
   )
 
-  const key = `${set.exercise_entry_id}-${set.set_number}`
+  const key = `${entry?.exercise_id}-${set.set_number}`
 
   return {
     ...set,
     reps_done: set.reps_done ?? getTargetReps(entry),
-    weight_kg: set.weight_kg ?? lastWeightByEntryAndSet.get(key) ?? "",
+    weight_kg: set.weight_kg ?? lastWeightByExerciseAndSet.get(key) ?? "",
   }
 })
 
