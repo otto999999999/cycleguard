@@ -424,6 +424,107 @@ const cancelWorkout = async () => {
   localStorage.removeItem("cycleguard_active_workout_session")
   router.push("/performance/strength")
 }
+const getWorkoutSummaryMessage = async () => {
+  const completedSets = sets.filter((set) => set.completed)
+
+  const volume = completedSets.reduce((sum, set) => {
+    const kg = Number(set.weight_kg || 0)
+    const reps = Number(set.reps_done || 0)
+
+    return sum + kg * reps
+  }, 0)
+
+  const bestTodayByExercise = new Map<string, any>()
+
+  completedSets.forEach((set) => {
+    const entry = entries.find((entry) => entry.id === set.exercise_entry_id)
+    const exerciseId = entry?.exercise_id
+    if (!exerciseId) return
+
+    const weight = Number(set.weight_kg || 0)
+    const current = bestTodayByExercise.get(exerciseId)
+
+    if (!current || weight > Number(current.weight_kg || 0)) {
+      bestTodayByExercise.set(exerciseId, {
+        ...set,
+        exerciseName: entry?.exercise_library?.name || "Übung",
+        exerciseId,
+      })
+    }
+  })
+
+  const exerciseIds = Array.from(bestTodayByExercise.keys())
+
+  if (exerciseIds.length === 0) {
+    return `Workout abgeschlossen. ${completedSets.length} Sätze erledigt.`
+  }
+
+  const { data: oldSets } = await supabase
+    .from("workout_sets")
+    .select(`
+      *,
+      workout_sessions!inner (
+        id,
+        started_at,
+        finished_at,
+        cancelled_at
+      ),
+      training_day_exercises!inner (
+        exercise_id,
+        exercise_library (
+          name
+        )
+      )
+    `)
+    .in("training_day_exercises.exercise_id", exerciseIds)
+    .neq("session_id", sessionId)
+    .eq("completed", true)
+    .not("workout_sessions.finished_at", "is", null)
+    .is("workout_sessions.cancelled_at", null)
+
+  const previousBestByExercise = new Map<string, number>()
+
+  ;(oldSets || []).forEach((set: any) => {
+    const exerciseId = set.training_day_exercises?.exercise_id
+    if (!exerciseId) return
+
+    const weight = Number(set.weight_kg || 0)
+    const current = previousBestByExercise.get(exerciseId) || 0
+
+    if (weight > current) {
+      previousBestByExercise.set(exerciseId, weight)
+    }
+  })
+
+  const improvements = Array.from(bestTodayByExercise.values())
+    .map((set: any) => {
+      const previousBest = previousBestByExercise.get(set.exerciseId) || 0
+      const todayWeight = Number(set.weight_kg || 0)
+      const diff = todayWeight - previousBest
+
+      return {
+        exerciseName: set.exerciseName,
+        todayWeight,
+        previousBest,
+        diff,
+        reps: Number(set.reps_done || 0),
+      }
+    })
+    .filter((item) => item.previousBest > 0 && item.diff > 0)
+    .sort((a, b) => b.diff - a.diff)
+
+  if (improvements.length > 0) {
+    const best = improvements[0]
+
+    return `Stark. ${best.exerciseName} +${best.diff} kg verbessert. Heute ${best.todayWeight} kg${
+      best.reps > 0 ? ` × ${best.reps}` : ""
+    }. Volumen: ${volume.toLocaleString("de-DE")} kg.`
+  }
+
+  return `Workout abgeschlossen. Keine neue Gewichtssteigerung erkannt. ${completedSets.length} Sätze, ${volume.toLocaleString(
+    "de-DE"
+  )} kg Volumen.`
+}
   const finishWorkout = async () => {
     if (completedCount === 0) {
       toast.error("Logge mindestens einen Satz.")
@@ -443,7 +544,13 @@ const cancelWorkout = async () => {
     }
 
 localStorage.removeItem("cycleguard_active_workout_session")
-toast.success("Workout abgeschlossen.")
+
+const summaryMessage = await getWorkoutSummaryMessage()
+
+toast.success(summaryMessage, {
+  duration: 7000,
+})
+
 router.push("/performance/strength")
   }
 
