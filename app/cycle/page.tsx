@@ -8,7 +8,28 @@ import { toast } from "sonner"
 const daysShort = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 const DAY_KEYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
+const getBaseUnit = (unit: string) => {
+  const lower = String(unit || "").toLowerCase()
 
+  if (lower.includes("mcg")) return "mcg"
+  if (lower.includes("mg")) return "mg"
+  if (lower.includes("g")) return "g"
+  if (lower.includes("ml")) return "ml"
+
+  return "mg"
+}
+
+const getOralUnitLabel = (compound: any, count?: number) => {
+  const unit = String(compound?.pill_unit || "").toLowerCase()
+  const single = count === 1
+
+  if (compound?.type !== "Supplement") return single ? "Pille" : "Pillen"
+  if (unit.includes("drop")) return "Tropfen"
+  if (unit.includes("ml")) return single ? "Portion" : "Portionen"
+  if (unit.includes("scoop") || unit.includes("portion")) return single ? "Einheit" : "Einheiten"
+
+  return single ? "Pille" : "Pillen"
+}
 
 const dateKeyLocal = (date: Date) => {
   const y = date.getFullYear()
@@ -116,23 +137,24 @@ setLoading(false)
     setShowCycleModal(true)
   }
 
-  const buildCompoundConfig = (compound: any) => {
-    const oral = isOral(compound)
+const buildCompoundConfig = (compound: any) => {
+  const oral = isOral(compound)
+  const baseUnit = oral ? getBaseUnit(compound.pill_unit || "mg") : "mg"
 
-    return {
-      id: compound.id,
-      name: compound.name,
-      type: compound.type,
-      method: oral ? "Oral" : compound.method || "IM",
-      startWeek: 1,
-      endWeek: cycleType === "trt" ? 9999 : durationWeeks,
-      doseAmount: oral ? compound.dose_per_pill || 25 : compound.concentration || 250,
-      doseUnit: oral ? compound.pill_unit || "mg/pill" : compound.concentration_unit || "mg/ml",
-      frequency: oral ? "Daily" : "E3D",
-      customDays: [],
-      manufacturer: compound.manufacturer || null,
-    }
+  return {
+    id: compound.id,
+    name: compound.name,
+    type: compound.type,
+    method: oral ? "Oral" : compound.method || "IM",
+    startWeek: 1,
+    endWeek: cycleType === "trt" ? 9999 : durationWeeks,
+    doseAmount: oral ? compound.dose_per_pill || 25 : compound.concentration || 250,
+    doseUnit: oral ? baseUnit : "mg",
+    frequency: oral ? "Daily" : "E3D",
+    customDays: [],
+    manufacturer: compound.manufacturer || null,
   }
+}
 
   const addToMainStack = (compound: any) => {
     if (mainStack.some((c) => c.id === compound.id)) return
@@ -352,7 +374,7 @@ const isTrainingDay = (date: Date) => {
 }
   const renderLine = (c: any) => {
     const endText = c.endWeek >= 9999 ? "dauerhaft" : `Woche ${c.startWeek}–${c.endWeek}`
-    return `${endText} • ${c.doseAmount} ${c.doseUnit} • ${formatSchedule(c)}`
+    return `${endText} • ${c.doseAmount} ${getBaseUnit(c.doseUnit || "mg")} • ${formatSchedule(c)}`
   }
 
   const getCycleProgress = (cycle: any) => {
@@ -615,9 +637,9 @@ const availablePCTCompounds =
                             {todayDue.map((item: any) => (
                               <div key={item.id} className="text-sm flex justify-between gap-3">
                                 <span>{item.name}</span>
-                                <span className="text-muted-foreground">
-                                  {item.doseAmount} {item.doseUnit}
-                                </span>
+<span className="text-muted-foreground">
+  {item.doseAmount} {getBaseUnit(item.doseUnit || "mg")}
+</span>
                               </div>
                             ))}
                           </div>
@@ -887,7 +909,7 @@ const availablePCTCompounds =
                     className="input flex-1"
                   />
                   <div className="bg-[#181818] border border-white/5 rounded-2xl px-5 flex items-center text-sm text-muted-foreground">
-                    {selectedCompoundForDosing.doseUnit || "mg"}
+                    {getBaseUnit(selectedCompoundForDosing.doseUnit || "mg")}
                   </div>
                 </div>
               </Field>
@@ -963,12 +985,14 @@ const availablePCTCompounds =
   )
 }
 
-function Modal({ title, children, onClose, high }: any) {
+function Modal({ title, children, onClose, high, compact }: any) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-end bg-black/80 backdrop-blur-md">
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
       <div
-        className={`w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 overflow-y-auto backdrop-blur-2xl ${
-          high ? "max-h-[92vh]" : "max-h-[90vh]"
+        className={`w-full overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 shadow-2xl backdrop-blur-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          compact ? "max-w-xl" : "max-w-2xl"
+        } ${
+          high ? "max-h-[92vh]" : "max-h-[86vh]"
         }`}
       >
         <div className="w-14 h-1.5 rounded-full bg-white/10 mx-auto mb-5" />
@@ -1052,8 +1076,8 @@ function StackEditor({ items, onOpen, onRemove, emptyText, renderLine, pct }: an
 
 function SelectCompoundModal({ title, compounds, onSelect, onClose, isOral }: any) {
   return (
-    <Modal title={title} onClose={onClose}>
-      <div className="space-y-2">
+    <Modal title={title} onClose={onClose} compact>
+      <div className="grid max-h-[58vh] gap-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {compounds.length === 0 ? (
           <div className="rounded-[24px] border border-white/5 bg-white/[0.03] backdrop-blur-md p-6 text-center text-muted-foreground">
             Keine Substanzen vorhanden
@@ -1063,12 +1087,12 @@ function SelectCompoundModal({ title, compounds, onSelect, onClose, isOral }: an
             <button
               key={comp.id}
               onClick={() => onSelect(comp)}
-              className="w-full text-left bg-[#111111] hover:bg-[#1A1A1A] rounded-2xl p-4"
+              className="w-full rounded-[24px] border border-white/5 bg-white/[0.04] p-5 text-left transition hover:bg-white/[0.07] active:scale-[0.99]"
             >
               <p className="font-medium">{comp.name}</p>
               <p className="text-sm text-muted-foreground">
                 {isOral(comp)
-                  ? `${comp.dose_per_pill || 0} ${comp.pill_unit || "mg/pill"} • ${comp.remaining_pills || 0} Pillen übrig`
+                  ? `${comp.dose_per_pill || 0} ${comp.pill_unit || "mg/pill"} • ${comp.remaining_pills || 0} ${getOralUnitLabel(comp, comp.remaining_pills || 0)} übrig`
                   : `${comp.concentration || 0} ${comp.concentration_unit || "mg/ml"} • ${comp.packaging || ""}`}
               </p>
             </button>
@@ -1076,7 +1100,10 @@ function SelectCompoundModal({ title, compounds, onSelect, onClose, isOral }: an
         )}
       </div>
 
-      <button onClick={onClose} className="w-full 8 py-4 bg-[#111111] rounded-2xl">
+      <button
+  onClick={onClose}
+  className="mt-4 w-full rounded-[22px] border border-white/8 bg-white/[0.05] py-4 font-semibold transition hover:bg-white/[0.08]"
+>
         Fertig
       </button>
     </Modal>

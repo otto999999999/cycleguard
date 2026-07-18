@@ -59,6 +59,7 @@ export default function CompoundsPage() {
     method: "IM" as "IM" | "SubQ" | "Oral",
     dosePerPill: 25,
     pillUnit: "mg/pill",
+    supplementForm: "Pill" as "Pill" | "Powder" | "Liquid" | "Drops",
     pillsPerBottle: 100,
     currentBottles: 1,
     remainingPills: 100,
@@ -68,6 +69,47 @@ export default function CompoundsPage() {
   })
 
   const isOralType = (type: string) => ORAL_TYPES.includes(type)
+  const getSupplementFormFromUnit = (c: any) => {
+  const unit = String(c.pill_unit || "").toLowerCase()
+
+  if (unit.includes("scoop") || unit.includes("portion")) return "Powder"
+  if (unit.includes("drop") || unit.includes("tropfen")) return "Drops"
+  if (unit.includes("ml")) return "Liquid"
+
+  return "Pill"
+}
+
+const getOralUnitLabel = (c: any, count?: number) => {
+  const form = getSupplementFormFromUnit(c)
+  const single = count === 1
+
+  if (c.type !== "Supplement") return single ? "Pille" : "Pillen"
+  if (form === "Powder") return single ? "Einheit" : "Einheiten"
+  if (form === "Liquid") return single ? "Portion" : "Portionen"
+  if (form === "Drops") return "Tropfen"
+
+  return single ? "Pille" : "Pillen"
+}
+
+const getAmountPerContainerLabel = (c: any) => {
+  const unit = getOralUnitLabel(c)
+
+  if (c.type === "Supplement") {
+    return `${unit} pro Packung / Flasche`
+  }
+
+  return "Pillen pro Flasche"
+}
+
+const getRemainingLabel = (c: any) => {
+  const unit = getOralUnitLabel(c)
+
+  if (c.type === "Supplement") {
+    return `${unit} übrig`
+  }
+
+  return "Pillen übrig"
+}
   const parseDecimal = (value: string) => {
   const normalized = value.replace(",", ".")
   const parsed = Number(normalized)
@@ -92,6 +134,7 @@ const haptic = () => {
       method: "IM",
       dosePerPill: 25,
       pillUnit: "mg/pill",
+      supplementForm: "Pill",
       pillsPerBottle: 100,
       currentBottles: 1,
       remainingPills: 100,
@@ -156,6 +199,14 @@ toast.error("Fehler beim Laden: " + error.message)
       method: c.method || "IM",
       dosePerPill: c.dose_per_pill ?? 25,
       pillUnit: c.pill_unit || "mg/pill",
+      supplementForm:
+  c.pill_unit?.includes("scoop") || c.pill_unit?.includes("portion")
+    ? "Powder"
+    : c.pill_unit?.includes("drop")
+      ? "Drops"
+      : c.pill_unit?.includes("ml")
+        ? "Liquid"
+        : "Pill",
       pillsPerBottle: c.pills_per_bottle ?? 100,
       currentBottles: c.current_bottles ?? 1,
       remainingPills: c.remaining_pills ?? c.pills_per_bottle ?? 100,
@@ -362,7 +413,7 @@ toast.error("Fehler beim Löschen: " + error.message)
 
                       {oral ? (
                         <p className="text-sm text-blue-400">
-                          {c.dose_per_pill} {c.pill_unit} • {c.pills_per_bottle} Pillen/Flasche
+                          {c.dose_per_pill} {c.pill_unit} • {c.pills_per_bottle ?? 0} {getAmountPerContainerLabel(c)}
                         </p>
                       ) : (
                         <p className="text-sm text-emerald-400">
@@ -386,7 +437,7 @@ toast.error("Fehler beim Löschen: " + error.message)
 
                       {oral && (
                         <p className="text-xs text-muted-foreground mt-1">
-                          {c.remaining_pills ?? 0} Pillen übrig
+                          {c.remaining_pills ?? 0} {getRemainingLabel(c)}
                         </p>
                       )}
 
@@ -449,7 +500,16 @@ toast.error("Fehler beim Löschen: " + error.message)
 <Field label="Kategorie">
   <select
     value={form.type}
-    onChange={(e) => setForm({ ...form, type: e.target.value })}
+    onChange={(e) => {
+  const nextType = e.target.value
+
+  setForm({
+    ...form,
+    type: nextType,
+    supplementForm: nextType === "Supplement" ? "Pill" : form.supplementForm,
+    pillUnit: nextType === "Supplement" ? "mg/pill" : form.pillUnit,
+  })
+}}
     className={`${inputClass} bg-[#181818] text-white`}
     style={{ colorScheme: "dark" }}
   >
@@ -484,15 +544,57 @@ toast.error("Fehler beim Löschen: " + error.message)
               </div>
 
               {isOralType(form.type) && (
-                <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">
+  <>
+    {form.type === "Supplement" && (
+      <Field label="Darreichungsform">
+        <select
+          value={form.supplementForm}
+          onChange={(e) => {
+            const nextForm = e.target.value as "Pill" | "Powder" | "Liquid" | "Drops"
+
+            setForm({
+              ...form,
+              supplementForm: nextForm,
+              pillUnit:
+                nextForm === "Pill"
+                  ? "mg/pill"
+                  : nextForm === "Powder"
+                    ? "g/scoop"
+                    : nextForm === "Liquid"
+                      ? "ml/portion"
+                      : "ml/drop",
+            })
+          }}
+          className={`${inputClass} bg-[#181818] text-white`}
+          style={{ colorScheme: "dark" }}
+        >
+          <option value="Pill">Pillen / Kapseln</option>
+          <option value="Powder">Pulver</option>
+          <option value="Liquid">Flüssigkeit</option>
+          <option value="Drops">Tropfen</option>
+        </select>
+      </Field>
+    )}
+
+    <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">
                   <div>
-                    <h3 className="font-semibold text-lg">Pillen / Oral Bestand</h3>
+                    <h3 className="font-semibold text-lg">
+  {form.type === "Supplement"
+    ? form.supplementForm === "Powder"
+      ? "Pulver Bestand"
+      : form.supplementForm === "Liquid"
+        ? "Flüssigkeit Bestand"
+        : form.supplementForm === "Drops"
+          ? "Tropfen Bestand"
+          : "Pillen / Kapsel Bestand"
+    : "Pillen / Oral Bestand"}
+</h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Gilt für Oral, AI, SARM, PCT und Supplements.
                     </p>
                   </div>
 
-                  <Field label="Dosierung pro Pille">
+                  <Field label={form.type === "Supplement" ? "Dosierung pro Einheit" : "Dosierung pro Pille"}>
                     <div className="grid grid-cols-2 gap-3">
                       <input
                         type="text"
@@ -504,14 +606,67 @@ inputMode="decimal"
                         className={inputClass}
                       />
 
-                      <select value={form.pillUnit} onChange={(e) => setForm({ ...form, pillUnit: e.target.value })} className={inputClass}>
-                        <option value="mg/pill">mg/pill</option>
-                        <option value="mcg/pill">mcg/pill</option>
-                      </select>
+                      <select
+  value={form.pillUnit}
+  onChange={(e) => {
+  const oldUnit = form.pillUnit
+  const newUnit = e.target.value
+  let nextDose = form.dosePerPill
+
+  if (oldUnit.startsWith("mg/") && newUnit.startsWith("g/")) {
+    nextDose = form.dosePerPill / 1000
+  }
+
+  if (oldUnit.startsWith("g/") && newUnit.startsWith("mg/")) {
+    nextDose = form.dosePerPill * 1000
+  }
+
+  if (oldUnit.startsWith("mcg/") && newUnit.startsWith("mg/")) {
+    nextDose = form.dosePerPill / 1000
+  }
+
+  if (oldUnit.startsWith("mg/") && newUnit.startsWith("mcg/")) {
+    nextDose = form.dosePerPill * 1000
+  }
+
+  setForm({
+    ...form,
+    pillUnit: newUnit,
+    dosePerPill: Number(nextDose.toFixed(4)),
+  })
+}}
+  className={inputClass}
+>
+  {form.type === "Supplement" && form.supplementForm === "Powder" ? (
+    <>
+      <option value="g/scoop">g/Scoop</option>
+      <option value="g/portion">g/Portion</option>
+      <option value="mg/portion">mg/Portion</option>
+    </>
+  ) : form.type === "Supplement" && form.supplementForm === "Liquid" ? (
+    <>
+      <option value="ml/portion">ml/Portion</option>
+      <option value="mg/ml">mg/ml</option>
+      <option value="mcg/ml">mcg/ml</option>
+    </>
+  ) : form.type === "Supplement" && form.supplementForm === "Drops" ? (
+    <>
+      <option value="ml/drop">ml/Tropfen</option>
+      <option value="mg/drop">mg/Tropfen</option>
+      <option value="mcg/drop">mcg/Tropfen</option>
+    </>
+  ) : (
+    <>
+      <option value="mg/pill">mg/pill</option>
+      <option value="mcg/pill">mcg/pill</option>
+      <option value="g/pill">g/pill</option>
+    </>
+  )}
+</select>
                     </div>
                   </Field>
 
-                  <Field label="Pillen pro Flasche">
+                  <Field label={form.type === "Supplement" ? "Einheiten pro Packung / Flasche" : "Pillen pro Flasche"}>
                     <input
                       type="number"
                       value={form.pillsPerBottle}
@@ -535,7 +690,7 @@ inputMode="decimal"
                     />
                   </Field>
 
-                  <Field label="Verbleibende Pillen gesamt">
+                                    <Field label={form.type === "Supplement" ? "Verbleibende Einheiten gesamt" : "Verbleibende Pillen gesamt"}>
                     <input
                       type="number"
                       value={form.remainingPills}
@@ -544,7 +699,8 @@ inputMode="decimal"
                     />
                   </Field>
                 </div>
-              )}
+              </>
+            )}
 
               {form.type === "Injectable" && (
                 <div className="rounded-3xl border border-white/5 bg-white/[0.03] p-5 space-y-5">

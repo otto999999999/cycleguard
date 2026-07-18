@@ -34,6 +34,126 @@ export default function EinkaufPage() {
   })
 
   const isOral = (c: any) => ORAL_TYPES.includes(c.type)
+  const getSupplementFormFromUnit = (c: any) => {
+  const unit = String(c.pill_unit || "").toLowerCase()
+
+  if (unit.includes("scoop") || unit.includes("portion")) return "Powder"
+  if (unit.includes("drop") || unit.includes("tropfen")) return "Drops"
+  if (unit.includes("ml")) return "Liquid"
+
+  return "Pill"
+}
+
+const getOralUnitLabel = (c: any, count?: number) => {
+  const form = getSupplementFormFromUnit(c)
+  const single = count === 1
+
+  if (c.type !== "Supplement") return single ? "Pille" : "Pillen"
+  if (form === "Powder") return single ? "Einheit" : "Einheiten"
+  if (form === "Liquid") return single ? "Portion" : "Portionen"
+  if (form === "Drops") return "Tropfen"
+
+  return single ? "Pille" : "Pillen"
+}
+
+const getContainerLabel = (c: any, count?: number) => {
+  const form = getSupplementFormFromUnit(c)
+  const single = count === 1
+
+  if (c.type === "Supplement" && form === "Powder") {
+    return single ? "Packung" : "Packungen"
+  }
+
+  return single ? "Flasche" : "Flaschen"
+}
+
+const getAmountPerContainerLabel = (c: any) => {
+  const unit = getOralUnitLabel(c)
+
+  if (c.type === "Supplement") {
+    return `${unit} pro Packung / Flasche`
+  }
+
+  return "Pillen pro Flasche"
+}
+
+const getRemainingLabel = (c: any) => {
+  const unit = getOralUnitLabel(c)
+
+  if (c.type === "Supplement") {
+    return `${unit} übrig`
+  }
+
+  return "Pillen übrig"
+}
+
+const getBaseUnit = (unit: string) => {
+  const lower = String(unit || "").toLowerCase()
+
+  if (lower.includes("mcg")) return "mcg"
+  if (lower.includes("mg")) return "mg"
+  if (lower.includes("g")) return "g"
+  if (lower.includes("ml")) return "ml"
+
+  return "units"
+}
+
+const isDrops = (c: any) => {
+  const unit = String(c?.pill_unit || "").toLowerCase()
+  return c?.type === "Supplement" && (unit.includes("drop") || unit.includes("tropfen"))
+}
+
+const convertDose = (amount: number, fromUnit: string, toUnit: string) => {
+  const from = getBaseUnit(fromUnit)
+  const to = getBaseUnit(toUnit)
+
+  if (from === to) return amount
+
+  if (from === "mg" && to === "g") return amount / 1000
+  if (from === "g" && to === "mg") return amount * 1000
+
+  if (from === "mcg" && to === "mg") return amount / 1000
+  if (from === "mg" && to === "mcg") return amount * 1000
+
+  if (from === "mcg" && to === "g") return amount / 1000000
+  if (from === "g" && to === "mcg") return amount * 1000000
+
+  return amount
+}
+
+const formatDoseUnit = (unit: string) => {
+  const base = getBaseUnit(unit)
+
+  if (base === "units") return "Einheiten"
+  return base
+}
+
+const getPlannedWeeklyInfo = (compoundId: string) => {
+  const stack = [
+    ...(activeCycle?.main_stack || []),
+    ...(activeCycle?.pct_stack || []),
+    ...(activeSupplementPlan?.main_stack || []),
+    ...(activeSupplementPlan?.pct_stack || []),
+  ]
+
+  const matchingItems = stack.filter((item: any) => item.id === compoundId)
+
+  if (matchingItems.length === 0) return null
+
+  const firstUnit = matchingItems[0]?.doseUnit || ""
+
+  const weeklyUsage = matchingItems.reduce((sum: number, item: any) => {
+    return sum + getWeeklyUsageFromItem(item)
+  }, 0)
+
+  if (!weeklyUsage) return null
+
+  return {
+    amount: weeklyUsage,
+    unit: firstUnit,
+  }
+}
+
 const haptic = () => {
   if (typeof window !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(12)
@@ -119,11 +239,11 @@ useEffect(() => {
     return c.current_ampoules || 0
   }
 
-  const getUnit = (c: any, qty: number) => {
-    if (isOral(c)) return qty === 1 ? "Flasche" : "Flaschen"
-    if (c.packaging === "Vial") return qty === 1 ? "Vial" : "Vials"
-    return qty === 1 ? "Ampulle" : "Ampullen"
-  }
+const getUnit = (c: any, qty: number) => {
+  if (isOral(c)) return getContainerLabel(c, qty)
+  if (c.packaging === "Vial") return qty === 1 ? "Vial" : "Vials"
+  return qty === 1 ? "Ampulle" : "Ampullen"
+}
   const formatSchedule = (item: any) => {
   if (item.frequency === "Custom" && item.customDays?.length) {
     return item.customDays.join(", ")
@@ -223,23 +343,7 @@ if (item.frequency === "Training Days") {
 }
 
 const getPlannedWeeklyUsage = (compoundId: string) => {
-  const stack = [
-    ...(activeCycle?.main_stack || []),
-    ...(activeCycle?.pct_stack || []),
-    ...(activeSupplementPlan?.main_stack || []),
-    ...(activeSupplementPlan?.pct_stack || []),
-  ]
-
-  const matchingItems = stack.filter((item: any) => item.id === compoundId)
-
-  if (matchingItems.length === 0) return null
-
-  const weeklyUsage = matchingItems.reduce(
-    (sum: number, item: any) => sum + getWeeklyUsageFromItem(item),
-    0
-  )
-
-  return weeklyUsage || null
+  return getPlannedWeeklyInfo(compoundId)?.amount || null
 }
 
 const getEstimatedDaysLeft = (c: any) => {
@@ -252,16 +356,24 @@ const getEstimatedDaysLeft = (c: any) => {
   if (!dailyUsage) return null
 
 if (isOral(c)) {
-  const remainingPills = Number(c.remaining_pills || 0)
-  const dosePerPill = Number(c.dose_per_pill || 0)
+  const remainingUnits = Number(c.remaining_pills || 0)
+  const dosePerUnit = Number(c.dose_per_pill || 0)
+  const plannedInfo = getPlannedWeeklyInfo(c.id)
 
-  if (!dosePerPill) return null
+  if (!dosePerUnit || !plannedInfo) return null
 
-  const pillsPerDay = dailyUsage / dosePerPill
+  const weeklyInCompoundUnit = convertDose(
+    plannedInfo.amount,
+    plannedInfo.unit,
+    c.pill_unit || ""
+  )
 
-  if (!pillsPerDay) return null
+  const dailyInCompoundUnit = weeklyInCompoundUnit / 7
+  const unitsPerDay = dailyInCompoundUnit / dosePerUnit
 
-  return Math.floor(remainingPills / pillsPerDay)
+  if (!unitsPerDay) return null
+
+  return Math.floor(remainingUnits / unitsPerDay)
 }
 
   
@@ -289,28 +401,33 @@ return Math.floor(remainingMg / dailyUsage)
 
 const totalValue = breakdown.reduce((sum, item) => sum + item.totalValue, 0)
 
-  const stats = compounds.reduce(
-    (acc, c) => {
-      const qty = getQuantity(c)
+const stats = compounds.reduce(
+  (acc, c) => {
+    const qty = getQuantity(c)
 
-      acc.gesamtwert += qty * (c.price || 0)
-      if (c.type === "Injectable") acc.injectables++
-      if (isOral(c)) acc.orals += c.remaining_pills || 0
+    acc.gesamtwert += qty * (c.price || 0)
 
-const daysLeft = getEstimatedDaysLeft(c)
+    if (c.type === "Injectable") acc.injectables++
 
-const low =
-  daysLeft !== null
-    ? daysLeft <= 14
-    : isOral(c)
-      ? (c.remaining_pills || 0) < 20
-      : qty < 1
+    if (isOral(c) && !isDrops(c)) {
+      acc.orals += c.remaining_pills || 0
+    }
 
-      if (low) acc.lowStock++
-      return acc
-    },
-    { gesamtwert: 0, injectables: 0, orals: 0, lowStock: 0 }
-  )
+    const daysLeft = getEstimatedDaysLeft(c)
+
+    const low =
+      daysLeft !== null
+        ? daysLeft <= 14
+        : isOral(c)
+          ? !isDrops(c) && (c.remaining_pills || 0) < 20
+          : qty < 1
+
+    if (low) acc.lowStock++
+
+    return acc
+  },
+  { gesamtwert: 0, injectables: 0, orals: 0, lowStock: 0 }
+)
 
 const getActiveCycleStack = () => {
   if (!activeCycle) return []
@@ -427,6 +544,8 @@ const getActiveCycleStockStatus = () => {
 }
 
 const lowStockItems = compounds.filter((c) => {
+  if (isDrops(c)) return false
+
   const daysLeft = getEstimatedDaysLeft(c)
 
   if (daysLeft !== null) {
@@ -522,7 +641,7 @@ toast.success("Bestand aktualisiert")
     </div>
 
     <div>
-      <p className="text-muted-foreground">Pillen</p>
+      <p className="text-muted-foreground">Einheiten</p>
       <p className="font-semibold text-blue-400">
         {stats.orals}
       </p>
@@ -532,7 +651,7 @@ toast.success("Bestand aktualisiert")
       <div className="px-5 pt-6 grid grid-cols-2 gap-3">
         <StatCard title="Gesamtwert" value={`€${Math.round(stats.gesamtwert)}`} icon="💰" wide onClick={() => setShowBreakdown(true)} />
         <StatCard title="Injectables" value={stats.injectables} icon={<Syringe className="w-5 h-5 text-green-400" />} />
-        <StatCard title="Pillen" value={stats.orals} icon={<Pill className="w-5 h-5 text-blue-400" />} />
+        <StatCard title="Einheiten" value={stats.orals} icon={<Pill className="w-5 h-5 text-blue-400" />} />
         <StatCard title="Low Stock" value={stats.lowStock} icon={<AlertTriangle className="w-5 h-5 text-orange-400 drop-shadow-[0_0_6px_rgba(251,146,60,0.45)]" />} wide orange />
       </div>
 <PullToRefresh
@@ -622,16 +741,16 @@ if (oral) {
 } else {
   percentage = qty > 0 ? 100 : 0
 }
-                const totalPills = getTotalPills(c)
+const totalPills = getTotalPills(c)
                 const plannedWeekly = getPlannedWeeklyUsage(c.id)
-                const cycleItem = activeCycle
-  ? [
-      ...(activeCycle.main_stack || []),
-      ...(activeCycle.pct_stack || []),
-    ].find((x) => x.id === c.id)
-  : null
+const plannedItem = [
+  ...(activeCycle?.main_stack || []),
+  ...(activeCycle?.pct_stack || []),
+  ...(activeSupplementPlan?.main_stack || []),
+  ...(activeSupplementPlan?.pct_stack || []),
+].find((x: any) => x.id === c.id)
 
-const doseAmount = Number(cycleItem?.doseAmount || 0)
+const doseAmount = Number(plannedItem?.doseAmount || 0)
                 const dosesLeft =
   !oral &&
   remainingMg !== null &&
@@ -660,9 +779,19 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                         <p className="font-medium">{c.name}</p>
                         <p className="text-xs text-muted-foreground">{c.type}</p>
                         <p className="mt-1 text-xs text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.4)]">
-  {plannedWeekly
-    ? `Geplant: ${Math.round(plannedWeekly)}mg/Woche`
-    : "Kein Wochenverbrauch geplant"}
+{plannedWeekly
+  ? (() => {
+const displayAmount = convertDose(
+  plannedWeekly,
+  plannedItem?.doseUnit || "",
+  c.pill_unit || ""
+)
+
+return `Geplant: ${displayAmount % 1 === 0 ? displayAmount : displayAmount.toFixed(2)} ${formatDoseUnit(
+  c.pill_unit || plannedItem?.doseUnit || ""
+)}/Woche`
+    })()
+  : "Kein Wochenverbrauch geplant"}
 </p>
 <p
   className={`mt-1 text-xs ${
@@ -687,7 +816,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
 
                         {oral && (
                           <p className="text-xs text-muted-foreground mt-1">
-                            {c.pills_per_bottle || 0} Pillen pro Flasche
+                            {c.pills_per_bottle || 0} {getAmountPerContainerLabel(c)}
                           </p>
                         )}
                       </div>
@@ -695,8 +824,12 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                       <div className="text-right">
                         {oral 
                         ? (
-                          <><p className="font-semibold">{c.remaining_pills || 0} Pillen</p>
-                            <p className="text-xs text-muted-foreground">{c.current_bottles || 0} Flaschen</p>
+                          <><p className="font-semibold">
+  {c.remaining_pills || 0} {getOralUnitLabel(c, c.remaining_pills || 0)}
+</p>
+<p className="text-xs text-muted-foreground">
+  {c.current_bottles || 0} {getContainerLabel(c, c.current_bottles || 0)}
+</p>
                           </>
 ) : (
   <>
@@ -746,7 +879,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
                           <span className="text-muted-foreground">
                             <span className="text-muted-foreground">
   {oral
-    ? `${c.remaining_pills || 0}/${totalPills} Pillen`
+    ? `${c.remaining_pills || 0}/${totalPills} ${getOralUnitLabel(c)}`
     : remainingMg !== null
       ? (
   <>
@@ -942,7 +1075,7 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
         <Modal title="Substanz auswählen" onClose={() => setShowStockSelect(false)}>
           <div className="space-y-2">
             {compounds.map((c) => (
-              <button key={c.id} onClick={() => selectCompoundForEdit(c)} className="w-full text-left bg-[#111111] rounded-2xl p-4">
+              <button key={c.id} onClick={() => selectCompoundForEdit(c)} className="w-full text-left bg-[#111111] hover:bg-[#1A1A1A] rounded-2xl p-4">
                 <p className="font-medium">{c.name}</p>
                 <p className="text-xs text-muted-foreground">{c.type}</p>
 
@@ -958,16 +1091,16 @@ const doseAmount = Number(cycleItem?.doseAmount || 0)
         {isOral(selected) ? (
         <>
             <NumberInput
-            label="Anzahl Flaschen"
+            label={`Anzahl ${getContainerLabel(selected)}`}
             value={editForm.current_bottles}
             onChange={(v: number) => setEditForm({ ...editForm, current_bottles: v })}
             />
 
-            <NumberInput
-            label="Verbleibende Pillen"
-            value={editForm.remaining_pills}
-            onChange={(v: number) => setEditForm({ ...editForm, remaining_pills: v })}
-            />
+<NumberInput
+  label={getRemainingLabel(selected)}
+  value={editForm.remaining_pills}
+  onChange={(v: number) => setEditForm({ ...editForm, remaining_pills: v })}
+/>
         </>
         ) : selected.packaging === "Vial" ? (
         <NumberInput

@@ -136,14 +136,14 @@ const backParts: MusclePart[] = [
 
 const getLayerClass = (status: MuscleStatus) => {
   if (status === "fresh") {
-    return "opacity-100 drop-shadow-[0_0_16px_rgba(34,211,238,0.85)]"
+    return "bg-red-500/55 blur-[11.90px] drop-shadow-[0_0_6px_rgba(239,68,68,0.22)]"
   }
 
   if (status === "recovery") {
-    return "opacity-85 drop-shadow-[0_0_14px_rgba(59,130,246,0.75)]"
+    return "bg-yellow-400/45 blur-[11.90px] drop-shadow-[0_0_6px_rgba(250,204,21,0.18)]"
   }
 
-  return "opacity-28"
+  return "hidden"
 }
 
 const getStrongestStatus = (
@@ -183,19 +183,25 @@ export default function MuscleBodyMap({
 
           {parts.map((part) => {
             const status = getStrongestStatus(part.groups, getStatusForGroup)
-
+            if (status === "ready") return null
             return (
-              <img
-                key={part.key}
-                src={`${part.src}/${status}.png`}
-                alt={part.label}
-                className={`absolute inset-0 z-20 h-full w-full object-contain mix-blend-lighten transition-all duration-300 ${getLayerClass(
-                  status
-                )}`}
-                onError={(event) => {
-                  event.currentTarget.style.display = "none"
-                }}
-              />
+              <div
+  key={part.key}
+  aria-label={part.label}
+  className={`absolute inset-0 z-20 h-full w-full transition-all duration-300 ${getLayerClass(
+    status
+  )}`}
+  style={{
+    WebkitMaskImage: `url(${part.src}/ready.png)`,
+    maskImage: `url(${part.src}/ready.png)`,
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+  }}
+/>
             )
           })}
         </div>

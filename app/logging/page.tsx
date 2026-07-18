@@ -19,11 +19,58 @@ interface Dose {
   datum: string
   zeit?: string | null
   taken_at?: string | null
+  dose_unit?: string | null
 }
 
 const ORAL_TYPES = ["Oral", "Medication", "AI (Aromatase Inhibitor)", "SARM", "PCT", "Supplement"]
 const DAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]
 const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
+const getBaseUnit = (unit: string) => {
+  const lower = String(unit || "").toLowerCase()
+
+  if (lower.includes("mcg")) return "mcg"
+  if (lower.includes("mg")) return "mg"
+  if (lower.includes("g")) return "g"
+  if (lower.includes("ml")) return "ml"
+
+  return "units"
+}
+
+const convertDose = (amount: number, fromUnit: string, toUnit: string) => {
+  const from = getBaseUnit(fromUnit)
+  const to = getBaseUnit(toUnit)
+
+  if (from === to) return amount
+
+  if (from === "mg" && to === "g") return amount / 1000
+  if (from === "g" && to === "mg") return amount * 1000
+
+  if (from === "mcg" && to === "mg") return amount / 1000
+  if (from === "mg" && to === "mcg") return amount * 1000
+
+  if (from === "mcg" && to === "g") return amount / 1000000
+  if (from === "g" && to === "mcg") return amount * 1000000
+
+  return amount
+}
+
+const formatDoseUnit = (unit: string) => {
+  const base = getBaseUnit(unit)
+  if (base === "units") return "Einheiten"
+  return base
+}
+
+const getOralUnitLabel = (c: any, count?: number) => {
+  const unit = String(c?.pill_unit || "").toLowerCase()
+  const single = count === 1
+
+  if (c?.type !== "Supplement") return single ? "Pille" : "Pillen"
+  if (unit.includes("drop")) return "Tropfen"
+  if (unit.includes("ml")) return single ? "Portion" : "Portionen"
+  if (unit.includes("scoop") || unit.includes("portion")) return single ? "Einheit" : "Einheiten"
+
+  return single ? "Pille" : "Pillen"
+}
 const haptic = () => {
   if (typeof window !== "undefined" && "vibrate" in navigator) {
     navigator.vibrate(12)
@@ -77,10 +124,10 @@ export default function LoggingPage() {
     notes: "",
     datum: "",
     uhrzeit: "",
-    takenAt: localDateTimeValue()
+    takenAt: localDateTimeValue(),
+    doseUnit: "mg",
   })
 
-  const isOral = (c: any) => ORAL_TYPES.includes(c?.type)
 
   const loadData = async () => {
     setLoading(true)
@@ -310,6 +357,7 @@ const selectedItems = openSupplementDue.filter((item: any) =>
       compound_id: item.id,
       name: item.name,
       menge: Number(item.doseAmount || 0),
+      dose_unit: formatDoseUnit(item.doseUnit || ""),
       methode: "Oral",
       stelle: null,
       notes: "Aus Supplement-Plan gesammelt geloggt",
@@ -344,7 +392,14 @@ for (const item of selectedItems) {
     continue
   }
 
-  const pillsUsed = Math.max(1, Math.ceil(doseAmount / dosePerPill))
+  const doseInCompoundUnit = convertDose(
+  doseAmount,
+  item.doseUnit || "",
+  compound.pill_unit || ""
+)
+
+const pillsUsed = Math.max(1, Math.ceil(doseInCompoundUnit / dosePerPill))
+
   const nextRemaining = Math.max(0, currentRemaining - pillsUsed)
 
 const { error: stockError } = await supabase
@@ -390,7 +445,8 @@ const { error: stockError } = await supabase
       notes: "",
       datum: selectedDate,
       uhrzeit: new Date().toTimeString().slice(0, 5),
-      takenAt: localDateTimeValue()
+      takenAt: localDateTimeValue(),
+doseUnit: "mg",
     })
     setShowLogModal(true)
   }
@@ -406,6 +462,7 @@ const { error: stockError } = await supabase
     setForm({
       compound_id: planned.id,
       menge: String(planned.doseAmount || ""),
+      doseUnit: formatDoseUnit(planned.doseUnit || "mg"),
       methode: planned.method || (injectable ? "IM" : "Oral"),
       stelle: injectable ? nextSite : "",
       notes: "Aus Cycle-Plan geloggt",
@@ -424,6 +481,7 @@ const { error: stockError } = await supabase
     setForm({
       compound_id: dose.compound_id || "",
       menge: String(dose.menge || ""),
+      doseUnit: dose.dose_unit || "mg",
       methode: dose.methode || "Oral",
       stelle: dose.methode === "Oral" ? "" : (dose.stelle || "Rechte Schulter"),
       notes: dose.notes || "",
@@ -449,6 +507,7 @@ takenAt: dose.taken_at
       compound_id: compoundId,
       methode: injectable ? comp.method || "IM" : "Oral",
       stelle: injectable ? nextSite : "",
+      doseUnit: injectable ? "mg" : formatDoseUnit(comp.pill_unit || "mg"),
     }))
   }
 
@@ -459,24 +518,31 @@ takenAt: dose.taken_at
     ? selectedCompound.dose_per_pill || null
     : null
 
-  const pillsUsed = dosePerPill && mengeNum > 0
-    ? Math.ceil(mengeNum / dosePerPill)
-    : 0
+
 
   const mlBerechnet =
     selectedCompound?.type === "Injectable" && selectedCompound.concentration && mengeNum > 0
       ? (mengeNum / selectedCompound.concentration).toFixed(2)
       : null
 
-  const getPillsUsed = (compound: any, amountMg: number) => {
-    if (!compound || !isOral(compound)) return 0
+const getPillsUsed = (compound: any, amount: number, amountUnit = "mg") => {
+  if (!compound || !isOral(compound)) return 0
 
-    const perPill = compound.dose_per_pill || 0
-    if (!perPill) return 0
+  const perUnit = Number(compound.dose_per_pill || 0)
+  if (!perUnit) return 0
 
-    return Math.ceil(amountMg / perPill)
-  }
+  const amountInCompoundUnit = convertDose(
+    Number(amount || 0),
+    amountUnit,
+    compound.pill_unit || ""
+  )
 
+  return Math.ceil(amountInCompoundUnit / perUnit)
+}
+const pillsUsed =
+  selectedCompound && dosePerPill && mengeNum > 0
+    ? getPillsUsed(selectedCompound, mengeNum, form.doseUnit || "mg")
+    : 0
   const adjustOralStock = async (
     compoundId: string | null | undefined,
     pillDelta: number
@@ -572,8 +638,9 @@ toast.error("Nicht eingeloggt")
       user_id: session.user.id,
       compound_id: form.compound_id || selectedDose?.compound_id || null,
       name: isEditing ? selectedDose?.name : compound?.name || "Unbekannt",
-      menge: mengeNum,
-      methode: form.methode,
+menge: mengeNum,
+dose_unit: form.doseUnit || "mg",
+methode: form.methode,
       stelle: form.methode === "Oral" ? null : (form.stelle || null),
       notes: form.notes || null,
       datum: form.datum,
@@ -591,8 +658,8 @@ toast.error("Nicht eingeloggt")
         const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
         const newCompound = compounds.find((c) => c.id === payload.compound_id)
 
-        const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
-        const newPills = getPillsUsed(newCompound, mengeNum)
+const oldPills = getPillsUsed(oldCompound, selectedDose.menge, selectedDose.dose_unit || "mg")
+const newPills = getPillsUsed(newCompound, mengeNum, form.doseUnit || "mg")
         const oldMl = getMlUsed(oldCompound, selectedDose.menge)
         const newMl = getMlUsed(newCompound, mengeNum)
         if (selectedDose.compound_id === payload.compound_id) {
@@ -615,7 +682,7 @@ toast.error("Nicht eingeloggt")
         if (error) throw error
       } else {
         const newCompound = compounds.find((c) => c.id === form.compound_id)
-        const newPills = getPillsUsed(newCompound, mengeNum)
+        const newPills = getPillsUsed(newCompound, mengeNum, form.doseUnit || "mg")
         const newMl = getMlUsed(newCompound, mengeNum)
 
         await adjustOralStock(form.compound_id, newPills)
@@ -665,7 +732,7 @@ toast.success(
 
     try {
       const oldCompound = compounds.find((c) => c.id === selectedDose.compound_id)
-      const oldPills = getPillsUsed(oldCompound, selectedDose.menge)
+      const oldPills = getPillsUsed(oldCompound, selectedDose.menge, selectedDose.dose_unit || "mg")
       const oldMl = getMlUsed(oldCompound, selectedDose.menge)
 
       await adjustOralStock(selectedDose.compound_id, -oldPills)
@@ -782,7 +849,7 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
                       <div>
                         <p className="font-semibold">{item.name}</p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {item.doseAmount} {item.doseUnit} • {item.frequency}
+                          {item.doseAmount} {formatDoseUnit(item.doseUnit || "")} • {item.frequency}
                         </p>
                       </div>
 
@@ -901,7 +968,7 @@ style={{
               <p className="truncate font-black">{item.name}</p>
 
               <p className="mt-1 text-sm text-muted-foreground">
-                {item.doseAmount} {item.doseUnit} • {item.frequency}
+                {item.doseAmount} {formatDoseUnit(item.doseUnit || "")} • {item.frequency}
               </p>
             </div>
 
@@ -1051,7 +1118,7 @@ style={{
                       </p>
 
                       <p className="text-2xl font-medium mt-1">
-                        {dose.menge} mg
+                        {dose.menge} {dose.dose_unit || "mg"}
                       </p>
 
                       {dose.notes && (
@@ -1113,7 +1180,7 @@ style={{
 
               {(selectedCompound || isEditing) && (
                 <>
-                  <Field label="Menge in mg">
+                  <Field label={`Menge in ${form.doseUnit || "mg"}`}>
                     <input
                       type="number"
                       value={form.menge}
@@ -1124,7 +1191,7 @@ style={{
 
                     {dosePerPill && (
                       <p className="text-blue-400 text-sm mt-2">
-                        1 Pille = {dosePerPill} mg • Verbrauch: ca. {pillsUsed} Pillen
+                        1 {getOralUnitLabel(selectedCompound, 1)} = {dosePerPill} {formatDoseUnit(selectedCompound?.pill_unit || "mg")} • Verbrauch: ca. {pillsUsed} {getOralUnitLabel(selectedCompound, pillsUsed)}
                       </p>
                     )}
 
@@ -1227,7 +1294,7 @@ style={{
             <Trash2 className="w-14 h-14 text-red-500 mx-auto mb-5" />
             <h3 className="text-xl font-semibold mb-2">Eintrag löschen?</h3>
             <p className="text-muted-foreground mb-8">
-              {selectedDose.name} — {selectedDose.menge} mg
+              {selectedDose.name} — {selectedDose.menge} {selectedDose.dose_unit || "mg"}
             </p>
 
             <div className="flex gap-4">
