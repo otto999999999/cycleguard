@@ -85,7 +85,7 @@ const getTimeText = (hours: number) => {
 
 
 export default function CooldownPage() {
-  const [enhancedRecovery, setEnhancedRecovery] = useState(true)
+  const [enhancedRecovery, setEnhancedRecovery] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<any[]>([])
   const [sets, setSets] = useState<any[]>([])
@@ -95,10 +95,10 @@ export default function CooldownPage() {
 useEffect(() => {
   const saved = localStorage.getItem("cycleguard_enhanced_recovery")
 
-  if (saved === null) {
-    setEnhancedRecovery(true)
-    return
-  }
+if (saved === null) {
+  setEnhancedRecovery(false)
+  return
+}
 
   setEnhancedRecovery(saved === "true")
 }, [])

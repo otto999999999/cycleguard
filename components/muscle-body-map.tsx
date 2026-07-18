@@ -136,14 +136,14 @@ const backParts: MusclePart[] = [
 
 const getLayerClass = (status: MuscleStatus) => {
   if (status === "fresh") {
-    return "bg-red-500/55 blur-[11.90px] drop-shadow-[0_0_6px_rgba(239,68,68,0.22)]"
+    return "bg-red-500/30 blur-[10px] drop-shadow-[0_0_5px_rgba(239,68,68,0.16)]"
   }
 
   if (status === "recovery") {
-    return "bg-yellow-400/45 blur-[11.90px] drop-shadow-[0_0_6px_rgba(250,204,21,0.18)]"
+    return "bg-yellow-400/25 blur-[10px] drop-shadow-[0_0_5px_rgba(250,204,21,0.14)]"
   }
 
-  return "hidden"
+  return "bg-emerald-400/25 blur-[9px] drop-shadow-[0_0_6px_rgba(52,211,153,0.16)]"
 }
 
 const getStrongestStatus = (
@@ -183,7 +183,7 @@ export default function MuscleBodyMap({
 
           {parts.map((part) => {
             const status = getStrongestStatus(part.groups, getStatusForGroup)
-            if (status === "ready") return null
+            
             return (
               <div
   key={part.key}
