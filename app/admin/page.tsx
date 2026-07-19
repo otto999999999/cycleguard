@@ -608,7 +608,7 @@ const deleteExercise = async (exercise: any) => {
     value={user.role || "normal"}
     onChange={(e) => updateUserRole(user.id, e.target.value as Role)}
     disabled={saving || user.role === "owner" || user.banned}
-    className="h-9 w-full appearance-none rounded-2xl border border-white/10 bg-black/40 px-3 text-center text-xs font-black outline-none disabled:opacity-60"
+    className="h-9 w-full appearance-none rounded-2xl border border-white/10 bg-black/40 px-3 text-center text-center-last text-xs font-black outline-none disabled:opacity-60"
   >
     <option value="normal">Normal</option>
     <option value="premium">Premium</option>
