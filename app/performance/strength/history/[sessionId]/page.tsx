@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import {
   BarChart3,
   CalendarDays,
@@ -10,6 +10,7 @@ import {
   Clock,
   Dumbbell,
   Loader2,
+  Trash2,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -17,13 +18,14 @@ import { toast } from "sonner"
 export default function WorkoutHistoryDetailPage() {
   const params = useParams()
   const sessionId = params.sessionId as string
-
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [session, setSession] = useState<any>(null)
   const [day, setDay] = useState<any>(null)
   const [sets, setSets] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
-
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   useEffect(() => {
     loadWorkout()
   }, [sessionId])
@@ -96,6 +98,36 @@ export default function WorkoutHistoryDetailPage() {
 
     setLoading(false)
   }
+
+const deleteWorkout = async () => {
+  if (!sessionId) return
+
+  try {
+    setDeleting(true)
+
+    const { error: setsError } = await supabase
+      .from("workout_sets")
+      .delete()
+      .eq("session_id", sessionId)
+
+    if (setsError) throw setsError
+
+    const { error: sessionError } = await supabase
+      .from("workout_sessions")
+      .delete()
+      .eq("id", sessionId)
+
+    if (sessionError) throw sessionError
+
+    toast.success("Workout gelöscht.")
+    router.push("/performance/strength")
+  } catch (error: any) {
+    toast.error("Workout konnte nicht gelöscht werden.")
+    console.error(error)
+  } finally {
+    setDeleting(false)
+  }
+}
 
   const groupedExercises = useMemo(() => {
     return entries.map((entry) => ({
@@ -324,7 +356,52 @@ const getRepsLabel = (entry: any) => {
             )
           })}
         </section>
+        <section className="mt-8">
+  <button
+    onClick={() => setShowDeleteConfirm(true)}
+    className="mx-auto flex items-center justify-center gap-2 rounded-full border border-red-400/15 bg-red-500/10 px-5 py-3 text-sm font-black text-red-300 shadow-[0_0_20px_rgba(248,113,113,0.08)] active:scale-[0.98]"
+  >
+    <Trash2 className="h-4 w-4" />
+    Workout aus Verlauf löschen
+  </button>
+</section>
       </main>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+          <div className="w-full max-w-md rounded-[32px] border border-red-400/15 bg-gradient-to-b from-[#141010] to-[#070707] p-6 shadow-2xl">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-red-400/20 bg-red-500/10 text-red-300">
+              <Trash2 className="h-8 w-8" />
+            </div>
+
+            <h2 className="text-center text-2xl font-black">
+              Workout löschen?
+            </h2>
+
+            <p className="mx-auto mt-2 max-w-[320px] text-center text-sm leading-6 text-muted-foreground">
+              Dieses Workout wird aus deinem Verlauf entfernt. Die Sätze und Statistiken davon werden danach nicht mehr gezählt.
+            </p>
+
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="rounded-[22px] border border-white/10 bg-white/[0.05] py-4 font-black text-white/70 active:scale-[0.98] disabled:opacity-50"
+              >
+                Abbrechen
+              </button>
+
+              <button
+                onClick={deleteWorkout}
+                disabled={deleting}
+                className="rounded-[22px] border border-red-400/20 bg-red-500/15 py-4 font-black text-red-300 active:scale-[0.98] disabled:opacity-50"
+              >
+                {deleting ? "Löscht..." : "Löschen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

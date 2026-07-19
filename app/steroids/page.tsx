@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   AlertTriangle,
   Bell,
@@ -41,6 +42,7 @@ const todayKey = () => dateKeyLocal(new Date())
 
 
 export default function CycleGuardDashboard() {
+  const router = useRouter()
   const [showSettings, setShowSettings] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showMonthCalendar, setShowMonthCalendar] = useState(false)
@@ -667,7 +669,7 @@ const deleteDoseFromCalendar = async (doseId: string) => {
           <div>
             
             <h1 className="text-2xl font-bold tracking-tighter">CycleGuard</h1>
-            <p className="text-xs text-muted-foreground -mt-1">Dein Protokoll Manager</p>
+            <p className="text-xs text-muted-foreground -mt-1">Substanzen & Protokolle</p>
             
           </div>
 
@@ -761,18 +763,46 @@ const deleteDoseFromCalendar = async (doseId: string) => {
             </div>
           ) : (
             
-            <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
-              <div className="mx-auto w-20 h-20 rounded-[28px] border border-white/10 bg-white/[0.04] backdrop-blur-md shadow-xl flex items-center justify-center mb-6">
-                <PlayCircle className="w-9 h-9 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-medium mb-2">Kein aktiver Cycle</h3>
-              <p className="text-sm text-muted-foreground mb-6 max-w-[280px] mx-auto">
-                Starte oder erstelle einen Cycle, um Fortschritt und Planung zu tracken.
-              </p>
-              <Link href="/cycle" className="bg-primary px-6 py-3.5 rounded-2xl font-medium inline-flex items-center gap-2">
-                <Plus className="w-5 h-5" />
-                Cycle verwalten
-              </Link>
+            <div>
+
+              <div className="relative overflow-hidden rounded-[34px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.12] via-white/[0.045] to-[#070707] p-7 shadow-[0_0_45px_rgba(52,211,153,0.10)]">
+  <div className="absolute right-[-60px] top-[-70px] h-[190px] w-[190px] rounded-full bg-emerald-400/15 blur-3xl" />
+  
+
+  <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
+    <PlayCircle className="h-10 w-10 text-emerald-300" />
+  </div>
+
+  <div className="relative text-center">
+    <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+      Noch kein Plan aktiv
+    </p>
+
+    <h2 className="text-3xl font-black tracking-tight">
+      Starte dein erstes Protokoll
+    </h2>
+
+    <p className="mx-auto mt-3 max-w-[320px] text-sm leading-6 text-muted-foreground">
+      Erstelle einen Cycle oder Supplement-Plan, damit geplante Einnahmen, Logs und Vorrat hier automatisch angezeigt werden.
+    </p>
+
+    <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <button
+        onClick={() => router.push("/cycle")}
+        className="rounded-[22px] bg-emerald-400 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98]"
+      >
+        Plan erstellen
+      </button>
+
+      <button
+        onClick={() => router.push("/compounds")}
+        className="rounded-[22px] border border-white/10 bg-white/[0.05] py-4 font-black text-white/80 active:scale-[0.98]"
+      >
+        Substanz hinzufügen
+      </button>
+    </div>
+  </div>
+</div>
             </div>
           )}
           {activeSupplementPlan && (
@@ -859,9 +889,13 @@ const deleteDoseFromCalendar = async (doseId: string) => {
   <CalendarDays className="w-5 h-5 text-emerald-400" />
   {selectedDateLabel} anstehend
 </h2>
-            <Link href="/logging" className="text-sm text-primary hover:underline">
-              Öffnen
-            </Link>
+<Link
+  href="/logging"
+  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-bold text-white/55 transition hover:bg-white/[0.07] hover:text-white active:scale-95"
+>
+  Loggen
+  <ChevronRight className="h-3.5 w-3.5" />
+</Link>
           </div>
 
           {selectedDue.length === 0 ? (
@@ -1239,69 +1273,128 @@ const deleteDoseFromCalendar = async (doseId: string) => {
     </div>
   </div>
 )}
-      {showNotifications && (
-        <div className="fixed inset-0 z-[80] flex items-end bg-black/80 backdrop-blur-md">
-          <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold">Benachrichtigungen</h2>
-                <p className="text-sm text-muted-foreground">{unreadCount} ungelesen</p>
-              </div>
-              <button onClick={() => setShowNotifications(false)} className="w-10 h-10 rounded-xl bg-[#111111] flex items-center justify-center">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {notifications.length > 0 && (
-              <button onClick={markAllRead} className="mb-4 w-full rounded-2xl border border-white/10 bg-white/[0.04] py-3 font-medium backdrop-blur-sm transition-all duration-200 hover:bg-white/[0.07]">
-                Alle als gelesen markieren
-              </button>
-            )}
-
-            {notifications.length === 0 ? (
-              <div className="bg-[#111111] rounded-3xl p-8 text-center text-muted-foreground">
-                Keine Benachrichtigungen.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {notifications.map((n) => {
-                  const read = readIds.includes(n.id)
-                  const Icon = n.type === "low-stock" ? AlertTriangle : n.type === "dose" ? CalendarDays : Package
-
-                  return (
-                    <div key={n.id} className={`rounded-3xl border p-4 backdrop-blur-sm transition-all duration-200 ${read ? "border-white/5 bg-white/[0.03] opacity-60" : "border-emerald-400/20 bg-emerald-400/[0.06] shadow-[0_0_24px_rgba(52,211,153,0.06)]"}`}>
-                      <div className="flex gap-3">
-                        <div className="w-11 h-11 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-sm flex items-center justify-center shrink-0">
-                          <Icon className="w-5 h-5 text-primary" />
-                        </div>
-
-                        <div className="flex-1">
-                          <p className="font-semibold">{n.title}</p>
-                          <p className="mt-1 text-sm text-muted-foreground">{n.message}</p>
-
-                          <div className="flex gap-2 mt-4">
-                            {n.href && (
-                              <Link href={n.href} onClick={() => markRead(n.id)} className="flex-1 bg-primary py-2.5 rounded-xl text-sm font-medium text-center">
-                                Öffnen
-                              </Link>
-                            )}
-
-                            {!read && (
-                              <button onClick={() => markRead(n.id)} className="flex-1 bg-[#181818] py-2.5 rounded-xl text-sm font-medium">
-                                Gelesen
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+{showNotifications && (
+  <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 shadow-2xl shadow-black/50">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-1 text-xs font-black text-emerald-300">
+            <Bell className="h-3.5 w-3.5" />
+            Inbox
           </div>
+
+          <h2 className="text-2xl font-black tracking-tight">
+            Benachrichtigungen
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            {unreadCount === 0
+              ? "Alles erledigt"
+              : `${unreadCount} ungelesen`}
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowNotifications(false)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {notifications.length > 0 && (
+        <button
+          onClick={markAllRead}
+          className="mb-4 w-full rounded-[22px] border border-white/10 bg-white/[0.05] py-3 text-sm font-black text-white/70 active:scale-[0.98]"
+        >
+          Alle als gelesen markieren
+        </button>
+      )}
+
+      {notifications.length === 0 ? (
+        <div className="relative overflow-hidden rounded-[30px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.10] via-white/[0.035] to-[#090909] p-7 text-center">
+          <div className="absolute right-[-60px] top-[-70px] h-[170px] w-[170px] rounded-full bg-emerald-400/10 blur-3xl" />
+
+          <div className="relative mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[24px] border border-emerald-400/20 bg-emerald-400/10">
+            <CheckCircle className="h-8 w-8 text-emerald-300" />
+          </div>
+
+          <h3 className="relative text-xl font-black">
+            Keine neuen Hinweise
+          </h3>
+
+          <p className="relative mx-auto mt-2 max-w-[280px] text-sm leading-6 text-muted-foreground">
+            Erinnerungen zu Dosen, Low Stock und verpassten Logs erscheinen hier automatisch.
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[55vh] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {notifications.map((n) => {
+            const read = readIds.includes(n.id)
+            const Icon =
+              n.type === "low-stock"
+                ? AlertTriangle
+                : n.type === "dose"
+                  ? CalendarDays
+                  : Package
+
+            return (
+              <div
+                key={n.id}
+                className={`rounded-[26px] border p-4 transition-all ${
+                  read
+                    ? "border-white/5 bg-white/[0.03] opacity-55"
+                    : "border-emerald-400/15 bg-emerald-400/[0.07] shadow-[0_0_24px_rgba(52,211,153,0.07)]"
+                }`}
+              >
+                <div className="flex gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/[0.05]">
+                    <Icon className="h-5 w-5 text-emerald-300" />
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-black">{n.title}</p>
+
+                      {!read && (
+                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+                      )}
+                    </div>
+
+                    <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                      {n.message}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {n.href && (
+                        <Link
+                          href={n.href}
+                          onClick={() => markRead(n.id)}
+                          className="rounded-[18px] bg-emerald-400 py-2.5 text-center text-sm font-black text-black active:scale-[0.98]"
+                        >
+                          Öffnen
+                        </Link>
+                      )}
+
+                      {!read && (
+                        <button
+                          onClick={() => markRead(n.id)}
+                          className="rounded-[18px] border border-white/10 bg-white/[0.05] py-2.5 text-sm font-black text-white/70 active:scale-[0.98]"
+                        >
+                          Gelesen
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
+    </div>
+  </div>
+)}
 {showPushModal && (
   <div className="fixed inset-0 z-[90] flex items-end bg-black/80 backdrop-blur-md">
     <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 backdrop-blur-2xl">

@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { Bell, Dumbbell, HeartPulse, LogOut, Settings, Sparkles, Syringe, Pill, User, X } from "lucide-react"
+import { Bell, ChevronRight, Dumbbell, HeartPulse, LogOut, Settings, Sparkles, Syringe, Pill, User, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -57,6 +57,12 @@ className:
 
 export default function HomeMenuPage() {
   const [showSettings, setShowSettings] = useState(false)
+  const [showAccountModal, setShowAccountModal] = useState(false)
+const [profileName, setProfileName] = useState("")
+const [newEmail, setNewEmail] = useState("")
+const [newPassword, setNewPassword] = useState("")
+const [userRole, setUserRole] = useState<"owner" | "premium" | "normal">("normal")
+const [savingAccount, setSavingAccount] = useState(false)
   const [showPushModal, setShowPushModal] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [email, setEmail] = useState("")
@@ -75,6 +81,23 @@ useEffect(() => {
     }
 
     setEmail(session.user.email || "")
+    setNewEmail(session.user.email || "")
+setProfileName(session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || "")
+const { data: profileData, error: profileError } = await supabase
+  .from("profiles")
+  .select("role, display_name")
+  .eq("id", session.user.id)
+  .maybeSingle()
+
+console.log("PROFILE ROLE:", profileData, profileError)
+
+if (profileData?.role === "owner" || profileData?.role === "premium" || profileData?.role === "normal") {
+  setUserRole(profileData.role)
+}
+
+if (profileData?.display_name) {
+  setProfileName(profileData.display_name)
+}
     setCheckingAuth(false)
 
     const activeWorkoutSession = localStorage.getItem(
@@ -101,6 +124,82 @@ const logout = async () => {
   window.location.href = "/login"
 }
 
+const getRoleLabel = () => {
+  if (userRole === "owner") return "Owner"
+  if (userRole === "premium") return "Premium"
+  return "Normal"
+}
+
+const getRoleClass = () => {
+  if (userRole === "owner") {
+    return "border-yellow-300/25 bg-yellow-300/10 text-yellow-200"
+  }
+
+  if (userRole === "premium") {
+    return "border-purple-300/25 bg-purple-400/10 text-purple-200"
+  }
+
+  return "border-white/10 bg-white/[0.05] text-white/50"
+}
+
+const saveAccountSettings = async () => {
+  try {
+    setSavingAccount(true)
+
+    const updates: any = {
+      data: {
+        display_name: profileName,
+      },
+    }
+
+    if (newEmail && newEmail !== email) {
+      updates.email = newEmail
+    }
+
+    if (newPassword.trim().length > 0) {
+      if (newPassword.trim().length < 6) {
+        alert("Passwort muss mindestens 6 Zeichen haben.")
+        setSavingAccount(false)
+        return
+      }
+
+      updates.password = newPassword.trim()
+    }
+
+    const { error } = await supabase.auth.updateUser(updates)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (user) {
+      await supabase
+        .from("profiles")
+        .upsert({
+          id: user.id,
+          display_name: profileName,
+          username: profileName,
+        })
+    }
+
+    setEmail(newEmail)
+    setNewPassword("")
+    setShowAccountModal(false)
+    alert(
+      newEmail !== email
+        ? "Gespeichert. Prüfe ggf. deine neue E-Mail zur Bestätigung."
+        : "Account gespeichert."
+    )
+  } finally {
+    setSavingAccount(false)
+  }
+}
+
 useEffect(() => {
   const loadUserAndPush = async () => {
 const {
@@ -112,7 +211,25 @@ if (!session?.user) {
   return
 }
 
+
 setEmail(session.user.email || "")
+setNewEmail(session.user.email || "")
+setProfileName(session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || "")
+const { data: profileData, error: profileError } = await supabase
+  .from("profiles")
+  .select("role, display_name")
+  .eq("id", session.user.id)
+  .maybeSingle()
+
+console.log("PROFILE ROLE PUSH:", profileData, profileError)
+
+if (profileData?.role === "owner" || profileData?.role === "premium" || profileData?.role === "normal") {
+  setUserRole(profileData.role)
+}
+
+if (profileData?.display_name) {
+  setProfileName(profileData.display_name)
+}
 
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
 
@@ -199,53 +316,75 @@ if (checkingAuth) {
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-20">
 {showSettings && (
-  <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
-    <div className="w-full rounded-t-[32px] border-t border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 max-h-[88vh] overflow-y-auto backdrop-blur-2xl">
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-semibold">Einstellungen</h2>
-
-        <button
-          onClick={() => setShowSettings(false)}
-          className="w-10 h-10 rounded-xl bg-[#111111] flex items-center justify-center"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="space-y-4">
-        <div className="rounded-3xl bg-[#111111] p-6">
-          <div className="flex items-center gap-4 mb-5">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-              <User className="h-8 w-8 text-primary" />
-            </div>
-
-            <div>
-              <p className="text-lg font-semibold">Mein Account</p>
-              <p className="text-sm text-muted-foreground">
-                {email || "Wird geladen..."}
-              </p>
-            </div>
+  <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 shadow-2xl shadow-black/50">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-1 text-xs font-black text-emerald-300">
+            <Settings className="h-3.5 w-3.5" />
+            Account
           </div>
+
+          <h2 className="text-2xl font-black tracking-tight">
+            Einstellungen
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Konto, Benachrichtigungen und Sitzung.
+          </p>
         </div>
 
         <button
-          onClick={() => setShowPushModal(true)}
-          className="w-full rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.08] p-5 flex items-center gap-4 active:scale-[0.985]"
+          onClick={() => setShowSettings(false)}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-            <Bell className="h-6 w-6 text-emerald-400" />
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="space-y-3">
+<button
+  type="button"
+  onClick={() => setShowAccountModal(true)}
+  className="w-full rounded-[28px] border border-white/10 bg-white/[0.04] p-4 text-left active:scale-[0.98]"
+>
+  <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-emerald-400/15 bg-emerald-400/10 text-emerald-300">
+              <User className="h-7 w-7" />
+            </div>
+
+            <div className="min-w-0 flex-1">
+              <p className="font-black">Mein Account</p>
+              <p className="truncate text-sm text-muted-foreground">
+                {email || "Wird geladen..."}
+              </p>
+            </div>
+
+<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/45">
+  <ChevronRight className="h-5 w-5" />
+</div>
           </div>
+        </button>
 
-          <div className="text-left">
-            <p className="font-medium text-emerald-400">
-              {pushEnabled ? "Benachrichtigungen aktiv" : "Benachrichtigungen"}
-            </p>
+        <button
+          onClick={() => setShowPushModal(true)}
+          className="w-full rounded-[28px] border border-emerald-400/15 bg-emerald-400/[0.07] p-4 text-left active:scale-[0.98]"
+        >
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+              <Bell className="h-6 w-6" />
+            </div>
 
-            <p className="text-xs text-muted-foreground">
-              {pushEnabled
-                ? "Dieses Gerät ist registriert"
-                : "Push-Erinnerungen aktivieren"}
-            </p>
+            <div className="min-w-0 flex-1">
+              <p className="font-black text-emerald-300">
+                {pushEnabled ? "Benachrichtigungen aktiv" : "Benachrichtigungen"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {pushEnabled
+                  ? "Dieses Gerät ist registriert."
+                  : "Push-Erinnerungen auf diesem Gerät aktivieren."}
+              </p>
+            </div>
           </div>
         </button>
 
@@ -256,23 +395,26 @@ if (checkingAuth) {
               window.location.href = "/login"
             }
           }}
-          className="w-full rounded-2xl border border-red-500/20 bg-red-500/10 p-5 flex items-center gap-4 active:scale-[0.985]"
+          className="w-full rounded-[28px] border border-red-400/15 bg-red-500/10 p-4 text-left text-red-300 active:scale-[0.98]"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
-            <LogOut className="h-6 w-6 text-red-400" />
-          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-red-400/20 bg-red-500/10">
+              <LogOut className="h-6 w-6" />
+            </div>
 
-          <div className="text-left">
-            <p className="font-medium text-red-400">Ausloggen</p>
-            <p className="text-xs text-muted-foreground">
-              Aktuelle Sitzung beenden
-            </p>
+            <div>
+              <p className="font-black">Ausloggen</p>
+              <p className="text-sm text-red-200/50">
+                Aktuelle Sitzung beenden
+              </p>
+            </div>
           </div>
         </button>
       </div>
 
-      <div className="mt-8 text-center text-xs text-muted-foreground">
-        CycleGuard v0.1 • cycleguard.xyz
+      <div className="mt-6 text-center">
+        <p className="text-xs text-white/25">CycleGuard v0.1</p>
+        <p className="mt-1 text-xs text-white/15">cycleguard.xyz</p>
       </div>
     </div>
   </div>
@@ -319,7 +461,7 @@ if (checkingAuth) {
             </h2>
 
             <p className="mt-4 max-w-[320px] text-sm leading-6 text-muted-foreground">
-              Wähle zwischen Steroide, Gym, Ernährung und Pflege. Die aktiven Bereiche sind sofort nutzbar.
+              Wähle zwischen Suppliments, Gym, Ernährung und Pflege. Die aktiven Bereiche sind sofort nutzbar.
             </p>
           </div>
         </section>
@@ -379,6 +521,38 @@ if (checkingAuth) {
               </button>
             )
           })}
+          {userRole === "owner" && (
+  <button
+    type="button"
+    onClick={() => openArea("/admin", "Admin Panel")}
+    className="group relative block w-full overflow-hidden rounded-[32px] border border-yellow-300/20 bg-gradient-to-br from-yellow-300/[0.12] to-white/[0.025] p-5 text-left shadow-[0_0_40px_rgba(253,224,71,0.10)] backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
+  >
+    <div className="absolute right-[-30px] top-[-30px] h-[110px] w-[110px] rounded-full bg-yellow-300/[0.06] blur-2xl" />
+
+    <div className="relative flex items-center gap-4">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-yellow-300/10 text-yellow-200">
+        <Settings className="h-8 w-8" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="mb-2 flex items-center gap-2">
+          <h3 className="text-2xl font-black tracking-tight">Admin</h3>
+          <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-2.5 py-1 text-[10px] font-semibold text-yellow-200">
+            Owner
+          </span>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          User, Rollen, Invite Codes und App-Verwaltung
+        </p>
+      </div>
+
+      <span className="text-2xl text-muted-foreground transition-transform duration-300 group-hover:translate-x-1">
+        →
+      </span>
+    </div>
+  </button>
+)}
         </section>
       </main>
 {showPushModal && (
@@ -446,7 +620,95 @@ if (checkingAuth) {
     </motion.div>
   )}
 </AnimatePresence>
+{showAccountModal && (
+  <div className="fixed inset-0 z-[95] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 shadow-2xl shadow-black/50">
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+<div className="mb-3 flex items-center gap-2">
+  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-1 text-xs font-black text-emerald-300">
+    <User className="h-3.5 w-3.5" />
+    Profil
+  </div>
 
+  <div className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-black ${getRoleClass()}`}>
+    {getRoleLabel()}
+  </div>
+</div>
+
+          <h2 className="text-2xl font-black tracking-tight">
+            Account bearbeiten
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Name, E-Mail und Passwort ändern.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowAccountModal(false)}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="mb-2 block text-sm font-bold text-white/80">
+            Name
+          </label>
+          <input
+            value={profileName}
+            onChange={(e) => setProfileName(e.target.value)}
+            placeholder="Dein Name"
+            className="w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 outline-none placeholder:text-white/25 focus:border-emerald-400/30"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-bold text-white/80">
+            E-Mail
+          </label>
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            placeholder="deine@email.de"
+            className="w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 outline-none placeholder:text-white/25 focus:border-emerald-400/30"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Bei Änderung musst du die neue E-Mail eventuell bestätigen.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-bold text-white/80">
+            Neues Passwort
+          </label>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Leer lassen, wenn gleich bleiben soll"
+            className="w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-4 outline-none placeholder:text-white/25 focus:border-emerald-400/30"
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Dein aktuelles Passwort wird aus Sicherheitsgründen nie angezeigt.
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={saveAccountSettings}
+        disabled={savingAccount}
+        className="mt-6 w-full rounded-[22px] bg-emerald-400 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98] disabled:opacity-50"
+      >
+        {savingAccount ? "Speichert..." : "Änderungen speichern"}
+      </button>
+    </div>
+  </div>
+)}
     </div>
   )
 

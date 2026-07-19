@@ -530,27 +530,52 @@ return
 
       <main className="mx-auto max-w-lg px-5 pt-8 animate-in fade-in duration-500">
         {trainingDays.length === 0 ? (
-          <section className="rounded-[36px] border border-white/10 bg-white/[0.05] p-7 text-center shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-emerald-400 text-black shadow-[0_0_45px_rgba(52,211,153,0.35)]">
-              <CalendarPlus className="h-14 w-14" />
-            </div>
+<section className="relative overflow-hidden rounded-[34px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.12] via-white/[0.045] to-[#070707] px-6 py-8 text-center shadow-[0_0_45px_rgba(52,211,153,0.10)]">
+  <div className="absolute right-[-70px] top-[-80px] h-[190px] w-[190px] rounded-full bg-emerald-400/15 blur-3xl" />
 
-            <h2 className="mt-8 text-3xl font-black tracking-tight">
-              Noch keine Trainingstage
-            </h2>
+  <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
+    <CalendarPlus className="h-10 w-10 text-emerald-300" />
+  </div>
 
-            <p className="mt-4 text-base leading-7 text-muted-foreground">
-              Lege deinen ersten Trainingstag an und füge die passenden Übungen hinzu.
-            </p>
+  <div className="relative">
+    <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+      Plan ist leer
+    </p>
 
-            <button
-              onClick={() => setShowCreateDay(true)}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-[28px] bg-gradient-to-r from-emerald-400 to-emerald-500 py-5 text-lg font-black text-black shadow-[0_0_35px_rgba(52,211,153,0.35)] active:scale-[0.98]"
-            >
-              <Plus className="h-6 w-6" />
-              Ersten Tag hinzufügen
-            </button>
-          </section>
+    <h2 className="text-3xl font-black tracking-tight">
+      Erstelle deinen ersten Trainingstag
+    </h2>
+
+    <p className="mx-auto mt-3 max-w-[330px] text-sm leading-6 text-muted-foreground">
+      Wähle Wochentage aus, lege deinen Split an und füge danach Übungen mit Sätzen, Reps und Warmups hinzu.
+    </p>
+
+    <button
+      onClick={() => setShowCreateDay(true)}
+      className="mx-auto mt-7 flex w-full max-w-[340px] items-center justify-center gap-2 rounded-[22px] bg-emerald-400 px-7 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98]"
+    >
+      <Plus className="h-5 w-5" />
+      Trainingstag hinzufügen
+    </button>
+
+    <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <CalendarPlus className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Tage</p>
+      </div>
+
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <Plus className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Übungen</p>
+      </div>
+
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <Pencil className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Sätze</p>
+      </div>
+    </div>
+  </div>
+</section>
         ) : (
           <div className="space-y-6">
             <section className="flex items-center justify-between rounded-[36px] grid grid-cols-2 gap-4 rounded-[36px] border border-emerald-400/15 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.14),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.04))] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_0_40px_rgba(16,185,129,0.10)] backdrop-blur-2xl"
@@ -682,7 +707,7 @@ return
 
         <button
           onClick={() => setShowDeletePlanModal(true)}
-          className="mx-auto mt-8 flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-red-400 active:scale-95"
+          className="mx-auto mt-6 flex items-center justify-center gap-2 rounded-full border border-red-400/15 bg-red-500/10 px-5 py-3 text-sm font-black text-red-300 shadow-[0_0_20px_rgba(248,113,113,0.08)] active:scale-[0.98]"
         >
           <Trash2 className="h-5 w-5" />
           Plan löschen

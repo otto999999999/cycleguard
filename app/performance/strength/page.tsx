@@ -362,6 +362,11 @@ if (todayDay) {
   setLoading(false)
 }
 const createPlan = async () => {
+  if (plans.length > 0) {
+  toast.error("Du kannst aktuell nur einen Trainingsplan erstellen.")
+  setShowCreatePlan(false)
+  return
+}
   const finalName = planName.trim() || "Mein Trainingsplan"
 
   const existingPlan = plans.find(
@@ -420,25 +425,54 @@ return
 
       <main className="mx-auto max-w-lg px-5 pt-6">
         {!loading && plans.length === 0 ? (
-          <section className="flex min-h-[70vh] flex-col items-center justify-center text-center">
-            <div className="mb-8 flex h-28 w-28 items-center justify-center rounded-[36px] bg-emerald-400/10 text-emerald-400 shadow-[0_0_50px_rgba(52,211,153,0.18)]">
-              <Dumbbell className="h-16 w-16" />
-            </div>
+<section className="mx-auto flex min-h-[72vh] max-w-lg items-center justify-center">
+  <div className="relative w-full overflow-hidden rounded-[34px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.12] via-white/[0.045] to-[#070707] px-6 py-8 text-center shadow-[0_0_45px_rgba(52,211,153,0.10)]">
+    <div className="absolute right-[-70px] top-[-80px] h-[190px] w-[190px] rounded-full bg-emerald-400/15 blur-3xl" />
 
-            <h2 className="text-5xl font-black tracking-tight">Strength</h2>
+    <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
+      <Dumbbell className="h-10 w-10 text-emerald-300" />
+    </div>
 
-            <p className="mt-5 max-w-[340px] text-lg leading-7 text-muted-foreground">
-              Erstelle deinen ersten Trainingsplan, füge Übungen hinzu und verfolge deine Fortschritte.
-            </p>
+    <div className="relative">
+      <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+        Noch kein Training
+      </p>
 
-            <button
-              onClick={() => setShowCreatePlan(true)}
-              className="mt-10 flex w-full max-w-[360px] items-center justify-center gap-2 rounded-[28px] bg-gradient-to-r from-emerald-400 to-emerald-500 py-5 text-lg font-bold text-black shadow-[0_0_35px_rgba(52,211,153,0.35)] active:scale-[0.98]"
-            >
-              <Plus className="h-5 w-5" />
-              Trainingsplan erstellen
-            </button>
-          </section>
+      <h2 className="text-3xl font-black tracking-tight">
+        Erstelle deinen ersten Plan
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-[330px] text-sm leading-6 text-muted-foreground">
+        Lege Trainingstage an, füge Übungen hinzu und starte dein Workout direkt aus deinem Plan.
+      </p>
+
+      <button
+        onClick={() => setShowCreatePlan(true)}
+        className="mx-auto mt-7 flex items-center justify-center gap-2 rounded-[22px] bg-emerald-400 px-7 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98]"
+      >
+        <Plus className="h-5 w-5" />
+        Trainingsplan erstellen
+      </button>
+
+      <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <CalendarDays className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Tage</p>
+        </div>
+
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <Dumbbell className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Übungen</p>
+        </div>
+
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <BarChart3 className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Progress</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 ) : (
   <div className="space-y-8">
     <section className="rounded-[32px] border border-white/10 bg-white/[0.05] p-6 shadow-2xl backdrop-blur-xl">
@@ -665,12 +699,14 @@ return
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-black">Meine Pläne</h2>
 
-        <button
-          onClick={() => setShowCreatePlan(true)}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,0.35)] active:scale-95"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
+{plans.length === 0 && (
+  <button
+    onClick={() => setShowCreatePlan(true)}
+    className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,0.35)] active:scale-95"
+  >
+    <Plus className="h-6 w-6" />
+  </button>
+)}
       </div>
 
 <div className="space-y-3">

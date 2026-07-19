@@ -43,7 +43,15 @@ export default function EinkaufPage() {
 
   return "Pill"
 }
+const isPillLikeOral = (c: any) => {
+  if (!isOral(c)) return false
+  if (c.type === "Supplement") {
+    const form = getSupplementFormFromUnit(c)
+    return form === "Pill"
+  }
 
+  return true
+}
 const getOralUnitLabel = (c: any, count?: number) => {
   const form = getSupplementFormFromUnit(c)
   const single = count === 1
@@ -409,9 +417,9 @@ const stats = compounds.reduce(
 
     if (c.type === "Injectable") acc.injectables++
 
-    if (isOral(c) && !isDrops(c)) {
-      acc.orals += c.remaining_pills || 0
-    }
+if (isPillLikeOral(c)) {
+  acc.orals += c.remaining_pills || 0
+}
 
     const daysLeft = getEstimatedDaysLeft(c)
 
@@ -651,7 +659,7 @@ toast.success("Bestand aktualisiert")
       <div className="px-5 pt-6 grid grid-cols-2 gap-3">
         <StatCard title="Gesamtwert" value={`€${Math.round(stats.gesamtwert)}`} icon="💰" wide onClick={() => setShowBreakdown(true)} />
         <StatCard title="Injectables" value={stats.injectables} icon={<Syringe className="w-5 h-5 text-green-400" />} />
-        <StatCard title="Einheiten" value={stats.orals} icon={<Pill className="w-5 h-5 text-blue-400" />} />
+        <StatCard title="Orals" value={stats.orals} icon={<Pill className="w-5 h-5 text-blue-400" />} />
         <StatCard title="Low Stock" value={stats.lowStock} icon={<AlertTriangle className="w-5 h-5 text-orange-400 drop-shadow-[0_0_6px_rgba(251,146,60,0.45)]" />} wide orange />
       </div>
 <PullToRefresh
@@ -1054,19 +1062,7 @@ return `Geplant: ${displayAmount % 1 === 0 ? displayAmount : displayAmount.toFix
           
         </Panel>
       </section>
-<Link
-  href="/logging"
-  className="fixed bottom-24 right-5 z-50"
-  onClick={haptic}
->
-  <motion.div
-    whileTap={{ scale: 0.92 }}
-    whileHover={{ scale: 1.04 }}
-    className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-[0_0_40px_rgba(74,222,128,0.35)] flex items-center justify-center"
-  >
-    <PlusCircle className="w-8 h-8 text-black" />
-  </motion.div>
-</Link>
+
 </PullToRefresh>
 <div className="fixed bottom-0 left-0 right-0 h-32 pointer-events-none bg-gradient-to-t from-black via-black/70 to-transparent z-40" />
       <BottomNav />

@@ -54,6 +54,12 @@ const getMonday = (date: Date) => {
   return copy
 }
 
+const normalizeWeekday = (value: string) => {
+  return String(value || "")
+    .replace(".", "")
+    .slice(0, 2)
+}
+
 export default function GymProgressPage() {
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<any[]>([])
@@ -62,6 +68,7 @@ export default function GymProgressPage() {
   const [selectedExercise, setSelectedExercise] = useState<any>(null)
   const [sets, setSets] = useState<any[]>([])
   const [days, setDays] = useState<any[]>([])
+  const [plannedDays, setPlannedDays] = useState<any[]>([])
   const [hoveredPoint, setHoveredPoint] = useState<any>(null)
   const [showWeeksModal, setShowWeeksModal] = useState(false)
   useEffect(() => {
@@ -95,6 +102,24 @@ useEffect(() => {
   .order("name", { ascending: true })
 
 setExercises(exercisesData || [])
+
+const { data: plansData } = await supabase
+  .from("training_plans")
+  .select("id")
+  .eq("user_id", user.id)
+
+const planIds = (plansData || []).map((plan) => plan.id)
+
+if (planIds.length > 0) {
+  const { data: plannedDaysData } = await supabase
+    .from("training_days")
+    .select("*")
+    .in("plan_id", planIds)
+
+  setPlannedDays(plannedDaysData || [])
+} else {
+  setPlannedDays([])
+}
 
     const { data: sessionsData } = await supabase
       .from("workout_sessions")
@@ -188,28 +213,59 @@ const weekDays = useMemo(() => {
   monday.setHours(0, 0, 0, 0)
   monday.setDate(today.getDate() - dayIndex)
 
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  sunday.setHours(23, 59, 59, 999)
+
+  const weekSessions = sessions.filter((session) => {
+    const value = session.finished_at || session.started_at
+    if (!value) return false
+
+    const date = new Date(value)
+    return date >= monday && date <= sunday
+  })
+
   return Array.from({ length: 7 }).map((_, index) => {
     const date = new Date(monday)
     date.setDate(monday.getDate() + index)
 
     const key = dateKeyLocal(date)
+    const label = normalizeWeekday(
+      date.toLocaleDateString("de-DE", { weekday: "short" })
+    )
 
-    const daySessions = sessions.filter((session) => {
-      const value = session.finished_at || session.started_at
-      if (!value) return false
+    const plannedForDay = plannedDays.filter((trainingDay) =>
+      (trainingDay.weekdays || []).some(
+        (weekday: string) => normalizeWeekday(weekday) === label
+      )
+    )
 
-      return dateKeyLocal(new Date(value)) === key
-    })
+    const plannedIds = plannedForDay.map((day) => day.id)
+
+    const completedPlannedSessions = weekSessions.filter((session) =>
+      plannedIds.includes(session.training_day_id)
+    )
 
     return {
       key,
-      label: date.toLocaleDateString("de-DE", { weekday: "short" }),
-      count: daySessions.length,
+      label,
+      count: completedPlannedSessions.length,
+      planned: plannedForDay.length > 0,
       isToday: key === dateKeyLocal(new Date()),
     }
   })
-}, [sessions])
-const weeklyGoal = 5
+}, [sessions, plannedDays])
+const weeklyGoal = useMemo(() => {
+  const weekdays = new Set<string>()
+
+  plannedDays.forEach((day) => {
+    ;(day.weekdays || []).forEach((weekday: string) => {
+      weekdays.add(weekday)
+    })
+  })
+
+  return weekdays.size
+}, [plannedDays])
 const allWeeks = useMemo(() => {
   if (sessions.length === 0) return []
 
@@ -253,7 +309,10 @@ const allWeeks = useMemo(() => {
     })
 
     const completed = days.reduce((sum, day) => sum + day.count, 0)
-    const progress = Math.min(100, Math.round((completed / weeklyGoal) * 100))
+    const progress =
+  weeklyGoal > 0
+    ? Math.min(100, Math.round((completed / weeklyGoal) * 100))
+    : 0
 
     weeks.push({
       key: dateKeyLocal(weekStart),
@@ -281,10 +340,10 @@ const allWeeks = useMemo(() => {
 
 
 const completedThisWeek = weekDays.reduce((sum, day) => sum + day.count, 0)
-const weeklyProgress = Math.min(
-  100,
-  Math.round((completedThisWeek / weeklyGoal) * 100)
-)
+const weeklyProgress =
+  weeklyGoal > 0
+    ? Math.min(100, Math.round((completedThisWeek / weeklyGoal) * 100))
+    : 0
 
 const exerciseStats = useMemo(() => {
   return exercises
@@ -476,12 +535,13 @@ const getTrainingDayName = (session: any) => {
   <div className="rounded-[26px] border border-emerald-400/15 bg-emerald-400/[0.06] p-5">
     <div className="flex items-end justify-between gap-4">
       <div>
-        <p className="text-4xl font-black text-emerald-300">
-          {completedThisWeek}/{weeklyGoal}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Einheiten erledigt
-        </p>
+<p className="text-4xl font-black text-emerald-300">
+  {weeklyGoal > 0 ? `${completedThisWeek}/${weeklyGoal}` : "--"}
+</p>
+
+<p className="mt-1 text-sm text-muted-foreground">
+  {weeklyGoal > 0 ? "Einheiten erledigt" : "Kein Wochenziel"}
+</p>
       </div>
 
       <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-black text-emerald-300">
@@ -498,16 +558,19 @@ const getTrainingDayName = (session: any) => {
   </div>
 
   <div className="mt-5 grid grid-cols-7 gap-1.5">
-    {weekDays.map((day) => {
-      const done = day.count > 0
+{weekDays.map((day) => {
+  const done = day.count > 0
+  const planned = day.planned
 
       return (
         <div
           key={day.key}
           className={`rounded-2xl border px-1 py-3 text-center ${
-            done
-              ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-              : "border-white/10 bg-white/[0.035] text-white/35"
+done
+  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+  : planned
+    ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-300"
+    : "border-white/10 bg-white/[0.035] text-white/25"
           }`}
         >
           <p className="text-[10px] font-black uppercase">
@@ -515,7 +578,7 @@ const getTrainingDayName = (session: any) => {
           </p>
 
           <p className="mt-2 text-lg font-black">
-            {done ? "✓" : "–"}
+            {done ? "✓" : planned ? "•" : "–"}
           </p>
         </div>
       )
@@ -616,10 +679,10 @@ const getTrainingDayName = (session: any) => {
                 <div className="flex items-end justify-between gap-4">
                   <div>
                     <p className="text-3xl font-black text-emerald-300">
-                      {week.completed}/{weeklyGoal}
+                      {weeklyGoal > 0 ? `${week.completed}/${weeklyGoal}` : "--"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Einheiten erledigt
+                      Einheiten erle{weeklyGoal > 0 ? "Einheiten erledigt" : "Kein Wochenziel"}digt
                     </p>
                   </div>
                 </div>
@@ -633,16 +696,22 @@ const getTrainingDayName = (session: any) => {
               </div>
 
               <div className="mt-4 grid grid-cols-7 gap-1.5">
-                {week.days.map((day) => {
-                  const done = day.count > 0
+{week.days.map((day) => {
+  const done = day.count > 0
 
-                  return (
+  const planned = plannedDays.some((trainingDay) =>
+    (trainingDay.weekdays || []).includes(day.label.slice(0, 2))
+  )
+
+  return (
                     <div
                       key={day.key}
                       className={`rounded-2xl border px-1 py-3 text-center ${
-                        done
-                          ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                          : "border-white/10 bg-white/[0.035] text-white/35"
+done
+  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+  : planned
+    ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-300"
+    : "border-white/10 bg-white/[0.035] text-white/25"
                       }`}
                     >
                       <p className="text-[10px] font-black uppercase">
@@ -650,7 +719,7 @@ const getTrainingDayName = (session: any) => {
                       </p>
 
                       <p className="mt-2 text-lg font-black">
-                        {done ? "✓" : "–"}
+                        {done ? "✓" : planned ? "•" : "–"}
                       </p>
                     </div>
                   )

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ChevronLeft, Pencil, Plus, Syringe, Trash2 } from "lucide-react"
+import { ChevronLeft, PackagePlus, Pencil, Pill, Plus, Sparkles, Trash2 } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -91,21 +91,70 @@ const getOralUnitLabel = (c: any, count?: number) => {
   return single ? "Pille" : "Pillen"
 }
 
+const getBaseUnitFromPillUnit = (unit: string) => {
+  const lower = String(unit || "").toLowerCase()
+
+  if (lower.includes("mcg")) return "mcg"
+  if (lower.includes("mg")) return "mg"
+  if (lower.includes("g")) return "g"
+  if (lower.includes("ml")) return "ml"
+
+  return "Einheiten"
+}
+
 const getAmountPerContainerLabel = (c: any) => {
-  const unit = getOralUnitLabel(c)
+  const form = getSupplementFormFromUnit(c)
+
+  if (c.type === "Supplement" && form === "Powder") {
+    return `${getBaseUnitFromPillUnit(c.pill_unit || "")} pro Packung`
+  }
+
+  if (c.type === "Supplement" && form === "Liquid") {
+    return "ml pro Flasche"
+  }
+
+  if (c.type === "Supplement" && form === "Drops") {
+    return "Tropfen pro Flasche"
+  }
 
   if (c.type === "Supplement") {
-    return `${unit} pro Packung / Flasche`
+    return `${getOralUnitLabel(c)} pro Packung / Flasche`
   }
 
   return "Pillen pro Flasche"
 }
 
-const getRemainingLabel = (c: any) => {
-  const unit = getOralUnitLabel(c)
+const getContainerCountLabel = (c: any) => {
+  const form = getSupplementFormFromUnit(c)
+
+  if (c.type === "Supplement" && form === "Powder") {
+    return "Anzahl Packungen"
+  }
 
   if (c.type === "Supplement") {
-    return `${unit} übrig`
+    return "Anzahl Flaschen / Packungen"
+  }
+
+  return "Anzahl Flaschen"
+}
+
+const getRemainingLabel = (c: any) => {
+  const form = getSupplementFormFromUnit(c)
+
+  if (c.type === "Supplement" && form === "Powder") {
+    return `Verbleibende ${getBaseUnitFromPillUnit(c.pill_unit || "")}`
+  }
+
+  if (c.type === "Supplement" && form === "Liquid") {
+    return "Verbleibende ml"
+  }
+
+  if (c.type === "Supplement" && form === "Drops") {
+    return "Verbleibende Tropfen"
+  }
+
+  if (c.type === "Supplement") {
+    return `${getOralUnitLabel(c)} übrig`
   }
 
   return "Pillen übrig"
@@ -377,19 +426,52 @@ toast.error("Fehler beim Löschen: " + error.message)
         {loading ? (
           <p className="text-center text-muted-foreground py-20">Lade Substanzen...</p>
         ) : compounds.length === 0 ? (
-          <div className="rounded-[32px] border border-white/5 bg-white/[0.03] backdrop-blur-xl shadow-2xl text-center py-20 px-6">
-            <Syringe className="w-20 h-20 mx-auto text-muted-foreground mb-6" />
-            <h2 className="text-2xl font-medium">Keine Substanzen</h2>
-            <p className="text-muted-foreground mt-3 mb-8">Füge deine ersten Substanzen hinzu</p>
+<div className="relative overflow-hidden rounded-[34px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.12] via-white/[0.045] to-[#070707] px-6 py-8 text-center shadow-[0_0_45px_rgba(52,211,153,0.10)]">
+  <div className="absolute right-[-70px] top-[-80px] h-[190px] w-[190px] rounded-full bg-emerald-400/15 blur-3xl" />
 
-            <button
-              onClick={openAddModal}
-              className="mx-auto flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 px-8 py-4 font-bold text-black shadow-[0_0_24px_rgba(52,211,153,0.25)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Plus className="w-5 h-5" />
-              Neue Substanz hinzufügen
-            </button>
-          </div>
+  <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
+    <Pill className="h-10 w-10 text-emerald-300" />
+  </div>
+
+  <div className="relative">
+    <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+      Noch leer
+    </p>
+
+    <h2 className="text-3xl font-black tracking-tight">
+      Lege deine erste Substanz an
+    </h2>
+
+    <p className="mx-auto mt-3 max-w-[320px] text-sm leading-6 text-muted-foreground">
+      Speichere Supplements, Medikamente oder andere Präparate mit Dosierung, Bestand und Vorrat.
+    </p>
+
+    <button
+      onClick={openAddModal}
+      className="mx-auto mt-7 flex items-center justify-center gap-2 rounded-[22px] bg-emerald-400 px-7 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98]"
+    >
+      <PackagePlus className="h-5 w-5" />
+      Erste Substanz hinzufügen
+    </button>
+
+    <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <Pill className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Dosis</p>
+      </div>
+
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <PackagePlus className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Vorrat</p>
+      </div>
+
+      <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+        <Sparkles className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+        <p className="font-bold text-white/80">Pläne</p>
+      </div>
+    </div>
+  </div>
+</div>
         ) : (
           <div className="space-y-4">
             {compounds.map((c) => {
@@ -469,12 +551,14 @@ toast.error("Fehler beim Löschen: " + error.message)
         )}
       </div>
 
-      <button
-        onClick={openAddModal}
-        className="fixed bottom-32 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_40px_rgba(52,211,153,0.45)] backdrop-blur-xl transition-all duration-300 hover:scale-110 active:scale-95"
-      >
-        <Plus className="w-7 h-7" />
-      </button>
+{compounds.length > 0 && (
+  <button
+    onClick={openAddModal}
+    className="fixed bottom-32 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_40px_rgba(52,211,153,0.45)] backdrop-blur-xl transition-all duration-300 hover:scale-110 active:scale-95"
+  >
+    <Plus className="w-7 h-7" />
+  </button>
+)}
 
       {showModal && (
         <div className="fixed inset-0 z-[70] flex items-end bg-black/80 backdrop-blur-md">
@@ -666,7 +750,7 @@ inputMode="decimal"
                     </div>
                   </Field>
 
-                  <Field label={form.type === "Supplement" ? "Einheiten pro Packung / Flasche" : "Pillen pro Flasche"}>
+                  <Field label={getAmountPerContainerLabel({ type: form.type, pill_unit: form.pillUnit })}>
                     <input
                       type="number"
                       value={form.pillsPerBottle}
@@ -678,7 +762,7 @@ inputMode="decimal"
                     />
                   </Field>
 
-                  <Field label="Anzahl Flaschen">
+                  <Field label={getContainerCountLabel({ type: form.type, pill_unit: form.pillUnit })}>
                     <input
                       type="number"
                       value={form.currentBottles}
@@ -690,7 +774,7 @@ inputMode="decimal"
                     />
                   </Field>
 
-                                    <Field label={form.type === "Supplement" ? "Verbleibende Einheiten gesamt" : "Verbleibende Pillen gesamt"}>
+                                    <Field label={getRemainingLabel({ type: form.type, pill_unit: form.pillUnit })}>
                     <input
                       type="number"
                       value={form.remainingPills}

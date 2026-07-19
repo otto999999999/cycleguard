@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Edit, PlayCircle, Loader2, Plus, Square, Trash2, X } from "lucide-react"
+import { Edit, PlayCircle, Loader2, Plus, Square, Trash2, CalendarDays, X } from "lucide-react"
 import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -516,23 +516,54 @@ const availablePCTCompounds =
         {loading ? (
           <p className="text-center text-muted-foreground py-20">Lade Cycles...</p>
         ) : cycles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[65vh] text-center">
-            <div className="w-24 h-24 rounded-full border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-2xl flex items-center justify-center mx-auto mb-8">
-              <PlayCircle className="w-12 h-12 text-muted-foreground" />
-            </div>
-            <h2 className="text-3xl font-semibold mb-3">Noch kein Cycle</h2>
-            <p className="text-muted-foreground mb-8">
-              Erstelle deinen ersten Cycle und starte ihn später.
-            </p>
+<div className="mx-auto flex min-h-[70vh] max-w-lg items-center justify-center px-1">
+  <div className="relative w-full overflow-hidden rounded-[34px] border border-emerald-400/15 bg-gradient-to-br from-emerald-400/[0.12] via-white/[0.045] to-[#070707] px-6 py-8 text-center shadow-[0_0_45px_rgba(52,211,153,0.10)]">
+    <div className="absolute right-[-70px] top-[-80px] h-[190px] w-[190px] rounded-full bg-emerald-400/15 blur-3xl" />
 
-            <button
-              onClick={openCreateModal}
-              className="bg-primary px-8 py-4 rounded-2xl font-semibold flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Cycle erstellen
-            </button>
-          </div>
+    <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-[28px] border border-emerald-400/20 bg-emerald-400/10 shadow-[0_0_28px_rgba(52,211,153,0.12)]">
+      <PlayCircle className="h-10 w-10 text-emerald-300" />
+    </div>
+
+    <div className="relative">
+      <p className="mb-3 text-xs font-black uppercase tracking-[0.28em] text-emerald-300">
+        Noch kein Plan
+      </p>
+
+      <h2 className="text-3xl font-black tracking-tight">
+        Erstelle deinen ersten Stack
+      </h2>
+
+      <p className="mx-auto mt-3 max-w-[320px] text-sm leading-6 text-muted-foreground">
+        Plane einen Cycle oder Supplement-Plan mit Zeitraum, Dosierung und Einnahme-Rhythmus.
+      </p>
+
+      <button
+        onClick={openCreateModal}
+        className="mx-auto mt-7 flex items-center justify-center gap-2 rounded-[22px] bg-emerald-400 px-7 py-4 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] active:scale-[0.98]"
+      >
+        <Plus className="h-5 w-5" />
+        Plan erstellen
+      </button>
+
+      <div className="mt-6 grid grid-cols-3 gap-2 text-xs">
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <PlayCircle className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Cycle</p>
+        </div>
+
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <Plus className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Supps</p>
+        </div>
+
+        <div className="rounded-[20px] border border-white/10 bg-white/[0.04] p-3">
+          <CalendarDays className="mx-auto mb-2 h-4 w-4 text-emerald-300" />
+          <p className="font-bold text-white/80">Planung</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
         ) : (
           <div className="space-y-4">
             {cycles.map((cycle) => {
@@ -610,22 +641,36 @@ const availablePCTCompounds =
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
-                          <p className="font-semibold">{analysis.totalItems}</p>
-                          <p className="text-muted-foreground">Stack</p>
-                        </div>
+{cycle.plan_category === "supplement" ? (
+  <div className="grid grid-cols-2 gap-2 text-center text-xs">
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 shadow-lg backdrop-blur-md">
+      <p className="font-semibold text-emerald-400">{analysis.totalItems}</p>
+      <p className="text-muted-foreground">Supplemente</p>
+    </div>
 
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
-                          <p className="font-semibold text-blue-400">{analysis.oralCount}</p>
-                          <p className="text-muted-foreground">Oral</p>
-                        </div>
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 shadow-lg backdrop-blur-md">
+      <p className="font-semibold text-blue-400">{todayDue.length}</p>
+      <p className="text-muted-foreground">Heute</p>
+    </div>
+  </div>
+) : (
+  <div className="grid grid-cols-3 gap-2 text-center text-xs">
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 shadow-lg backdrop-blur-md">
+      <p className="font-semibold">{analysis.totalItems}</p>
+      <p className="text-muted-foreground">Stack</p>
+    </div>
 
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] backdrop-blur-md p-3 shadow-lg">
-                          <p className="font-semibold text-emerald-400">{analysis.injectableCount}</p>
-                          <p className="text-muted-foreground">Inj.</p>
-                        </div>
-                      </div>
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 shadow-lg backdrop-blur-md">
+      <p className="font-semibold text-blue-400">{analysis.oralCount}</p>
+      <p className="text-muted-foreground">Oral</p>
+    </div>
+
+    <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 shadow-lg backdrop-blur-md">
+      <p className="font-semibold text-emerald-400">{analysis.injectableCount}</p>
+      <p className="text-muted-foreground">Inj.</p>
+    </div>
+  </div>
+)}
 
                       <div className="rounded-[24px] border border-emerald-400/10 bg-gradient-to-br from-emerald-500/[0.06] to-[#101010] p-4 backdrop-blur-xl shadow-xl">
                         <p className="text-sm font-semibold mb-2">Heute geplant</p>
@@ -657,26 +702,42 @@ const availablePCTCompounds =
                     </div>
                   )}
 
-                  <CycleStackMini title="Cycle Stack" items={cycle.main_stack || []} renderLine={renderLine} />
-                  <CycleStackMini title="PCT Stack" items={cycle.pct_stack || []} renderLine={renderLine} pct />
+<CycleStackMini
+  title={cycle.plan_category === "supplement" ? "Supplement Stack" : "Cycle Stack"}
+  items={cycle.main_stack || []}
+  renderLine={renderLine}
+/>
+
+{cycle.plan_category !== "supplement" && (
+  <CycleStackMini
+    title="PCT Stack"
+    items={cycle.pct_stack || []}
+    renderLine={renderLine}
+    pct
+  />
+)}
 
                   <div className="flex gap-3 mt-5">
                     {cycle.active ? (
-                      <button
-                        onClick={() => stopCycle(cycle)}
-                        className="flex-1 py-4 bg-red-600 rounded-2xl font-semibold flex items-center justify-center gap-2"
-                      >
-                        <Square className="w-5 h-5" />
-                        Stoppen
-                      </button>
+<button
+  onClick={() => stopCycle(cycle)}
+  className="flex-1 rounded-[24px] border border-red-400/20 bg-red-500/15 py-4 font-black text-red-300 transition-all active:scale-[0.98]"
+>
+  <span className="flex items-center justify-center gap-2">
+    <Square className="h-5 w-5" />
+    Stoppen
+  </span>
+</button>
                     ) : (
                       <button
-                        onClick={() => startCycle(cycle)}
-                        className="flex-1 py-4 bg-primary rounded-2xl font-semibold flex items-center justify-center gap-2"
-                      >
-                        <PlayCircle className="w-5 h-5" />
-                        Starten
-                      </button>
+  onClick={() => startCycle(cycle)}
+  className="group flex-1 overflow-hidden rounded-[24px] border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-emerald-500 py-4 font-black text-black shadow-[0_0_30px_rgba(52,211,153,0.22)] transition-all active:scale-[0.98]"
+>
+  <span className="flex items-center justify-center gap-2">
+    <PlayCircle className="h-5 w-5 transition-transform group-active:scale-90" />
+    {cycle.plan_category === "supplement" ? "Plan starten" : "Cycle starten"}
+  </span>
+</button>
                     )}
                   </div>
                 </div>
@@ -686,12 +747,14 @@ const availablePCTCompounds =
         )}
       </main>
 
-      <button
-        onClick={openCreateModal}
-        className="fixed bottom-24 right-6 w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-2xl z-50"
-      >
-        <Plus className="w-8 h-8" />
-      </button>
+{cycles.length > 0 && (
+  <button
+    onClick={openCreateModal}
+    className="fixed bottom-24 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full border border-emerald-300/20 bg-gradient-to-br from-emerald-400 to-emerald-500 text-black shadow-[0_0_40px_rgba(52,211,153,0.45)] active:scale-95"
+  >
+    <Plus className="h-7 w-7" />
+  </button>
+)}
 
       <BottomNav />
 
@@ -706,7 +769,7 @@ const availablePCTCompounds =
       onClick={() => {
         setPlanCategory("cycle")
       }}
-      className={`rounded-2xl py-4 font-medium ${
+      className={`rounded-2xl py-3.5 font-medium ${
         planCategory === "cycle" ? "bg-primary text-white" : "bg-[#181818]"
       }`}
     >
@@ -721,7 +784,7 @@ const availablePCTCompounds =
         setPctStack([])
         setMainStack((prev) => prev.filter((item) => item.type === "Supplement"))
       }}
-      className={`rounded-2xl py-4 font-medium ${
+      className={`rounded-2xl py-3.5 font-medium ${
         planCategory === "supplement" ? "bg-primary text-white" : "bg-[#181818]"
       }`}
     >
@@ -996,8 +1059,8 @@ function Modal({ title, children, onClose, high, compact }: any) {
   return (
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
       <div
-        className={`w-full overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-6 shadow-2xl backdrop-blur-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          compact ? "max-w-xl" : "max-w-2xl"
+        className={`w-full overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] px-5 py-6 sm:p-7 shadow-2xl backdrop-blur-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          compact ? "max-w-xl" : "max-w-[920px]"
         } ${
           high ? "max-h-[92vh]" : "max-h-[86vh]"
         }`}
@@ -1005,7 +1068,7 @@ function Modal({ title, children, onClose, high, compact }: any) {
         <div className="w-14 h-1.5 rounded-full bg-white/10 mx-auto mb-5" />
 
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold">{title}</h2>
+          <h2 className="text-3xl font-black tracking-tight">{title}</h2>
 
           <button
             onClick={onClose}
@@ -1023,11 +1086,14 @@ function Modal({ title, children, onClose, high, compact }: any) {
 
 function Card({ title, subtitle, children }: any) {
   return (
-    <div className="bg-[#111111] rounded-3xl p-5 space-y-5 border border-white/5">
+    <div className="space-y-5 rounded-[26px] border border-transparent bg-transparent p-0 sm:rounded-[30px] sm:border-white/5 sm:bg-white/[0.035] sm:p-7 sm:shadow-xl sm:backdrop-blur-xl">
       <div>
-        <h3 className="font-semibold text-lg">{title}</h3>
-        {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+        <h3 className="text-lg font-semibold">{title}</h3>
+        {subtitle && (
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        )}
       </div>
+
       {children}
     </div>
   )

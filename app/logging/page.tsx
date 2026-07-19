@@ -823,13 +823,42 @@ const groupedDoses = filteredDoses.reduce<Record<string, Dose[]>>((acc, dose) =>
             {selectedDateLabel} anstehend
           </h2>
 
-          {selectedDue.length === 0 ? (
-            <div className="bg-[#0A0A0A] rounded-3xl p-8 text-center border border-border/30">
-              <p className="text-muted-foreground">
-                {activeCycle ? "An diesem Tag ist nichts geplant." : "Noch kein aktiver Cycle"}
-              </p>
-            </div>
-          ) : (
+{selectedDue.length === 0 ? (
+  <div className="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.035] p-6 text-center backdrop-blur-xl">
+    <div className="absolute right-[-60px] top-[-70px] h-[160px] w-[160px] rounded-full bg-emerald-400/10 blur-3xl" />
+
+    {activeCycle ? (
+      <div className="relative">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.04]">
+          <CalendarDays className="h-7 w-7 text-white/35" />
+        </div>
+
+        <p className="font-black">Heute nichts geplant</p>
+        <p className="mx-auto mt-1 max-w-[300px] text-sm leading-6 text-muted-foreground">
+          Für diesen Tag steht keine geplante Einnahme aus deinem aktiven Cycle an.
+        </p>
+      </div>
+    ) : (
+      <div className="relative">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[22px] border border-emerald-400/20 bg-emerald-400/10">
+          <CalendarDays className="h-7 w-7 text-emerald-300" />
+        </div>
+
+        <p className="font-black">Noch kein aktiver Cycle</p>
+        <p className="mx-auto mt-1 max-w-[340px] text-sm leading-6 text-muted-foreground">
+          Starte zuerst einen Cycle oder Supplement-Plan, damit geplante Einnahmen hier automatisch erscheinen.
+        </p>
+
+        <a
+          href="/cycle"
+          className="mx-auto mt-5 inline-flex items-center justify-center rounded-[20px] bg-emerald-400 px-5 py-3 text-sm font-black text-black shadow-[0_0_24px_rgba(52,211,153,0.20)] active:scale-[0.98]"
+        >
+          Plan erstellen
+        </a>
+      </div>
+    )}
+  </div>
+) : (
             <div className="space-y-4">
               {selectedDue.map((item) => {
                 const done = isPlannedDone(item, selectedDate)
@@ -1008,39 +1037,51 @@ style={{
 )}
         </div>
 
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Zuletzt geloggt
-          </h2>
+<div className="mb-4 flex items-center justify-between gap-4">
+  <div>
+    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-1 text-xs font-black text-emerald-300">
+      <Clock className="h-3.5 w-3.5" />
+      Verlauf
+    </div>
 
-          <button
-            onClick={openNewLog}
-            className="bg-primary px-6 py-3 rounded-2xl font-semibold flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Eintragen
-          </button>
-        </div>
+    <h2 className="text-2xl font-black tracking-tight">
+      Zuletzt geloggt
+    </h2>
+  </div>
 
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-  {[
-    { key: "all", label: "Alle" },
-    { key: "oral", label: "Oral" },
-    { key: "injection", label: "Injektionen" },
-  ].map((item) => (
-    <button
-      key={item.key}
-      onClick={() => setFilter(item.key as "all" | "oral" | "injection")}
-      className={`px-4 py-2 rounded-2xl text-sm font-medium whitespace-nowrap ${
-        filter === item.key
-          ? "bg-primary text-white"
-          : "bg-[#0A0A0A] text-muted-foreground border border-border/30"
-      }`}
-    >
-      {item.label}
-    </button>
-  ))}
+  <button
+    onClick={openNewLog}
+    className="group flex shrink-0 items-center gap-2 rounded-[22px] border border-emerald-300/20 bg-gradient-to-r from-emerald-400 to-emerald-500 px-5 py-3.5 font-black text-black shadow-[0_0_28px_rgba(52,211,153,0.22)] transition active:scale-[0.97]"
+  >
+    <Plus className="h-5 w-5 transition-transform group-active:scale-90" />
+    <span className="hidden sm:inline">Eintragen</span>
+  </button>
+</div>
+
+<div className="mb-5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <div className="inline-flex rounded-[24px] border border-white/10 bg-white/[0.035] p-1 backdrop-blur-xl">
+    {[
+      { key: "all", label: "Alle" },
+      { key: "oral", label: "Oral" },
+      { key: "injection", label: "Injektionen" },
+    ].map((item) => {
+      const active = filter === item.key
+
+      return (
+        <button
+          key={item.key}
+          onClick={() => setFilter(item.key as "all" | "oral" | "injection")}
+          className={`whitespace-nowrap rounded-[20px] px-4 py-2.5 text-sm font-black transition active:scale-[0.97] ${
+            active
+              ? "bg-white text-black shadow-lg"
+              : "text-white/45 hover:text-white/80"
+          }`}
+        >
+          {item.label}
+        </button>
+      )
+    })}
+  </div>
 </div>
 
 {loading ? (
@@ -1048,11 +1089,16 @@ style={{
     Lade Logs...
   </p>
 ) : filteredDoses.length === 0 ? (
-  <div className="bg-[#0A0A0A] rounded-3xl p-12 text-center">
-    <p className="text-muted-foreground">
-      Keine Einträge für diesen Filter
-    </p>
+<div className="rounded-[30px] border border-white/10 bg-white/[0.035] p-8 text-center backdrop-blur-xl">
+  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.04]">
+    <Clock className="h-7 w-7 text-white/35" />
   </div>
+
+  <p className="font-black">Noch keine Logs</p>
+  <p className="mt-1 text-sm text-muted-foreground">
+    Deine Einträge erscheinen hier automatisch.
+  </p>
+</div>
 ) : (
   <div className="space-y-8 pb-20">
     {Object.entries(groupedDoses).map(([dateKey, entries]) => (
