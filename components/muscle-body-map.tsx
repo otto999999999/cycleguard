@@ -182,7 +182,13 @@ export default function MuscleBodyMap({
       : "h-[330px] max-w-[170px] rounded-[24px] sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]"
   }`}
 >
-        <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
+        <div
+  className={`absolute inset-0 ${
+    large
+      ? "scale-[1.72] translate-y-[28px]"
+      : "scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]"
+  }`}
+>
           <img
             src={baseSrc}
             alt={side === "front" ? "Körper Vorderseite" : "Körper Rückseite"}
