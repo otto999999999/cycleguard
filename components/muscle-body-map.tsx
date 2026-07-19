@@ -5,6 +5,7 @@ type MuscleStatus = "fresh" | "recovery" | "ready"
 type MuscleBodyMapProps = {
   side: "front" | "back"
   getStatusForGroup: (group: string) => MuscleStatus
+  large?: boolean
 }
 
 type MusclePart = {
@@ -136,14 +137,14 @@ const backParts: MusclePart[] = [
 
 const getLayerClass = (status: MuscleStatus) => {
   if (status === "fresh") {
-    return "bg-red-500/30 blur-[10px] drop-shadow-[0_0_5px_rgba(239,68,68,0.16)]"
+    return "bg-red-500/40 blur-[9px] drop-shadow-[0_0_7px_rgba(239,68,68,0.22)]"
   }
 
   if (status === "recovery") {
-    return "bg-yellow-400/25 blur-[10px] drop-shadow-[0_0_5px_rgba(250,204,21,0.14)]"
+    return "bg-yellow-400/35 blur-[9px] drop-shadow-[0_0_7px_rgba(250,204,21,0.20)]"
   }
 
-  return "bg-emerald-400/25 blur-[9px] drop-shadow-[0_0_6px_rgba(52,211,153,0.16)]"
+  return "bg-emerald-400/35 blur-[8px] drop-shadow-[0_0_8px_rgba(52,211,153,0.22)]"
 }
 
 const getStrongestStatus = (
@@ -161,6 +162,7 @@ const getStrongestStatus = (
 export default function MuscleBodyMap({
   side,
   getStatusForGroup,
+  large = false,
 }: MuscleBodyMapProps) {
   const baseSrc =
     side === "front" ? "/muscles/front/base.png" : "/muscles/back/base.png"
@@ -173,7 +175,13 @@ export default function MuscleBodyMap({
         {side === "front" ? "Vorne" : "Hinten"}
       </p>
 
-      <div className="relative mx-auto h-[330px] w-full max-w-[170px] overflow-hidden rounded-[24px] border border-white/10 bg-black sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]">
+      <div
+  className={`relative mx-auto w-full overflow-hidden border border-white/10 bg-black ${
+    large
+      ? "h-[520px] max-w-[290px] rounded-[30px]"
+      : "h-[330px] max-w-[170px] rounded-[24px] sm:h-[500px] sm:max-w-[240px] sm:rounded-[28px]"
+  }`}
+>
         <div className="absolute inset-0 scale-[2.05] translate-y-[4px] sm:scale-[1.85] sm:translate-y-[12px]">
           <img
             src={baseSrc}

@@ -101,7 +101,16 @@ const getWeekStartKey = () => {
   return `${y}-${m}-${d}`
 }
 const getExercisesForDay = (dayId: string) => {
-  return dayExercises.filter((entry) => entry.training_day_id === dayId)
+  return dayExercises
+    .filter((entry) => entry.training_day_id === dayId)
+    .sort((a, b) => {
+      const aPos = Number(a.position ?? 9999)
+      const bPos = Number(b.position ?? 9999)
+
+      if (aPos !== bPos) return aPos - bPos
+
+      return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+    })
 }
 
 const isDayCompleted = (weekday: string) => {

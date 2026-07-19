@@ -63,15 +63,15 @@ const getStatusText = (status: Status) => {
 }
 
 const getStatusClass = (status: Status) => {
-  if (status === "fresh") return "bg-cyan-400 text-black border-cyan-300"
-  if (status === "recovery") return "bg-blue-500/15 text-blue-300 border-blue-400/25"
-  return "bg-white/10 text-cyan-100 border-cyan-100/20"
+  if (status === "fresh") return "border-red-400/35 bg-red-500/15 text-red-300"
+  if (status === "recovery") return "border-yellow-300/35 bg-yellow-400/15 text-yellow-200"
+  return "border-emerald-300/35 bg-emerald-400/15 text-emerald-200"
 }
 
 const getDotClass = (status: Status) => {
-  if (status === "fresh") return "bg-cyan-300"
-  if (status === "recovery") return "bg-blue-400"
-  return "bg-cyan-100"
+  if (status === "fresh") return "bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.45)]"
+  if (status === "recovery") return "bg-yellow-300 shadow-[0_0_10px_rgba(253,224,71,0.45)]"
+  return "bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.45)]"
 }
 
 const getTimeText = (hours: number) => {
@@ -91,7 +91,7 @@ export default function CooldownPage() {
   const [sets, setSets] = useState<any[]>([])
   const [entries, setEntries] = useState<any[]>([])
   const [days, setDays] = useState<any[]>([])
-
+  const [expandedSide, setExpandedSide] = useState<"front" | "back" | null>(null)
 useEffect(() => {
   const saved = localStorage.getItem("cycleguard_enhanced_recovery")
 
@@ -296,9 +296,21 @@ const getStatusForGroup = (group: string): Status => {
       <main className="mx-auto max-w-xl px-4 pt-6">
         <section className="rounded-[34px] border border-cyan-400/20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.14),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.07),rgba(255,255,255,0.03))] p-5 shadow-[0_0_45px_rgba(34,211,238,0.10)] backdrop-blur-2xl">
 <div className="grid grid-cols-2 gap-3">
-<MuscleBodyMap side="front" getStatusForGroup={getStatusForGroup} />
+  <button
+    type="button"
+    onClick={() => setExpandedSide("front")}
+    className="text-left active:scale-[0.98]"
+  >
+    <MuscleBodyMap side="front" getStatusForGroup={getStatusForGroup} />
+  </button>
 
-<MuscleBodyMap side="back" getStatusForGroup={getStatusForGroup} />
+  <button
+    type="button"
+    onClick={() => setExpandedSide("back")}
+    className="text-left active:scale-[0.98]"
+  >
+    <MuscleBodyMap side="back" getStatusForGroup={getStatusForGroup} />
+  </button>
 </div>
 
 <div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/10 pt-4">
@@ -396,7 +408,46 @@ const getStatusForGroup = (group: string): Status => {
           )}
         </section>
       </main>
+{expandedSide && (
+  <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/85 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-cyan-400/20 bg-gradient-to-b from-[#111111] to-[#050505] p-5 shadow-[0_0_55px_rgba(34,211,238,0.16)]">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black">
+            {expandedSide === "front" ? "Vorderansicht" : "Rückansicht"}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Muskel-Erholung im Detail
+          </p>
+        </div>
 
+        <button
+          type="button"
+          onClick={() => setExpandedSide(null)}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/70 active:scale-95"
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="mx-auto max-w-[290px]">
+        <MuscleBodyMap
+          side={expandedSide}
+          getStatusForGroup={getStatusForGroup}
+          large
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setExpandedSide(null)}
+        className="mt-5 w-full rounded-[22px] border border-white/10 bg-white/[0.05] py-4 font-black text-white/70 active:scale-[0.98]"
+      >
+        Schließen
+      </button>
+    </div>
+  </div>
+)}
       <GymBottomNav active="cooldown" />
     </div>
   )

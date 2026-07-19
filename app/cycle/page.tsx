@@ -908,9 +908,16 @@ const availablePCTCompounds =
                     onChange={(e) => updateDosing("doseAmount", Number(e.target.value))}
                     className="input flex-1"
                   />
-                  <div className="bg-[#181818] border border-white/5 rounded-2xl px-5 flex items-center text-sm text-muted-foreground">
-                    {getBaseUnit(selectedCompoundForDosing.doseUnit || "mg")}
-                  </div>
+<select
+  value={getBaseUnit(selectedCompoundForDosing.doseUnit || "mg")}
+  onChange={(e) => updateDosing("doseUnit", e.target.value)}
+  className="rounded-2xl border border-white/5 bg-[#181818] px-4 text-sm text-white outline-none"
+>
+  <option value="mg">mg</option>
+  <option value="g">g</option>
+  <option value="mcg">mcg</option>
+  <option value="ml">ml</option>
+</select>
                 </div>
               </Field>
             </Card>

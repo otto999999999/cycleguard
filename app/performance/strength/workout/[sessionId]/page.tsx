@@ -170,13 +170,23 @@ const entryIds = Array.from(
         `)
         .in("id", entryIds)
         .order("position", { ascending: true })
-if (!openEntryId && entriesData && entriesData.length > 0) {
-  setOpenEntryId(entriesData[0].id)
+        
+const sortedEntries = [...(entriesData || [])].sort((a, b) => {
+  const aPos = Number(a.position ?? 9999)
+  const bPos = Number(b.position ?? 9999)
+
+  if (aPos !== bPos) return aPos - bPos
+
+  return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+})
+
+if (!openEntryId && sortedEntries.length > 0) {
+  setOpenEntryId(sortedEntries[0].id)
 }
 
 const exerciseIds = Array.from(
   new Set(
-    (entriesData || [])
+    sortedEntries
       .map((entry: any) => entry.exercise_id)
       .filter(Boolean)
   )
@@ -236,7 +246,7 @@ const lastWeightByExerciseAndSet = new Map<string, number>()
   })
 
 const preparedSets = (setsData || []).map((set: any) => {
-  const entry = (entriesData || []).find(
+  const entry = sortedEntries.find(
     (entry: any) => entry.id === set.exercise_entry_id
   )
 
@@ -250,7 +260,7 @@ const preparedSets = (setsData || []).map((set: any) => {
 })
 
 setSets(preparedSets)
-      setEntries(entriesData || [])
+      setEntries(sortedEntries)
       
     }
 
