@@ -217,13 +217,13 @@ const getRepsSetupLabel = (exercise: any) => {
 
     setTrainingDays(dayData || [])
 
-    const { data: exerciseData } = await supabase
-      .from("exercise_library")
-      .select("*")
-      .order("category")
-      .order("name")
+    const { data: exercisesData } = await supabase
+  .from("exercise_library")
+  .select("*")
+  .eq("archived", false)
+  .order("name")
 
-    setExerciseLibrary(exerciseData || [])
+    setExerciseLibrary(exercisesData || [])
 
     const { data: dayExerciseData } = await supabase
     .from("training_day_exercises")

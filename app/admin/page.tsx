@@ -35,9 +35,20 @@ export default function AdminPage() {
   const [users, setUsers] = useState<any[]>([])
   const [selectedUser, setSelectedUser] = useState<any>(null)
   const [exercises, setExercises] = useState<any[]>([])
+  const [selectedExercise, setSelectedExercise] = useState<any>(null)
+const [showArchivedExercises, setShowArchivedExercises] = useState(false)
+const [editingExercise, setEditingExercise] = useState({
+  name: "",
+  category: "",
+  muscle_group: "",
+  tracking_type: "reps",
+})
   const [inviteCodes, setInviteCodes] = useState<any[]>([])
 
   const [newInviteCode, setNewInviteCode] = useState("")
+  const [newInviteNote, setNewInviteNote] = useState("")
+const [newInviteMaxUses, setNewInviteMaxUses] = useState("")
+
   const [newExercise, setNewExercise] = useState({
     name: "",
     category: "",
@@ -96,7 +107,7 @@ export default function AdminPage() {
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, username, display_name, role, created_at", { count: "exact" })
+        .select("id, username, display_name, role, banned, created_at", { count: "exact" })
         .order("created_at", { ascending: false }),
 
       supabase
@@ -107,10 +118,10 @@ export default function AdminPage() {
         .from("cycles")
         .select("*", { count: "exact", head: true }),
 
-      supabase
-        .from("exercise_library")
-        .select("id, name, category, muscle_group, tracking_type", { count: "exact" })
-        .order("name"),
+supabase
+  .from("exercise_library")
+  .select("id, name, category, muscle_group, tracking_type, archived", { count: "exact" })
+  .order("name"),
 
       supabase
         .from("invite_codes")
@@ -141,16 +152,21 @@ export default function AdminPage() {
     )
   }, [users, search])
 
-  const filteredExercises = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return exercises
+const filteredExercises = useMemo(() => {
+  const q = search.toLowerCase().trim()
 
-    return exercises.filter((exercise) =>
-      `${exercise.name || ""} ${exercise.category || ""} ${exercise.muscle_group || ""}`
+  return exercises
+    .filter((exercise) =>
+      showArchivedExercises ? true : !exercise.archived
+    )
+    .filter((exercise) => {
+      if (!q) return true
+
+      return `${exercise.name || ""} ${exercise.category || ""} ${exercise.muscle_group || ""}`
         .toLowerCase()
         .includes(q)
-    )
-  }, [exercises, search])
+    })
+}, [exercises, search, showArchivedExercises])
 
 const existingCategories = useMemo(() => {
   return Array.from(
@@ -194,6 +210,44 @@ const existingMuscleGroups = useMemo(() => {
     setSaving(false)
   }
 
+const toggleUserBan = async (user: any) => {
+  if (user.role === "owner") {
+    alert("Owner kann nicht gesperrt werden.")
+    return
+  }
+
+  const nextBanned = !user.banned
+
+  if (
+    !confirm(
+      nextBanned
+        ? `User "${user.display_name || user.username}" wirklich sperren?`
+        : `User "${user.display_name || user.username}" entsperren?`
+    )
+  ) {
+    return
+  }
+
+  setSaving(true)
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ banned: nextBanned })
+    .eq("id", user.id)
+
+  if (error) {
+    alert(error.message)
+  } else {
+    setUsers((prev) =>
+      prev.map((item) =>
+        item.id === user.id ? { ...item, banned: nextBanned } : item
+      )
+    )
+  }
+
+  setSaving(false)
+}
+
   const createInviteCode = async () => {
     const code = newInviteCode.trim()
 
@@ -208,17 +262,22 @@ const existingMuscleGroups = useMemo(() => {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { error } = await supabase.from("invite_codes").insert({
-      code,
-      active: true,
-      created_by: user?.id,
-    })
+const { error } = await supabase.from("invite_codes").insert({
+  code,
+  active: true,
+  created_by: user?.id,
+  note: newInviteNote.trim() || null,
+  max_uses: newInviteMaxUses ? Number(newInviteMaxUses) : null,
+  
+})
 
     if (error) {
       alert(error.message)
     } else {
       setNewInviteCode("")
-      await loadAdminData()
+setNewInviteNote("")
+setNewInviteMaxUses("")
+await loadAdminData()
     }
 
     setSaving(false)
@@ -260,6 +319,11 @@ const existingMuscleGroups = useMemo(() => {
   setSaving(false)
 }
 
+const copyInviteCode = async (code: string) => {
+  await navigator.clipboard.writeText(code)
+  alert("Invite-Code kopiert.")
+}
+
   const createExercise = async () => {
     if (!newExercise.name.trim()) {
       alert("Übungsname fehlt.")
@@ -289,6 +353,98 @@ const existingMuscleGroups = useMemo(() => {
 
     setSaving(false)
   }
+
+const openExerciseEditor = (exercise: any) => {
+  setSelectedExercise(exercise)
+  setEditingExercise({
+    name: exercise.name || "",
+    category: exercise.category || "",
+    muscle_group: exercise.muscle_group || "",
+    tracking_type: exercise.tracking_type || "reps",
+  })
+}
+
+const saveExerciseChanges = async () => {
+  if (!selectedExercise) return
+
+  if (!editingExercise.name.trim()) {
+    alert("Name fehlt.")
+    return
+  }
+
+  setSaving(true)
+
+  const { error } = await supabase
+    .from("exercise_library")
+    .update({
+      name: editingExercise.name.trim(),
+      category: editingExercise.category,
+      muscle_group: editingExercise.muscle_group,
+      tracking_type: editingExercise.tracking_type,
+    })
+    .eq("id", selectedExercise.id)
+
+  if (error) {
+    alert(error.message)
+  } else {
+    setExercises((prev) =>
+      prev.map((exercise) =>
+        exercise.id === selectedExercise.id
+          ? { ...exercise, ...editingExercise }
+          : exercise
+      )
+    )
+    setSelectedExercise(null)
+  }
+
+  setSaving(false)
+}
+
+const archiveExercise = async (exercise: any) => {
+  if (!confirm(`Übung "${exercise.name}" wirklich archivieren?`)) return
+
+  setSaving(true)
+
+  const { error } = await supabase
+    .from("exercise_library")
+    .update({ archived: true })
+    .eq("id", exercise.id)
+
+  if (error) {
+    alert(error.message)
+  } else {
+    setExercises((prev) =>
+      prev.map((item) =>
+        item.id === exercise.id ? { ...item, archived: true } : item
+      )
+    )
+    setSelectedExercise(null)
+  }
+
+  setSaving(false)
+}
+
+const restoreExercise = async (exercise: any) => {
+  setSaving(true)
+
+  const { error } = await supabase
+    .from("exercise_library")
+    .update({ archived: false })
+    .eq("id", exercise.id)
+
+  if (error) {
+    alert(error.message)
+  } else {
+    setExercises((prev) =>
+      prev.map((item) =>
+        item.id === exercise.id ? { ...item, archived: false } : item
+      )
+    )
+    setSelectedExercise(null)
+  }
+
+  setSaving(false)
+}
 
 const deleteExercise = async (exercise: any) => {
   if (!confirm(`Übung "${exercise.name}" wirklich löschen?`)) return
@@ -430,25 +586,48 @@ const deleteExercise = async (exercise: any) => {
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate font-black">
-            {user.display_name || user.username || "Unbenannt"}
-          </p>
+<div className="flex items-center gap-2">
+  <p className="truncate font-black">
+    {user.display_name || user.username || "Unbenannt"}
+  </p>
+
+  {user.banned && (
+    <span className="rounded-full border border-red-400/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-black text-red-300">
+      Gesperrt
+    </span>
+  )}
+</div>
           <p className="truncate text-xs text-muted-foreground">
             {user.id}
           </p>
         </div>
       </button>
 
-      <select
-        value={user.role || "normal"}
-        onChange={(e) => updateUserRole(user.id, e.target.value as Role)}
-        disabled={saving || user.role === "owner"}
-        className="rounded-2xl border border-white/10 bg-black/40 px-3 py-2 text-xs font-black outline-none disabled:opacity-60"
-      >
-        <option value="normal">Normal</option>
-        <option value="premium">Premium</option>
-        {user.role === "owner" && <option value="owner">Owner</option>}
-      </select>
+<div className="flex w-[92px] shrink-0 flex-col gap-2">
+  <select
+    value={user.role || "normal"}
+    onChange={(e) => updateUserRole(user.id, e.target.value as Role)}
+    disabled={saving || user.role === "owner" || user.banned}
+    className="h-9 w-full appearance-none rounded-2xl border border-white/10 bg-black/40 px-3 text-center text-xs font-black outline-none disabled:opacity-60"
+  >
+    <option value="normal">Normal</option>
+    <option value="premium">Premium</option>
+    {user.role === "owner" && <option value="owner">Owner</option>}
+  </select>
+
+<button
+  type="button"
+  onClick={() => toggleUserBan(user)}
+  disabled={saving || user.role === "owner"}
+className={`h-9 w-full rounded-2xl border px-3 text-center text-xs font-black active:scale-95 disabled:opacity-50 ${
+  user.banned
+    ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
+    : "border-red-400/20 bg-red-500/10 text-red-300"
+}`}
+>
+  {user.banned ? "Entsperren" : "Sperren"}
+</button>
+</div>
     </div>
   </div>
 ))}
@@ -460,22 +639,41 @@ const deleteExercise = async (exercise: any) => {
             <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
               <p className="mb-3 font-black">Invite Code erstellen</p>
 
-              <div className="flex gap-2">
-                <input
-                  value={newInviteCode}
-                  onChange={(e) => setNewInviteCode(e.target.value)}
-                  placeholder="z.B. CYCLE-2026"
-                  className="min-w-0 flex-1 rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/25"
-                />
+<div className="space-y-3">
+  <input
+    value={newInviteCode}
+    onChange={(e) => setNewInviteCode(e.target.value)}
+    placeholder="z.B. CYCLE2026"
+    className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/25"
+  />
 
-                <button
-                  onClick={createInviteCode}
-                  disabled={saving}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-yellow-300 text-black active:scale-95 disabled:opacity-50"
-                >
-                  <Plus className="h-5 w-5" />
-                </button>
-              </div>
+  <input
+    value={newInviteNote}
+    onChange={(e) => setNewInviteNote(e.target.value)}
+    placeholder="Notiz / Für wen?"
+    className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/25"
+  />
+
+<input
+  type="number"
+  min="1"
+  value={newInviteMaxUses}
+  onChange={(e) => setNewInviteMaxUses(e.target.value)}
+  placeholder="Max Uses"
+  className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/25"
+/>
+
+  <button
+    onClick={createInviteCode}
+    disabled={saving}
+    className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-yellow-300 py-3 font-black text-black active:scale-[0.98] disabled:opacity-50"
+  >
+    <Plus className="h-5 w-5" />
+    Code erstellen
+  </button>
+</div>
+
+           
             </div>
 
 {inviteCodes.map((invite) => (
@@ -490,10 +688,20 @@ const deleteExercise = async (exercise: any) => {
         disabled={saving}
         className="min-w-0 flex-1 text-left active:scale-[0.98]"
       >
-        <p className="truncate font-black">{invite.code}</p>
-        <p className="text-xs text-muted-foreground">
-          {invite.active ? "Aktiv" : "Deaktiviert"}
-        </p>
+<p className="truncate font-black">{invite.code}</p>
+
+<p className="text-xs text-muted-foreground">
+  {invite.active ? "Aktiv" : "Deaktiviert"}
+  {invite.note ? ` • ${invite.note}` : ""}
+</p>
+
+<p className="mt-1 text-xs text-white/35">
+  Uses: {invite.used_count || 0}
+  {invite.max_uses ? ` / ${invite.max_uses}` : " / ∞"}
+  {invite.expires_at
+    ? ` • bis ${new Date(invite.expires_at).toLocaleDateString("de-DE")}`
+    : ""}
+</p>
       </button>
 
       <button
@@ -508,6 +716,15 @@ const deleteExercise = async (exercise: any) => {
       >
         {invite.active ? "ON" : "OFF"}
       </button>
+
+        <button
+  type="button"
+  onClick={() => copyInviteCode(invite.code)}
+  disabled={saving}
+  className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-black text-white/60 active:scale-95"
+>
+  Copy
+</button>
 
       <button
         type="button"
@@ -525,6 +742,13 @@ const deleteExercise = async (exercise: any) => {
 
         {activeTab === "exercises" && (
           <section className="mt-5 space-y-4">
+            <button
+  type="button"
+  onClick={() => setShowArchivedExercises(!showArchivedExercises)}
+  className="w-full rounded-[22px] border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-white/70 active:scale-[0.98]"
+>
+  {showArchivedExercises ? "Nur aktive Übungen anzeigen" : "Archivierte Übungen anzeigen"}
+</button>
             <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
               <p className="mb-3 font-black">Neue Übung</p>
 
@@ -591,14 +815,29 @@ const deleteExercise = async (exercise: any) => {
               </div>
             </div>
 
-{filteredExercises.slice(0, 60).map((exercise) => (
-  <div
+{filteredExercises.slice(0, 80).map((exercise) => (
+  <button
     key={exercise.id}
-    className="rounded-[24px] border border-white/10 bg-white/[0.035] p-4"
+    type="button"
+    onClick={() => openExerciseEditor(exercise)}
+    className={`w-full rounded-[24px] border p-4 text-left active:scale-[0.98] ${
+      exercise.archived
+        ? "border-red-400/15 bg-red-500/10 opacity-70"
+        : "border-white/10 bg-white/[0.035]"
+    }`}
   >
     <div className="flex items-center justify-between gap-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate font-black">{exercise.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate font-black">{exercise.name}</p>
+
+          {exercise.archived && (
+            <span className="rounded-full border border-red-400/20 bg-red-500/10 px-2 py-0.5 text-[10px] font-black text-red-300">
+              Archiviert
+            </span>
+          )}
+        </div>
+
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {exercise.category || "Keine Kategorie"} •{" "}
           {exercise.muscle_group || "Keine Muskelgruppe"} •{" "}
@@ -606,16 +845,11 @@ const deleteExercise = async (exercise: any) => {
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={() => deleteExercise(exercise)}
-        disabled={saving}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-400/20 bg-red-500/10 text-red-300 active:scale-95 disabled:opacity-50"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
+      <span className="rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-xs font-black text-yellow-200">
+        Bearbeiten
+      </span>
     </div>
-  </div>
+  </button>
 ))}
           </section>
         )}
@@ -738,6 +972,124 @@ const deleteExercise = async (exercise: any) => {
           </div>
         </div>
       )}
+      {selectedExercise && (
+  <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 shadow-2xl shadow-black/50">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1 text-xs font-black text-yellow-200">
+            Übung
+          </div>
+
+          <h2 className="text-2xl font-black tracking-tight">
+            Übung bearbeiten
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Name, Kategorie, Muskelgruppe und Tracking ändern.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSelectedExercise(null)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <input
+          value={editingExercise.name}
+          onChange={(e) =>
+            setEditingExercise({ ...editingExercise, name: e.target.value })
+          }
+          placeholder="Name"
+          className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/25"
+        />
+
+        <select
+          value={editingExercise.category}
+          onChange={(e) =>
+            setEditingExercise({ ...editingExercise, category: e.target.value })
+          }
+          className="w-full appearance-none rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+        >
+          <option value="">Kategorie</option>
+          {existingCategories.map((category) => (
+            <option key={category} value={category}>
+              {category}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={editingExercise.muscle_group}
+          onChange={(e) =>
+            setEditingExercise({
+              ...editingExercise,
+              muscle_group: e.target.value,
+            })
+          }
+          className="w-full appearance-none rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+        >
+          <option value="">Muskelgruppe</option>
+          {existingMuscleGroups.map((muscleGroup) => (
+            <option key={muscleGroup} value={muscleGroup}>
+              {muscleGroup}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={editingExercise.tracking_type}
+          onChange={(e) =>
+            setEditingExercise({
+              ...editingExercise,
+              tracking_type: e.target.value,
+            })
+          }
+          className="w-full appearance-none rounded-[20px] border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none"
+        >
+          <option value="reps">Reps</option>
+          <option value="seconds">Sekunden</option>
+        </select>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={saveExerciseChanges}
+          disabled={saving}
+          className="rounded-[20px] bg-yellow-300 py-4 font-black text-black active:scale-[0.98] disabled:opacity-50"
+        >
+          Speichern
+        </button>
+
+        {selectedExercise.archived ? (
+          <button
+            type="button"
+            onClick={() => restoreExercise(selectedExercise)}
+            disabled={saving}
+            className="rounded-[20px] border border-emerald-400/20 bg-emerald-400/10 py-4 font-black text-emerald-300 active:scale-[0.98] disabled:opacity-50"
+          >
+            Wiederherstellen
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => archiveExercise(selectedExercise)}
+            disabled={saving}
+            className="rounded-[20px] border border-red-400/20 bg-red-500/10 py-4 font-black text-red-300 active:scale-[0.98] disabled:opacity-50"
+          >
+            Archivieren
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

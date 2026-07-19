@@ -84,11 +84,16 @@ useEffect(() => {
     setNewEmail(session.user.email || "")
 setProfileName(session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || "")
 const { data: profileData, error: profileError } = await supabase
+
   .from("profiles")
-  .select("role, display_name")
+  .select("role, display_name, banned")
   .eq("id", session.user.id)
   .maybeSingle()
-
+if (profileData?.banned) {
+  await supabase.auth.signOut()
+  router.replace("/login?banned=true")
+  return
+}
 console.log("PROFILE ROLE:", profileData, profileError)
 
 if (profileData?.role === "owner" || profileData?.role === "premium" || profileData?.role === "normal") {
@@ -217,10 +222,14 @@ setNewEmail(session.user.email || "")
 setProfileName(session.user.user_metadata?.display_name || session.user.email?.split("@")[0] || "")
 const { data: profileData, error: profileError } = await supabase
   .from("profiles")
-  .select("role, display_name")
+  .select("role, display_name, banned")
   .eq("id", session.user.id)
   .maybeSingle()
-
+if (profileData?.banned) {
+  await supabase.auth.signOut()
+  router.replace("/login?banned=true")
+  return
+}
 console.log("PROFILE ROLE PUSH:", profileData, profileError)
 
 if (profileData?.role === "owner" || profileData?.role === "premium" || profileData?.role === "normal") {
@@ -241,6 +250,7 @@ if (profileData?.display_name) {
 
   loadUserAndPush()
 }, [])
+
 
 
 const urlBase64ToUint8Array = (base64String: string) => {
