@@ -14,17 +14,20 @@ import {
   Play,
   CalendarDays,
   BarChart3,
-Clock,
-ChevronRight,
+  Clock,
+  ChevronRight,
 } from "lucide-react"
 
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 export default function StrengthPage() {
   const [showCreatePlan, setShowCreatePlan] = useState(false)
+  const [showImportPlan, setShowImportPlan] = useState(false)
+const [importCode, setImportCode] = useState("")
   const [planName, setPlanName] = useState("")
   const [plans, setPlans] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const router = useRouter()
   const [trainingDays, setTrainingDays] = useState<any[]>([])
 const [dayExercises, setDayExercises] = useState<any[]>([])
@@ -66,6 +69,8 @@ const getDurationMinutes = (session: any) => {
 }
 
 const weekWorkoutCount = finishedSessions.length
+
+
 
 const weekTotalMinutes = finishedSessions.reduce(
   (total, session) => total + getDurationMinutes(session),
@@ -166,6 +171,8 @@ useEffect(() => {
   }
 }, [])
 
+
+
 const startWorkout = async (day: any) => {
   const exercises = getExercisesForDay(day.id)
 
@@ -264,9 +271,10 @@ setWeekSteps(
   (stepsData || []).reduce((sum, row) => sum + Number(row.steps || 0), 0)
 )
   const { data: plansData } = await supabase
-    .from("training_plans")
-    .select("*")
-    .eq("user_id", user.id)
+.from("training_plans")
+.select("*")
+.eq("user_id", user.id)
+.eq("active", true)
     .order("created_at", { ascending: false })
 
   setPlans(plansData || [])
@@ -337,6 +345,8 @@ const volume = (weekSetsData || []).reduce((sum, set) => {
   setWeeklyVolume(0)
 }
 
+
+
 const { data: recentSessionsData } = await supabase
   .from("workout_sessions")
   .select("*")
@@ -361,44 +371,174 @@ if (todayDay) {
 
   setLoading(false)
 }
-const createPlan = async () => {
-  if (plans.length > 0) {
-  toast.error("Du kannst aktuell nur einen Trainingsplan erstellen.")
-  setShowCreatePlan(false)
-  return
-}
-  const finalName = planName.trim() || "Mein Trainingsplan"
 
-  const existingPlan = plans.find(
- (p) => p.name.trim().toLowerCase() === finalName.trim().toLowerCase()
-    )
-     if (existingPlan) {
-    toast.error("Ein Trainingsplan mit diesem Namen existiert bereits.")
-return
-    
-    }
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+const importPlanFromCode = async () => {
+  const code = importCode.trim().toUpperCase()
 
-  if (!user) return
-
-  const { error } = await supabase
-    .from("training_plans")
-    .insert({
-      user_id: user.id,
-      name: finalName,
-    })
-
-  if (error) {
-    console.error(error)
+  if (!code) {
+    toast.error("Code eingeben.")
     return
   }
 
-  await loadPlan()
-  setShowCreatePlan(false)
-  setPlanName("")
-  toast.success("Trainingsplan erstellt.")
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace("/login")
+      return
+    }
+
+    const { data: shareData, error: shareError } = await supabase
+      .from("training_plan_share_codes")
+      .select("*")
+      .eq("code", code)
+      .maybeSingle()
+
+    if (shareError || !shareData) {
+      toast.error("Code nicht gefunden.")
+      return
+    }
+
+    const snapshot = shareData.snapshot
+
+    if (!snapshot?.plan || !Array.isArray(snapshot?.trainingDays)) {
+      toast.error("Dieser Code ist ungültig.")
+      return
+    }
+
+    await supabase
+      .from("training_plans")
+      .update({ active: false })
+      .eq("user_id", user.id)
+
+    const { data: newPlan, error: planError } = await supabase
+      .from("training_plans")
+      .insert({
+        user_id: user.id,
+        name: `${snapshot.plan.name || "Importierter Plan"} Kopie`,
+        active: true,
+      })
+      .select("*")
+      .single()
+
+    if (planError || !newPlan) {
+      toast.error(planError?.message || "Plan konnte nicht erstellt werden.")
+      return
+    }
+
+    for (const day of snapshot.trainingDays) {
+      const { data: newDay, error: dayError } = await supabase
+        .from("training_days")
+        .insert({
+          user_id: user.id,
+          plan_id: newPlan.id,
+          name: day.name || "Trainingstag",
+          weekdays: day.weekdays || [],
+        })
+        .select("*")
+        .single()
+
+      if (dayError || !newDay) {
+        toast.error(dayError?.message || "Trainingstag konnte nicht importiert werden.")
+        continue
+      }
+
+      const exercises = Array.isArray(day.exercises) ? day.exercises : []
+
+      if (exercises.length > 0) {
+const orderedExercises = [...exercises].sort((a: any, b: any) => {
+  const aPos = Number(a.position ?? 9999)
+  const bPos = Number(b.position ?? 9999)
+
+  if (aPos !== bPos) return aPos - bPos
+
+  return 0
+})
+
+const rows = orderedExercises.map((entry: any, index: number) => ({
+  user_id: user.id,
+  training_day_id: newDay.id,
+  exercise_id: entry.exercise_id,
+  sets: entry.sets || 3,
+  reps: entry.reps || 10,
+  warmup_sets: entry.warmup_sets || 0,
+  tracking_type: entry.tracking_type || "reps",
+
+  // Wichtig: beim Import nochmal sauber 0,1,2,3 setzen
+  position: index,
+}))
+
+        const { error: exercisesError } = await supabase
+          .from("training_day_exercises")
+          .insert(rows)
+
+        if (exercisesError) {
+          toast.error(exercisesError.message)
+        }
+      }
+    }
+
+    toast.success("Plan importiert.")
+    setImportCode("")
+    setShowImportPlan(false)
+    setShowCreatePlan(false)
+
+    router.push(`/performance/strength/plan/${newPlan.id}`)
+  } catch (error: any) {
+    toast.error(error.message || "Plan konnte nicht importiert werden.")
+  }
+}
+
+const createPlan = async () => {
+  const name = planName.trim()
+
+  if (!name) {
+    toast.error("Planname fehlt.")
+    return
+  }
+
+  try {
+    setSaving(true)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace("/login")
+      return
+    }
+
+    // Alle anderen Pläne inaktiv machen, damit dieser neue Plan aktiv wird
+    await supabase
+      .from("training_plans")
+      .update({ active: false })
+      .eq("user_id", user.id)
+
+    const { data, error } = await supabase
+      .from("training_plans")
+      .insert({
+        user_id: user.id,
+        name,
+        active: true,
+      })
+      .select("*")
+      .single()
+
+    if (error) throw error
+
+    toast.success("Trainingsplan erstellt.")
+    setPlanName("")
+    setShowCreatePlan(false)
+
+    router.push(`/performance/strength/plan/${data.id}`)
+  } catch (error: any) {
+    toast.error(error.message || "Plan konnte nicht erstellt werden.")
+  } finally {
+    setSaving(false)
+  }
 }
 
   return (
@@ -696,18 +836,17 @@ return
 </section>
 
     <section>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-black">Meine Pläne</h2>
+<div className="mb-4 flex items-center justify-between gap-3">
+  <h2 className="text-2xl font-black tracking-tight">Meine Pläne</h2>
 
-{plans.length === 0 && (
   <button
-    onClick={() => setShowCreatePlan(true)}
-    className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,0.35)] active:scale-95"
+    type="button"
+    onClick={() => router.push("/performance/strength/plans")}
+    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/70 shadow-lg active:scale-95"
   >
-    <Plus className="h-6 w-6" />
+    <ChevronRight className="h-5 w-5" />
   </button>
-)}
-      </div>
+</div>
 
 <div className="space-y-3">
   {plans.map((plan) => (
@@ -826,13 +965,45 @@ return
                 />
               </div>
 
-              <button
-                onClick={createPlan}
-                className="mt-8 flex w-full items-center justify-center gap-2 rounded-[28px] border border-dashed border-emerald-400/40 bg-emerald-400/10 py-5 text-lg font-bold text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.15)] active:scale-[0.98]"
-              >
+<button
+  onClick={createPlan}
+  disabled={saving}
+  className="mt-8 flex w-full items-center justify-center gap-2 rounded-[28px] border border-dashed border-emerald-400/40 bg-emerald-400/10 py-5 text-lg font-bold text-emerald-300 shadow-[0_0_28px_rgba(52,211,153,0.15)] active:scale-[0.98] disabled:opacity-50"
+>
                 <Plus className="h-5 w-5" />
                 Plan erstellen
               </button>
+              <button
+  type="button"
+  onClick={() => setShowImportPlan(!showImportPlan)}
+  className="mt-6 w-full text-center text-sm font-black text-emerald-300 active:scale-[0.98]"
+>
+  Plan importieren
+</button>
+
+{showImportPlan && (
+  <div className="mt-4 rounded-[28px] border border-emerald-400/15 bg-emerald-400/[0.06] p-4 text-left">
+    <p className="mb-3 text-sm font-black text-white">
+      Share-Code einfügen
+    </p>
+
+    <input
+      value={importCode}
+      onChange={(e) => setImportCode(e.target.value.toUpperCase())}
+      placeholder="z.B. CG-8K2LM9QA"
+      className="w-full rounded-[22px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold uppercase tracking-wider outline-none placeholder:text-white/25"
+    />
+
+<button
+  type="button"
+  onClick={importPlanFromCode}
+  disabled={saving}
+  className="mt-3 flex w-full items-center justify-center gap-2 rounded-[22px] bg-white py-4 font-black text-black active:scale-[0.98] disabled:opacity-50"
+>
+      Plan importieren
+    </button>
+  </div>
+)}
             </section>
           </div>
         </div>

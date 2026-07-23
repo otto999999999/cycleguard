@@ -64,6 +64,41 @@ const [openCycleId, setOpenCycleId] = useState<string | null>(null)
     setData(json)
     setLoading(false)
   }
+const confirmUserEmail = async () => {
+  if (!data?.authUser?.id) return
+
+  if (!confirm("E-Mail dieses Users wirklich bestätigen?")) return
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+
+  if (!session?.access_token) {
+    alert("Nicht eingeloggt.")
+    return
+  }
+
+  const res = await fetch("/api/admin/confirm-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({
+      userId: data.authUser.id,
+    }),
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    alert(json.error || "Konnte E-Mail nicht bestätigen.")
+    return
+  }
+
+  alert("E-Mail bestätigt.")
+  await loadUser()
+}
 
   const recentLogs = useMemo(() => {
     return data?.substances?.doses?.slice(0, 30) || []
@@ -366,6 +401,8 @@ const entriesById = new Map<string, any>(
     }
   })
 
+
+
   const dayEntries = allEntries
     .filter((entry: any) => entry.training_day_id === workoutDay.id)
     .sort((a: any, b: any) => {
@@ -631,7 +668,25 @@ const getWorkoutVolume = (workoutId: string) => {
             <InfoCard title="Rolle" value={profile?.role || "normal"} />
             <InfoCard title="Erstellt" value={user?.created_at ? new Date(user.created_at).toLocaleString("de-DE") : "Unbekannt"} />
             <InfoCard title="Letzter Login" value={user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString("de-DE") : "Noch nie"} />
-            <InfoCard title="E-Mail bestätigt" value={user?.email_confirmed_at ? "Ja" : "Nein"} />
+            <div className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+  <p className="text-xs font-black uppercase tracking-[0.18em] text-white/35">
+    E-Mail bestätigt
+  </p>
+
+  <p className="mt-2 break-all font-bold text-white/80">
+    {user?.email_confirmed_at ? "Ja" : "Nein"}
+  </p>
+
+  {!user?.email_confirmed_at && (
+    <button
+      type="button"
+      onClick={confirmUserEmail}
+      className="mt-4 flex w-full items-center justify-center rounded-[20px] bg-yellow-300 py-3 text-sm font-black text-black active:scale-[0.98]"
+    >
+      E-Mail bestätigen
+    </button>
+  )}
+</div>
             <InfoCard title="Push Geräte" value={String(stats.pushDevices)} />
           </section>
         )}

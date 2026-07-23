@@ -25,7 +25,8 @@ import {
   Search,
   Trash2,
   X,
-  
+  Share2,
+Copy,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -104,7 +105,9 @@ export default function StrengthPlanPage() {
   const params = useParams()
   const router = useRouter()
   const planId = params.id as string
-
+const [showShareModal, setShowShareModal] = useState(false)
+const [shareCode, setShareCode] = useState("")
+const [generatingShareCode, setGeneratingShareCode] = useState(false)
   const [plan, setPlan] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 const [showDeletePlanModal, setShowDeletePlanModal] = useState(false)
@@ -174,6 +177,90 @@ const handleExerciseDragEnd = async (dayId: string, event: any) => {
 }
 const isSecondsExercise = (exercise: any) => {
   return exercise?.tracking_type === "seconds"
+}
+
+const generateShareCodeText = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+  let code = "CG-"
+
+  for (let i = 0; i < 8; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)]
+  }
+
+  return code
+}
+
+const createShareCode = async () => {
+  if (!plan?.id) return
+
+  try {
+    setGeneratingShareCode(true)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.replace("/login")
+      return
+    }
+
+    const code = generateShareCodeText()
+
+const snapshot = {
+  version: 1,
+  plan: {
+    name: plan.name,
+  },
+  trainingDays: trainingDays.map((day: any) => {
+    const orderedExercises = getExercisesForDay(day.id)
+
+    return {
+      name: day.name,
+      weekdays: day.weekdays || [],
+      exercises: orderedExercises.map((entry: any, index: number) => ({
+        exercise_id: entry.exercise_id,
+        exercise_name: entry.exercise_library?.name || "Übung",
+        category: entry.exercise_library?.category || "",
+        muscle_group: entry.exercise_library?.muscle_group || "",
+        tracking_type:
+          entry.tracking_type ||
+          entry.exercise_library?.tracking_type ||
+          "reps",
+        sets: entry.sets || 3,
+        reps: entry.reps || 10,
+        warmup_sets: entry.warmup_sets || 0,
+
+        // Wichtig: sichtbare Reihenfolge neu speichern
+        position: index,
+      })),
+    }
+  }),
+}
+
+    const { error } = await supabase.from("training_plan_share_codes").insert({
+      code,
+      user_id: user.id,
+      plan_id: plan.id,
+      snapshot,
+    })
+
+    if (error) throw error
+
+    setShareCode(code)
+    setShowShareModal(true)
+  } catch (error: any) {
+    alert(error.message || "Share-Code konnte nicht erstellt werden.")
+  } finally {
+    setGeneratingShareCode(false)
+  }
+}
+
+const copyShareCode = async () => {
+  if (!shareCode) return
+
+  await navigator.clipboard.writeText(shareCode)
+  alert("Code kopiert.")
 }
 
 const getRepsSetupLabel = (exercise: any) => {
@@ -510,23 +597,32 @@ return
         <div className="absolute bottom-[-120px] right-[-80px] h-[340px] w-[340px] rounded-full bg-emerald-500/15 blur-[140px]" />
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
-          <Link
-            href="/performance/strength"
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] active:scale-95"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </Link>
+<header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
+  <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-4">
+    <button
+      type="button"
+      onClick={() => router.back()}
+      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] active:scale-95"
+    >
+      <ChevronLeft className="h-5 w-5" />
+    </button>
 
-          <h1 className="max-w-[230px] truncate text-center text-xl font-black">
-            {plan?.name}
-          </h1>
+    <div className="min-w-0 flex-1 px-4 text-center">
+      <h1 className="truncate text-xl font-black tracking-tight">
+        {plan?.name || "Trainingsplan"}
+      </h1>
+    </div>
 
-<div className="h-10 w-10" />
-        </div>
-
-      </header>
+    <button
+      type="button"
+      onClick={createShareCode}
+      disabled={generatingShareCode}
+      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300 active:scale-95 disabled:opacity-50"
+    >
+      <Share2 className="h-5 w-5" />
+    </button>
+  </div>
+</header>
 
       <main className="mx-auto max-w-lg px-5 pt-8 animate-in fade-in duration-500">
         {trainingDays.length === 0 ? (
@@ -1076,6 +1172,55 @@ return
           Löschen
         </button>
       </div>
+    </div>
+  </div>
+)}
+{showShareModal && (
+  <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="w-full max-w-md rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 shadow-2xl shadow-black/50">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-300">
+            <Share2 className="h-3.5 w-3.5" />
+            Teilen
+          </div>
+
+          <h2 className="text-2xl font-black tracking-tight">
+            Plan-Code erstellt
+          </h2>
+
+          <p className="mt-1 text-sm text-muted-foreground">
+            Diesen Code kann man später beim Import eingeben, um den Trainingsplan zu kopieren.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowShareModal(false)}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <div className="rounded-[26px] border border-emerald-400/20 bg-emerald-400/10 p-5 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-300">
+          Share Code
+        </p>
+
+        <p className="mt-3 text-3xl font-black tracking-widest text-white">
+          {shareCode}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={copyShareCode}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[22px] bg-emerald-400 py-4 font-black text-black shadow-[0_0_24px_rgba(52,211,153,0.20)] active:scale-[0.98]"
+      >
+        <Copy className="h-5 w-5" />
+        Code kopieren
+      </button>
     </div>
   </div>
 )}

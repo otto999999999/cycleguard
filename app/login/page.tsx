@@ -24,6 +24,8 @@ export default function LoginPage() {
     }
   }, [])
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -42,27 +44,43 @@ export default function LoginPage() {
         return
       }
 
-      const inviteRes = await fetch("/api/check-invite", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ inviteCode }),
-      })
+const inviteRes = await fetch("/api/check-invite", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ inviteCode }),
+})
 
-      const inviteResult = await inviteRes.json()
+const inviteResult = await inviteRes.json()
 
-      if (!inviteRes.ok || !inviteResult.ok) {
-        throw new Error(inviteResult.message || "Falscher Invite-Code")
-      }
+if (!inviteRes.ok || !inviteResult.ok) {
+  throw new Error(inviteResult.message || "Falscher Invite-Code")
+}
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: "https://cycleguard.xyz/login?confirmed=true",
-        },
-      })
+const emailCheckRes = await fetch("/api/auth/check-email", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email,
+  }),
+})
+
+const emailCheck = await emailCheckRes.json()
+
+if (emailCheck.exists) {
+  throw new Error("Diese E-Mail ist bereits registriert. Bitte logge dich ein.")
+}
+
+const { error } = await supabase.auth.signUp({
+  email,
+  password,
+  options: {
+    emailRedirectTo: "https://cycleguard.xyz/login?confirmed=true",
+  },
+})
 
       if (error) throw error
 
