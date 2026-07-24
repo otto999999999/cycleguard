@@ -1125,47 +1125,87 @@ useEffect(() => {
             className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold outline-none placeholder:text-white/25"
           />
 
-          <input
-            value={mealForm.calories}
-            onChange={(e) =>
-              setMealForm((prev) => ({ ...prev, calories: e.target.value }))
-            }
-            placeholder="Kalorien"
-            inputMode="decimal"
-            className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold outline-none placeholder:text-white/25"
-          />
+<div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-4">
+  <span className="mr-3 shrink-0 text-sm font-black text-orange-300">
+    KCAL:
+  </span>
 
-          <div className="grid grid-cols-3 gap-3">
-            <input
-              value={mealForm.protein}
-              onChange={(e) =>
-                setMealForm((prev) => ({ ...prev, protein: e.target.value }))
-              }
-              placeholder="Protein"
-              inputMode="decimal"
-              className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold outline-none placeholder:text-white/25"
-            />
+  <input
+    value={mealForm.calories}
+    onChange={(e) =>
+      setMealForm((prev) => ({ ...prev, calories: e.target.value }))
+    }
+    placeholder="0"
+    inputMode="decimal"
+    className="w-full bg-transparent py-4 text-sm font-bold outline-none placeholder:text-white/25"
+  />
 
-            <input
-              value={mealForm.carbs}
-              onChange={(e) =>
-                setMealForm((prev) => ({ ...prev, carbs: e.target.value }))
-              }
-              placeholder="Carbs"
-              inputMode="decimal"
-              className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold outline-none placeholder:text-white/25"
-            />
+  <span className="ml-2 shrink-0 text-xs font-black text-white/35">
+    kcal
+  </span>
+</div>
 
-            <input
-              value={mealForm.fat}
-              onChange={(e) =>
-                setMealForm((prev) => ({ ...prev, fat: e.target.value }))
-              }
-              placeholder="Fett"
-              inputMode="decimal"
-              className="w-full rounded-[20px] border border-white/10 bg-black/30 px-4 py-4 text-sm font-bold outline-none placeholder:text-white/25"
-            />
-          </div>
+<div className="grid grid-cols-3 gap-3">
+  <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
+    <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
+      P:
+    </span>
+
+    <input
+      value={mealForm.protein}
+      onChange={(e) =>
+        setMealForm((prev) => ({ ...prev, protein: e.target.value }))
+      }
+      placeholder="0"
+      inputMode="decimal"
+      className="min-w-0 w-full bg-transparent py-4 text-sm font-bold outline-none placeholder:text-white/25"
+    />
+
+    <span className="ml-1 shrink-0 text-xs font-black text-white/35">
+      g
+    </span>
+  </div>
+
+  <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
+    <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
+      C:
+    </span>
+
+    <input
+      value={mealForm.carbs}
+      onChange={(e) =>
+        setMealForm((prev) => ({ ...prev, carbs: e.target.value }))
+      }
+      placeholder="0"
+      inputMode="decimal"
+      className="min-w-0 w-full bg-transparent py-4 text-sm font-bold outline-none placeholder:text-white/25"
+    />
+
+    <span className="ml-1 shrink-0 text-xs font-black text-white/35">
+      g
+    </span>
+  </div>
+
+  <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
+    <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
+      F:
+    </span>
+
+    <input
+      value={mealForm.fat}
+      onChange={(e) =>
+        setMealForm((prev) => ({ ...prev, fat: e.target.value }))
+      }
+      placeholder="0"
+      inputMode="decimal"
+      className="min-w-0 w-full bg-transparent py-4 text-sm font-bold outline-none placeholder:text-white/25"
+    />
+
+    <span className="ml-1 shrink-0 text-xs font-black text-white/35">
+      g
+    </span>
+  </div>
+</div>
 
           <button
             type="button"
