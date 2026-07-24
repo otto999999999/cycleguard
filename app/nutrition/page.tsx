@@ -1,12 +1,9 @@
 "use client"
-declare global {
-  interface Window {
-    BarcodeDetector?: any
-  }
-}
+
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
-import { useEffect, useMemo, useState } from "react"
+import { BrowserMultiFormatReader } from "@zxing/browser"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   ChevronLeft,
@@ -65,7 +62,14 @@ const [goals, setGoals] = useState<any>(null)
 const [logs, setLogs] = useState<any[]>([])
 const [waterLogs, setWaterLogs] = useState<any[]>([])
 const [loading, setLoading] = useState(true)
+const videoRef = useRef<HTMLVideoElement | null>(null)
+const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null)
+const scannerControlsRef = useRef<any>(null)
 
+const [scanning, setScanning] = useState(false)
+const [scannerMessage, setScannerMessage] = useState("")
+const [scannedProduct, setScannedProduct] = useState<any>(null)
+const [servingGrams, setServingGrams] = useState("100")
 const [showAddMeal, setShowAddMeal] = useState(false)
 const [saving, setSaving] = useState(false)
 const [showSettings, setShowSettings] = useState(false)
@@ -90,9 +94,8 @@ const [mealForm, setMealForm] = useState({
   carbs: "",
   fat: "",
 })
-const [scanning, setScanning] = useState(false)
-const [scannerMessage, setScannerMessage] = useState("")
-const [scannedCode, setScannedCode] = useState("")
+
+
 const calorieGoal = Number(goals?.calories || 2300)
 const proteinGoal = Number(goals?.protein || 210)
 const fatGoal = Number(goals?.fat || 70)
@@ -313,7 +316,9 @@ const addMeal = async () => {
       carbs: "",
       fat: "",
     })
-
+setScannedProduct(null)
+setServingGrams("100")
+setScannerMessage("")
     setShowAddMeal(false)
     await loadNutritionData()
   } catch (error: any) {
@@ -322,121 +327,8 @@ const addMeal = async () => {
     setSaving(false)
   }
 }
-const fillMealFromBarcode = async (barcode: string) => {
-  try {
-    setScannerMessage("Produkt wird gesucht...")
 
-    const res = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`
-    )
 
-    const data = await res.json()
-
-    if (!data?.product) {
-      setScannerMessage("Produkt nicht gefunden. Bitte manuell eintragen.")
-      return
-    }
-
-    const product = data.product
-    const nutriments = product.nutriments || {}
-
-    const name =
-      product.product_name_de ||
-      product.product_name ||
-      product.generic_name ||
-      `Barcode ${barcode}`
-
-    setMealForm({
-      name,
-      calories: String(
-        Math.round(
-          Number(
-            nutriments["energy-kcal_100g"] ||
-              nutriments["energy-kcal"] ||
-              0
-          )
-        )
-      ),
-      protein: String(Number(nutriments.proteins_100g || 0)),
-      carbs: String(Number(nutriments.carbohydrates_100g || 0)),
-      fat: String(Number(nutriments.fat_100g || 0)),
-    })
-
-    setMealAddMode("manual")
-    setScannerMessage("Produkt gefunden. Werte prüfen und speichern.")
-  } catch (error: any) {
-    setScannerMessage("Produkt konnte nicht geladen werden.")
-  }
-}
-const startBarcodeScanner = async () => {
-  setScannerMessage("")
-  setScannedCode("")
-
-  if (!navigator.mediaDevices?.getUserMedia) {
-    setScannerMessage("Kamera wird in diesem Browser nicht unterstützt.")
-    return
-  }
-
-  if (!window.BarcodeDetector) {
-    setScannerMessage(
-      "Barcode Scanner wird in diesem Browser nicht unterstützt. Bitte manuell eintragen."
-    )
-    return
-  }
-
-  try {
-    setScanning(true)
-    setScannerMessage("Kamera wird geöffnet...")
-
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: "environment",
-      },
-    })
-
-    const video = document.createElement("video")
-    video.srcObject = stream
-    video.setAttribute("playsinline", "true")
-    await video.play()
-
-    const detector = new window.BarcodeDetector({
-      formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"],
-    })
-
-    let stopped = false
-
-    const stopScanner = () => {
-      stopped = true
-      stream.getTracks().forEach((track) => track.stop())
-      setScanning(false)
-    }
-
-    setScannerMessage("Barcode vor die Kamera halten...")
-
-    const scanLoop = async () => {
-      if (stopped) return
-
-      try {
-        const barcodes = await detector.detect(video)
-
-        if (barcodes.length > 0) {
-          const code = barcodes[0].rawValue
-          setScannedCode(code)
-          stopScanner()
-          await fillMealFromBarcode(code)
-          return
-        }
-      } catch {}
-
-      requestAnimationFrame(scanLoop)
-    }
-
-    scanLoop()
-  } catch (error: any) {
-    setScanning(false)
-    setScannerMessage("Kamera konnte nicht geöffnet werden.")
-  }
-}
 const deleteMeal = async (id: string) => {
   if (!confirm("Mahlzeit löschen?")) return
 
@@ -563,6 +455,113 @@ const payload = {
     setSaving(false)
   }
 }
+
+const applyProductWithGrams = (product: any, gramsValue: string) => {
+  const grams = parseNumber(gramsValue || "100")
+  const factor = grams > 0 ? grams / 100 : 1
+  const nutriments = product?.nutriments || {}
+
+  const kcal100 = Number(nutriments["energy-kcal_100g"] || 0)
+  const protein100 = Number(nutriments.proteins_100g || 0)
+  const carbs100 = Number(nutriments.carbohydrates_100g || 0)
+  const fat100 = Number(nutriments.fat_100g || 0)
+
+  const name =
+    product.product_name_de ||
+    product.product_name ||
+    product.generic_name ||
+    "Gescanntes Produkt"
+
+  setMealForm({
+    name,
+    calories: String(Math.round(kcal100 * factor)),
+    protein: String(Number((protein100 * factor).toFixed(1))),
+    carbs: String(Number((carbs100 * factor).toFixed(1))),
+    fat: String(Number((fat100 * factor).toFixed(1))),
+  })
+}
+
+const loadProductFromBarcode = async (barcode: string) => {
+  try {
+    setScannerMessage("Produkt wird gesucht...")
+
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,product_name_de,generic_name,nutriments,brands,image_front_url`
+    )
+
+    const data = await res.json()
+
+    if (!data?.product) {
+      setScannerMessage("Produkt nicht gefunden. Bitte manuell eintragen.")
+      return
+    }
+
+    setScannedProduct(data.product)
+    applyProductWithGrams(data.product, servingGrams)
+    setMealAddMode("manual")
+    setScannerMessage("Produkt gefunden. Gramm prüfen und speichern.")
+  } catch (error: any) {
+    setScannerMessage("Produkt konnte nicht geladen werden.")
+  }
+}
+
+
+
+const stopScanner = () => {
+  try {
+    scannerControlsRef.current?.stop()
+  } catch {}
+
+  scannerControlsRef.current = null
+  setScanning(false)
+}
+
+
+const startBarcodeScanner = async () => {
+  setScannerMessage("")
+  setScannedProduct(null)
+
+  if (!videoRef.current) {
+    setScannerMessage("Video konnte nicht gestartet werden.")
+    return
+  }
+
+  try {
+    setScanning(true)
+    setScannerMessage("Kamera wird geöffnet...")
+
+    const codeReader = new BrowserMultiFormatReader()
+    codeReaderRef.current = codeReader
+
+    const controls = await codeReader.decodeFromVideoDevice(
+      undefined,
+      videoRef.current,
+      async (result) => {
+        if (!result) return
+
+        const barcode = result.getText()
+
+        stopScanner()
+        setScannerMessage(`Barcode erkannt: ${barcode}`)
+
+        await loadProductFromBarcode(barcode)
+      }
+    )
+
+    scannerControlsRef.current = controls
+    setScannerMessage("Barcode vor die Kamera halten...")
+  } catch (error: any) {
+    setScanning(false)
+    setScannerMessage("Kamera konnte nicht geöffnet werden. Prüfe Browser-Rechte.")
+  }
+}
+
+useEffect(() => {
+  return () => {
+    stopScanner()
+  }
+}, [])
+
 
   return (
     <div className="min-h-screen bg-[#050505] pb-28 text-white">
@@ -896,7 +895,13 @@ const payload = {
 
   <button
     type="button"
-    onClick={() => setShowAddMeal(true)}
+    onClick={() => {
+  setMealAddMode("manual")
+  setScannerMessage("")
+  setScannedProduct(null)
+  setServingGrams("100")
+  setShowAddMeal(true)
+}}
     className="flex w-full items-center justify-center gap-2 rounded-[22px] border border-orange-400/30 bg-orange-400/10 py-4 font-black text-orange-300 active:scale-[0.98]"
   >
     <Plus className="h-5 w-5" />
@@ -974,7 +979,10 @@ const payload = {
 
         <button
           type="button"
-          onClick={() => setShowAddMeal(false)}
+          onClick={() => {
+  stopScanner()
+  setShowAddMeal(false)
+}}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/60 active:scale-95"
         >
           <X className="h-5 w-5" />
@@ -996,7 +1004,10 @@ const payload = {
 
         <button
           type="button"
-          onClick={() => setMealAddMode("manual")}
+          onClick={() => {
+  stopScanner()
+  setMealAddMode("manual")
+}}
           className={`rounded-[18px] py-3 text-sm font-black transition ${
             mealAddMode === "manual"
               ? "bg-orange-400 text-black shadow-[0_0_20px_rgba(251,146,60,0.20)]"
@@ -1008,51 +1019,105 @@ const payload = {
       </div>
 
 {mealAddMode === "barcode" ? (
-  <div className="rounded-[28px] border border-orange-400/15 bg-orange-400/[0.06] p-5 text-center">
-    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] border border-orange-400/20 bg-orange-400/10 text-3xl">
-      ▦
+  <div className="space-y-4">
+    <div className="overflow-hidden rounded-[28px] border border-orange-400/15 bg-black">
+      <video
+        ref={videoRef}
+        className="h-[260px] w-full object-cover"
+        muted
+        playsInline
+      />
     </div>
 
-    <p className="font-black">Barcode Scanner</p>
+    <div className="rounded-[24px] border border-orange-400/15 bg-orange-400/[0.06] p-4 text-center">
+      <p className="font-black">Barcode Scanner</p>
 
-    <p className="mx-auto mt-2 max-w-[300px] text-sm leading-6 text-muted-foreground">
-      Scanne den Barcode eines Produkts. Die Nährwerte werden automatisch übernommen.
-    </p>
+      <p className="mx-auto mt-2 max-w-[300px] text-sm leading-6 text-muted-foreground">
+        Halte den Barcode vom Produkt in die Kamera. Danach kannst du die Grammzahl anpassen.
+      </p>
 
-    {scannerMessage && (
-      <div className="mt-4 rounded-[18px] border border-white/10 bg-black/25 p-3 text-sm font-bold text-orange-300">
-        {scannerMessage}
+      {scannerMessage && (
+        <div className="mt-4 rounded-[18px] border border-white/10 bg-black/25 p-3 text-sm font-bold text-orange-300">
+          {scannerMessage}
+        </div>
+      )}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={startBarcodeScanner}
+          disabled={scanning}
+          className="flex-1 rounded-[20px] bg-orange-400 py-4 font-black text-black active:scale-[0.98] disabled:opacity-50"
+        >
+          {scanning ? "Scan läuft..." : "Scanner starten"}
+        </button>
+
+        {scanning && (
+          <button
+            type="button"
+            onClick={stopScanner}
+            className="rounded-[20px] border border-red-400/20 bg-red-500/10 px-4 font-black text-red-300 active:scale-[0.98]"
+          >
+            Stop
+          </button>
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => {
+  stopScanner()
+  setMealAddMode("manual")
+}}
+        className="mt-3 w-full rounded-[20px] border border-white/10 bg-white/[0.04] py-4 font-black text-white/70 active:scale-[0.98]"
+      >
+        Manuell eintragen
+      </button>
+    </div>
+  </div>
+
+      
+) : (
+  <div className="space-y-3">
+    {scannedProduct && (
+      <div className="rounded-[24px] border border-orange-400/15 bg-orange-400/[0.06] p-4">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-orange-300">
+          Gescanntes Produkt
+        </p>
+
+        <p className="mt-1 font-black">
+          {scannedProduct.product_name_de ||
+            scannedProduct.product_name ||
+            "Produkt"}
+        </p>
+
+        <div className="mt-4 flex items-end gap-3">
+          <div className="flex-1">
+            <label className="text-xs font-black uppercase tracking-[0.14em] text-white/35">
+              Menge
+            </label>
+
+            <input
+              value={servingGrams}
+              onChange={(e) => {
+                setServingGrams(e.target.value)
+                applyProductWithGrams(scannedProduct, e.target.value)
+              }}
+              inputMode="decimal"
+              placeholder="100"
+              className="mt-2 w-full rounded-[18px] border border-white/10 bg-black/30 px-4 py-3 text-xl font-black outline-none placeholder:text-white/20"
+            />
+          </div>
+
+          <span className="pb-4 text-sm font-black text-orange-300">
+            g
+          </span>
+        </div>
       </div>
     )}
 
-    {scannedCode && (
-      <p className="mt-3 text-xs text-muted-foreground">
-        Code: {scannedCode}
-      </p>
-    )}
-
-    <button
-      type="button"
-      onClick={startBarcodeScanner}
-      disabled={scanning}
-      className="mt-5 flex w-full items-center justify-center rounded-[22px] bg-orange-400 py-4 font-black text-black active:scale-[0.98] disabled:opacity-50"
-    >
-      {scanning ? "Scan läuft..." : "Scanner starten"}
-    </button>
-
-    <button
-      type="button"
-      onClick={() => setMealAddMode("manual")}
-      className="mt-3 flex w-full items-center justify-center rounded-[22px] border border-white/10 bg-white/[0.04] py-4 font-black text-white/70 active:scale-[0.98]"
-    >
-      Manuell eintragen
-    </button>
-  </div>
-) : (
-      
-        <div className="space-y-3">
-          <input
-            value={mealForm.name}
+    <input
+      value={mealForm.name}
             onChange={(e) =>
               setMealForm((prev) => ({ ...prev, name: e.target.value }))
             }
