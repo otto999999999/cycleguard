@@ -39,7 +39,7 @@ className:
     iconClass: "bg-orange-400/12 text-orange-300",
     badgeClass: "border-orange-400/20 bg-orange-400/10 text-orange-300",
     badge: "Coming Soon",
-    disabled: true,
+    disabled: false,
   },
   {
     title: "Pflege",
