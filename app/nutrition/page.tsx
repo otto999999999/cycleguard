@@ -2,6 +2,10 @@
 
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import {
+  enablePushNotifications,
+  disablePushNotifications,
+} from "@/lib/push-notifications"
 import { BrowserMultiFormatReader } from "@zxing/browser"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
@@ -414,6 +418,47 @@ const openSettings = () => {
 })
 
   setShowSettings(true)
+}
+
+const toggleWaterReminders = async () => {
+  const shouldEnable = !settingsForm.water_reminders_enabled
+
+  if (!shouldEnable) {
+    try {
+      await disablePushNotifications()
+
+      setSettingsForm((prev) => ({
+        ...prev,
+        water_reminders_enabled: false,
+      }))
+    } catch (error: any) {
+      alert(
+        error.message ||
+          "Push-Benachrichtigungen konnten nicht deaktiviert werden."
+      )
+    }
+
+    return
+  }
+
+  try {
+    await enablePushNotifications()
+
+    setSettingsForm((prev) => ({
+      ...prev,
+      water_reminders_enabled: true,
+    }))
+  } catch (error: any) {
+    setSettingsForm((prev) => ({
+      ...prev,
+      water_reminders_enabled: false,
+    }))
+
+    alert(
+      error.message ||
+        "Push-Benachrichtigungen konnten nicht aktiviert werden."
+    )
+  }
 }
 
 const saveSettings = async () => {
@@ -1390,12 +1435,7 @@ useEffect(() => {
 
               <button
                 type="button"
-                onClick={() =>
-                  setSettingsForm((prev) => ({
-                    ...prev,
-                    water_reminders_enabled: !prev.water_reminders_enabled,
-                  }))
-                }
+                onClick={toggleWaterReminders}
                 className={`relative flex h-9 w-[62px] shrink-0 items-center rounded-full border p-1 transition ${
                   settingsForm.water_reminders_enabled
                     ? "border-orange-400/40 bg-orange-400/90 shadow-[0_0_18px_rgba(251,146,60,0.25)]"
