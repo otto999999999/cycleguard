@@ -284,6 +284,26 @@ useEffect(() => {
   loadNutritionData()
 }, [selectedDateKey])
 
+useEffect(() => {
+  const modalOpen =
+    showAddMeal || showSettings || showCustomWater
+
+  if (!modalOpen) return
+
+  const previousOverflow = document.body.style.overflow
+  const previousOverscrollBehavior =
+    document.body.style.overscrollBehavior
+
+  document.body.style.overflow = "hidden"
+  document.body.style.overscrollBehavior = "none"
+
+  return () => {
+    document.body.style.overflow = previousOverflow
+    document.body.style.overscrollBehavior =
+      previousOverscrollBehavior
+  }
+}, [showAddMeal, showSettings, showCustomWater])
+
 const addMeal = async () => {
   if (!userId) return
 
@@ -607,6 +627,25 @@ useEffect(() => {
   }
 }, [])
 
+useEffect(() => {
+  const modalOpen =
+    showAddMeal || showSettings || showCustomWater
+
+  if (!modalOpen) return
+
+  const previousOverflow = document.body.style.overflow
+  const previousOverscrollBehavior =
+    document.body.style.overscrollBehavior
+
+  document.body.style.overflow = "hidden"
+  document.body.style.overscrollBehavior = "none"
+
+  return () => {
+    document.body.style.overflow = previousOverflow
+    document.body.style.overscrollBehavior =
+      previousOverscrollBehavior
+  }
+}, [showAddMeal, showSettings, showCustomWater])
 
   return (
     <div className="min-h-screen bg-[#050505] pb-28 text-white">
@@ -1005,8 +1044,8 @@ useEffect(() => {
         </section>
       </main>
 {showAddMeal && (
-  <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
-    <div className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 pb-6 shadow-2xl shadow-black/50 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <div className="fixed inset-0 z-[120] flex items-end justify-center overscroll-none bg-black/80 px-4 pb-4 backdrop-blur-md sm:items-center sm:p-6">
+    <div className="max-h-[92dvh] w-full max-w-md touch-pan-y overflow-y-auto overscroll-contain rounded-[34px] border border-white/10 bg-gradient-to-b from-[#111111] to-[#070707] p-5 pb-6 shadow-2xl shadow-black/50 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-3 py-1 text-xs font-black text-orange-300">
