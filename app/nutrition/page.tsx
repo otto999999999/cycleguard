@@ -304,6 +304,22 @@ useEffect(() => {
   }
 }, [showAddMeal, showSettings, showCustomWater])
 
+const useRecentMeal = (log: any) => {
+  stopScanner()
+  setMealAddMode("manual")
+  setScannedProduct(null)
+  setServingGrams("100")
+  setScannerMessage("")
+
+  setMealForm({
+    name: String(log.name ?? ""),
+    calories: String(log.calories ?? ""),
+    protein: String(log.protein ?? ""),
+    carbs: String(log.carbs ?? ""),
+    fat: String(log.fat ?? ""),
+  })
+}
+
 const addMeal = async () => {
   if (!userId) return
 
@@ -480,6 +496,8 @@ const toggleWaterReminders = async () => {
     )
   }
 }
+
+
 
 const saveSettings = async () => {
   if (!userId) return
@@ -1211,7 +1229,7 @@ useEffect(() => {
 
 <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-4">
   <span className="mr-3 shrink-0 text-sm font-black text-orange-300">
-    KCAL:
+    KCAL:&nbsp;
   </span>
 
   <input
@@ -1232,7 +1250,7 @@ useEffect(() => {
 <div className="grid grid-cols-3 gap-3">
   <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
     <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
-      P:
+      P:&nbsp;
     </span>
 
     <input
@@ -1252,7 +1270,7 @@ useEffect(() => {
 
   <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
     <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
-      C:
+      C:&nbsp;
     </span>
 
     <input
@@ -1272,7 +1290,7 @@ useEffect(() => {
 
   <div className="flex items-center rounded-[20px] border border-white/10 bg-black/30 px-3">
     <span className="mr-2 shrink-0 text-sm font-black text-orange-300">
-      F:
+      F:&nbsp;
     </span>
 
     <input
@@ -1317,29 +1335,31 @@ useEffect(() => {
           </div>
         ) : (
           <div className="space-y-2">
-            {logs.slice(0, 5).map((log) => (
-              <div
-                key={log.id}
-                className="rounded-[22px] border border-white/10 bg-white/[0.035] p-4"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-black">{log.name}</p>
+{logs.slice(0, 5).map((log) => (
+  <button
+    key={log.id}
+    type="button"
+    onClick={() => useRecentMeal(log)}
+    className="w-full rounded-[22px] border border-white/10 bg-white/[0.035] p-4 text-left transition hover:bg-white/[0.06] active:scale-[0.98]"
+  >
+    <div className="flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="truncate font-black">{log.name}</p>
 
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      P {log.protein || 0}g · C {log.carbs || 0}g · F {log.fat || 0}g
-                    </p>
-                  </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          P {log.protein || 0}g · C {log.carbs || 0}g · F {log.fat || 0}g
+        </p>
+      </div>
 
-                  <p className="shrink-0 text-lg font-black text-orange-300">
-                    {log.calories || 0}
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      kcal
-                    </span>
-                  </p>
-                </div>
-              </div>
-            ))}
+      <p className="shrink-0 text-lg font-black text-orange-300">
+        {log.calories || 0}
+        <span className="ml-1 text-xs text-muted-foreground">
+          kcal
+        </span>
+      </p>
+    </div>
+  </button>
+))}
           </div>
         )}
       </div>
