@@ -651,12 +651,12 @@ const deleteDoseFromCalendar = async (doseId: string) => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-foreground pb-32">
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-  <div className="absolute top-[-120px] left-[-80px] w-[320px] h-[320px] bg-emerald-500/10 rounded-full blur-3xl" />
+<div className="fixed inset-0 -z-10 overflow-hidden">
+  <div className="absolute top-[-120px] left-[-80px] h-[320px] w-[320px] rounded-full bg-red-500/10 blur-3xl" />
 
-  <div className="absolute top-[140px] right-[-100px] w-[260px] h-[260px] bg-blue-500/10 rounded-full blur-3xl" />
+  <div className="absolute right-[-100px] top-[140px] h-[260px] w-[260px] rounded-full bg-red-900/15 blur-3xl" />
 
-  <div className="absolute bottom-[-120px] left-[20%] w-[280px] h-[280px] bg-purple-500/10 rounded-full blur-3xl" />
+  <div className="absolute bottom-[-120px] left-[20%] h-[280px] w-[280px] rounded-full bg-rose-950/20 blur-3xl" />
 </div>
       <header className="sticky top-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-2xl">
         <div className="max-w-lg mx-auto px-5 py-4 flex items-center justify-between">

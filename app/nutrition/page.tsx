@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Droplets,
   Flame,
   Leaf,
   Pencil,
@@ -645,25 +644,6 @@ useEffect(() => {
   }
 }, [])
 
-useEffect(() => {
-  const modalOpen =
-    showAddMeal || showSettings || showCustomWater
-
-  if (!modalOpen) return
-
-  const previousOverflow = document.body.style.overflow
-  const previousOverscrollBehavior =
-    document.body.style.overscrollBehavior
-
-  document.body.style.overflow = "hidden"
-  document.body.style.overscrollBehavior = "none"
-
-  return () => {
-    document.body.style.overflow = previousOverflow
-    document.body.style.overscrollBehavior =
-      previousOverscrollBehavior
-  }
-}, [showAddMeal, showSettings, showCustomWater])
 
   return (
     <div className="min-h-screen bg-[#050505] pb-28 text-white">
@@ -1566,7 +1546,6 @@ useEffect(() => {
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-3 py-1 text-xs font-black text-orange-300">
-            <Droplets className="h-3.5 w-3.5" />
             Wasser
           </div>
 
@@ -1664,9 +1643,8 @@ function WaterButton({ label, onClick }: any) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center gap-2 rounded-[18px] border border-orange-400/20 bg-orange-400/10 px-2 py-3 text-xs font-black text-orange-300 active:scale-95"
+      className="flex items-center justify-center rounded-[18px] border border-orange-400/20 bg-orange-400/10 px-2 py-3 text-xs font-black text-orange-300 active:scale-95"
     >
-      <Droplets className="h-4 w-4" />
       {label}
     </button>
   )
