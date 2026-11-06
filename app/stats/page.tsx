@@ -5,7 +5,6 @@ import { BottomNav } from "@/components/bottom-nav"
 import { supabase } from "@/lib/supabase"
 import {
   calculateRemainingAmount,
-  getHoursPassed,
 } from "@/lib/halfLife"
 import {
   LineChart,
@@ -25,7 +24,10 @@ interface Compound {
 
 interface Dose {
   id: string
-  compound_id: string
+  compound_id?: string | null
+  name?: string
+  datum?: string
+  zeit?: string | null
   menge: number
   taken_at?: string | null
 }
@@ -44,6 +46,7 @@ export default function StatsPage() {
   const [fullscreenChart, setFullscreenChart] = useState(false)
   const [rangeHours, setRangeHours] = useState(168)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
 
 const currentValue =
@@ -76,10 +79,16 @@ const toggleCompound = (name: string) => {
 
   const loadStats = async () => {
     setLoading(true)
+    setError(null)
+
+    try {
 
     const {
       data: { session },
+      error: sessionError,
     } = await supabase.auth.getSession()
+
+    if (sessionError) throw sessionError
 
     if (!session) {
       setLevels([])
@@ -88,15 +97,37 @@ const toggleCompound = (name: string) => {
       return
     }
 
-    const { data: compounds } = await supabase
+    const { data: compounds, error: compoundsError } = await supabase
       .from("compounds")
       .select("*")
       .eq("user_id", session.user.id)
 
-    const { data: logs } = await supabase
+    const { data: logs, error: logsError } = await supabase
       .from("doses")
       .select("*")
       .eq("user_id", session.user.id)
+
+    if (compoundsError) throw compoundsError
+    if (logsError) throw logsError
+
+    const nowMs = Date.now()
+    const validLogs = ((logs || []) as Dose[]).flatMap((log) => {
+      // Older logs store the name and local date/time instead of an ID/timestamp.
+      const matches = (compounds || []).filter((c: Compound) => c.name === log.name)
+      const compound = log.compound_id
+        ? (compounds || []).find((c: Compound) => c.id === log.compound_id)
+        : matches.length === 1 ? matches[0] : undefined
+      const timestamp = log.taken_at || (
+        log.datum && log.zeit ? `${log.datum}T${log.zeit}` : null
+      )
+      const takenAt = timestamp ? new Date(timestamp).getTime() : NaN
+      const amount = Number(log.menge)
+      const halfLife = Number(compound?.half_life_hours)
+      if (!compound || !Number.isFinite(takenAt) || takenAt > nowMs ||
+          !Number.isFinite(amount) || amount <= 0 ||
+          !Number.isFinite(halfLife) || halfLife <= 0) return []
+      return [{ ...log, compound_id: compound.id, takenAt }]
+    })
 
     const activeMap: Record<
       string,
@@ -106,15 +137,13 @@ const toggleCompound = (name: string) => {
       }
     > = {}
 
-    for (const log of (logs || []) as Dose[]) {
+    for (const log of validLogs) {
       const compound = (compounds || []).find(
         (c: Compound) => c.id === log.compound_id
       )
 
       if (!compound?.half_life_hours) continue
-      if (!log.taken_at) continue
-
-      const hours = getHoursPassed(log.taken_at)
+      const hours = (nowMs - log.takenAt) / (1000 * 60 * 60)
 
       const remaining = calculateRemainingAmount(
         Number(log.menge),
@@ -145,9 +174,7 @@ const toggleCompound = (name: string) => {
     const points: any[] = []
 
     for (let i = rangeHours; i >= 0; i -= 2) {
-      const now = new Date()
-
-      now.setHours(now.getHours() - i)
+      const now = new Date(nowMs - i * 60 * 60 * 1000)
 
       const point: any = {
         time:
@@ -167,13 +194,12 @@ const toggleCompound = (name: string) => {
 
         let total = 0
 
-        for (const log of (logs || []) as Dose[]) {
+        for (const log of validLogs) {
           if (log.compound_id !== compound.id) continue
-          if (!log.taken_at) continue
 
           const hoursAgo =
             (new Date(now).getTime() -
-              new Date(log.taken_at).getTime()) /
+              log.takenAt) /
             (1000 * 60 * 60)
 
           if (hoursAgo < 0) continue
@@ -200,7 +226,12 @@ const toggleCompound = (name: string) => {
         second: "2-digit",
       })
     )
-    setLoading(false)
+    } catch (cause) {
+      console.error("Stats konnten nicht geladen werden", cause)
+      setError("Statistik konnte nicht geladen werden. Bitte erneut versuchen.")
+    } finally {
+      setLoading(false)
+    }
   }
     const chartColors = [
       "#34d399",
@@ -220,6 +251,11 @@ const toggleCompound = (name: string) => {
       </header>
 
       <div className="space-y-5 p-5">
+        {error && (
+          <div role="alert" className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+            {error}
+          </div>
+        )}
         <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-[#101010] to-[#080808] p-5 shadow-xl">
           <div className="mb-5">
             <p className="text-sm text-muted-foreground">
