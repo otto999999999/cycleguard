@@ -102,10 +102,35 @@ const toggleCompound = (name: string) => {
       .select("*")
       .eq("user_id", session.user.id)
 
-    const { data: logs, error: logsError } = await supabase
-      .from("doses")
-      .select("*")
-      .eq("user_id", session.user.id)
+// Alle Logs aus Supabase laden
+const logs: Dose[] = []
+const pageSize = 1000
+let offset = 0
+
+while (true) {
+  const { data, error } = await supabase
+    .from("doses")
+    .select("*")
+    .eq("user_id", session.user.id)
+    .order("taken_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(offset, offset + pageSize - 1)
+
+  if (error) {
+    console.error("Fehler beim Laden der Logs:", error)
+    throw error
+  }
+
+  if (!data || data.length === 0) break
+
+  logs.push(...(data as Dose[]))
+
+  if (data.length < pageSize) break
+
+  offset += pageSize
+}
+
+console.log("Stats: Alle Logs geladen:", logs.length)
 
     if (compoundsError) throw compoundsError
     if (logsError) throw logsError
