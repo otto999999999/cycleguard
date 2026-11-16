@@ -133,7 +133,7 @@ while (true) {
 console.log("Stats: Alle Logs geladen:", logs.length)
 
     if (compoundsError) throw compoundsError
-    if (logsError) throw logsError
+    
 
     const nowMs = Date.now()
     const validLogs = ((logs || []) as Dose[]).flatMap((log) => {
