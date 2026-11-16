@@ -1,9 +1,13 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 import {
   House,
+  Pencil,
+  Trash2,
+  AlertTriangle,
   CalendarDays,
   Package,
   X,
@@ -12,10 +16,12 @@ import {
 } from "lucide-react"
 
 type Vial = {
+  id: string
+  user_id: string
   name: string
-  vialSizeMg: number
+  vial_size_mg: number
   quantity: number
-  reconstitutionMl: number
+  reconstitution_ml: number
 }
 export default function PeptideInventoryPage() {
   const [showAddVial, setShowAddVial] = useState(false)
@@ -24,28 +30,176 @@ const [vialSize, setVialSize] = useState("")
 const [quantity, setQuantity] = useState("1")
 const [reconstitutionMl, setReconstitutionMl] = useState("")
 const [vials, setVials] = useState<Vial[]>([])
+const [loading, setLoading] = useState(true)
+const [saving, setSaving] = useState(false)
+const [editingVial, setEditingVial] = useState<Vial | null>(null)
+const [deletingId, setDeletingId] = useState<string | null>(null)
 
-const addVial = () => {
-  if (!peptideName.trim()) return
-  if (!vialSize || Number(vialSize) <= 0) return
-  if (!quantity || Number(quantity) <= 0) return
+useEffect(() => {
+  void loadVials()
+}, [])
 
-  const newVial: Vial = {
-    name: peptideName.trim(),
-    vialSizeMg: Number(vialSize),
-    quantity: Number(quantity),
-    reconstitutionMl: Number(reconstitutionMl || 0),
+const loadVials = async () => {
+  setLoading(true)
+
+  const { data: { user }, error: authError } =
+    await supabase.auth.getUser()
+
+  if (authError || !user) {
+    console.error("Nicht angemeldet:", authError)
+    setLoading(false)
+    return
   }
 
-  setVials((current) => [...current, newVial])
+  const { data, error } = await supabase
+    .from("peptide_inventory")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
 
-  setPeptideName("")
-  setVialSize("")
-  setQuantity("1")
-  setReconstitutionMl("")
+  if (error) {
+    console.error("Inventar laden fehlgeschlagen:", error)
+  } else {
+    setVials((data ?? []) as Vial[])
+  }
 
-  setShowAddVial(false)
+  setLoading(false)
 }
+
+const addVial = async () => {
+  if (saving || !peptideName.trim()) return
+
+  const size = Number(vialSize)
+  const count = Number(quantity)
+  const volume = Number(reconstitutionMl || 0)
+
+  if (!Number.isFinite(size) || size <= 0) return
+  if (!Number.isInteger(count) || count < 1) return
+  if (!Number.isFinite(volume) || volume < 0) return
+
+  setSaving(true)
+
+  try {
+    const { data: { user }, error: authError } =
+      await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error("Nicht angemeldet")
+    }
+
+    const { error } = await supabase
+      .from("peptide_inventory")
+      .insert({
+        user_id: user.id,
+        name: peptideName.trim(),
+        vial_size_mg: size,
+        quantity: count,
+        reconstitution_ml: volume,
+      })
+
+    if (error) throw error
+
+    await loadVials()
+
+    setPeptideName("")
+    setVialSize("")
+    setQuantity("1")
+    setReconstitutionMl("")
+    setShowAddVial(false)
+  } catch (error) {
+    console.error("Inventar speichern fehlgeschlagen:", error)
+    alert("Speichern fehlgeschlagen. Bitte Konsole prüfen.")
+  } finally {
+    setSaving(false)
+  }
+}
+
+
+const updateVial = async (id: string, updates: Partial<Vial>) => {
+  const { data: { user }, error: authError } =
+    await supabase.auth.getUser()
+
+  if (authError || !user) {
+    alert("Nicht angemeldet")
+    return false
+  }
+
+  const { error } = await supabase
+    .from("peptide_inventory")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", user.id)
+
+  if (error) {
+    console.error(error)
+    alert("Änderung fehlgeschlagen")
+    return false
+  }
+
+  await loadVials()
+  return true
+}
+
+const deleteVial = async (id: string) => {
+  if (deletingId) return
+
+  const confirmed = window.confirm(
+    "Diesen Inventareintrag wirklich löschen?"
+  )
+  if (!confirmed) return
+
+  setDeletingId(id)
+
+  try {
+    const { data: { user }, error: authError } =
+      await supabase.auth.getUser()
+
+    if (authError || !user) {
+      throw new Error("Nicht angemeldet")
+    }
+
+    const { error } = await supabase
+      .from("peptide_inventory")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+
+    if (error) throw error
+
+    await loadVials()
+  } catch (error) {
+    console.error(error)
+    alert("Löschen fehlgeschlagen")
+  } finally {
+    setDeletingId(null)
+  }
+}
+
+
+const getStockStatus = (quantity: number) => {
+  if (quantity === 0) {
+    return {
+      label: "Leer",
+      color: "text-red-400",
+      background: "bg-red-400/10 border-red-400/20",
+    }
+  }
+
+  if (quantity <= 2) {
+    return {
+      label: "Fast leer",
+      color: "text-orange-400",
+      background: "bg-orange-400/10 border-orange-400/20",
+    }
+  }
+
+  return {
+    label: "Auf Lager",
+    color: "text-emerald-400",
+    background: "bg-emerald-400/10 border-emerald-400/20",
+  }
+}
+
 
   return (
     <main className="min-h-screen bg-[#050505] pb-28 text-white">
@@ -102,45 +256,204 @@ const addVial = () => {
           </div>
         )}
 
-        {/* VIAL LIST */}
-        {vials.length > 0 && (
-          <div className="mt-8 space-y-3">
-            {vials.map((vial, index) => (
-              <div
-                key={`${vial.name}-${index}`}
-                className="rounded-[26px] border border-white/10 bg-gradient-to-br from-white/[0.06] to-white/[0.025] p-5"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[20px] bg-violet-400/10 text-violet-300">
-                    <Beaker className="h-6 w-6" />
-                  </div>
+      
 
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-black">
-                      {vial.name}
-                    </p>
+{/* VIAL LIST */}
+{vials.length > 0 && (
+  <div className="mt-8 space-y-3">
+    {vials.map((vial) => {
+      const status = getStockStatus(vial.quantity)
 
-<p className="mt-1 text-sm text-white/45">
-  {vial.vialSizeMg} mg pro Vial · {vial.quantity}{" "}
-  {vial.quantity === 1 ? "Vial" : "Vials"}
-</p>
+      return (
+        <div
+          key={vial.id}
+          className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5"
+        >
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-violet-400/10 p-3 text-violet-300">
+              <Beaker className="h-6 w-6" />
+            </div>
 
-{vial.reconstitutionMl > 0 && (
-  <p className="mt-1 text-xs text-white/30">
-    Rekonstituiert mit {vial.reconstitutionMl} ml
-  </p>
-)}
-                  </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-lg font-bold">
+                {vial.name}
+              </p>
+              <p className="mt-1 text-sm text-white/45">
+                {vial.vial_size_mg} mg pro Vial
+              </p>
+            </div>
 
-                  <span className="shrink-0 rounded-full border border-emerald-400/15 bg-emerald-400/[0.08] px-3 py-1.5 text-xs font-bold text-emerald-300">
-                    Auf Lager
-                  </span>
-                </div>
-              </div>
-            ))}
+            <span
+              className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.color} ${status.background}`}
+            >
+              {status.label}
+            </span>
           </div>
-        )}
+
+          {vial.quantity <= 2 && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-orange-400/15 bg-orange-400/[0.06] p-3 text-xs text-orange-300">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {vial.quantity === 0
+                ? "Kein Bestand mehr vorhanden."
+                : `Achtung: Nur noch ${vial.quantity} Vial(s) vorhanden.`}
+            </div>
+          )}
+
+<div className="mt-4 flex items-center justify-between border-t border-white/10 pt-4">
+  <div>
+    <p className="text-xs text-white/40">Aktueller Bestand</p>
+    <p className="mt-1 text-lg font-bold">
+      {vial.quantity} {vial.quantity === 1 ? "Vial" : "Vials"}
+    </p>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <button
+      type="button"
+      onClick={() => setEditingVial(vial)}
+      className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70"
+    >
+      <Pencil className="h-4 w-4" />
+      Bearbeiten
+    </button>
+
+    <button
+      type="button"
+      onClick={() => void deleteVial(vial.id)}
+      disabled={deletingId === vial.id}
+      className="rounded-xl bg-red-400/10 p-3 text-red-400 disabled:opacity-40"
+      aria-label="Löschen"
+    >
+      <Trash2 className="h-4 w-4" />
+    </button>
+  </div>
+</div>
+        </div>
+      )
+    })}
+  </div>
+)}
+
       </div>
+
+
+{editingVial && (
+<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 py-6">
+  <div className="w-full max-w-lg max-h-[85dvh] space-y-4 overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-[#0b0b0d] p-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Vial bearbeiten</h2>
+        <button
+  type="button"
+  onClick={() => setEditingVial(null)}
+  className="text-white/60 hover:text-white"
+>
+  <X className="h-5 w-5" />
+</button>
+      </div>
+
+      <label className="block text-sm text-white/60">
+        Name
+        <input
+          value={editingVial.name}
+          onChange={(e) =>
+            setEditingVial({ ...editingVial, name: e.target.value })
+          }
+          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white"
+        />
+      </label>
+
+      <label className="block text-sm text-white/60">
+        Vial-Größe (mg)
+        <input
+          type="number"
+          min="0.01"
+          step="any"
+          value={editingVial.vial_size_mg}
+          onChange={(e) =>
+            setEditingVial({
+              ...editingVial,
+              vial_size_mg: Number(e.target.value),
+            })
+          }
+          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white"
+        />
+      </label>
+
+      <label className="block text-sm text-white/60">
+        Anzahl
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={editingVial.quantity}
+          onChange={(e) =>
+            setEditingVial({
+              ...editingVial,
+              quantity: Number(e.target.value),
+            })
+          }
+          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white"
+        />
+      </label>
+
+      <label className="block text-sm text-white/60">
+        Rekonstitutionsvolumen (ml)
+        <input
+          type="number"
+          min="0"
+          step="any"
+          value={editingVial.reconstitution_ml}
+          onChange={(e) =>
+            setEditingVial({
+              ...editingVial,
+              reconstitution_ml: Number(e.target.value),
+            })
+          }
+          className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white"
+        />
+      </label>
+
+      <button
+        disabled={
+          saving ||
+          !editingVial.name.trim() ||
+          !Number.isFinite(editingVial.vial_size_mg) ||
+          editingVial.vial_size_mg <= 0 ||
+          !Number.isInteger(editingVial.quantity) ||
+          editingVial.quantity < 0 ||
+          !Number.isFinite(editingVial.reconstitution_ml) ||
+          editingVial.reconstitution_ml < 0
+        }
+        onClick={async () => {
+          if (!editingVial || saving) return
+          setSaving(true)
+
+          try {
+            const success = await updateVial(editingVial.id, {
+              name: editingVial.name.trim(),
+              vial_size_mg: editingVial.vial_size_mg,
+              quantity: editingVial.quantity,
+              reconstitution_ml: editingVial.reconstitution_ml,
+            })
+
+            if (success) setEditingVial(null)
+          } finally {
+            setSaving(false)
+          }
+        }}
+        className="w-full rounded-xl p-4 font-bold disabled:opacity-40"
+style={{
+  backgroundColor: "#a78bfa",
+  color: "#000000",
+}}
+      >
+        {saving ? "Speichere..." : "Änderungen speichern"}
+      </button>
+    </div>
+  </div>
+)}
+
+
 
       {/* ADD VIAL MODAL */}
       {showAddVial && (
@@ -252,7 +565,7 @@ onChange={(e) => setVialSize(e.target.value)}
             <button
               type="button"
               onClick={addVial}
-              disabled={!peptideName.trim()}
+              disabled={saving || !peptideName.trim()}
               className="mt-6 w-full rounded-[20px] bg-violet-400 py-4 font-black text-black transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
             >
               Vial hinzufügen

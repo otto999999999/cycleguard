@@ -572,13 +572,17 @@ const { error } = await supabase
     if (error) throw error
   }
 
+const INJECTION_EXTRA_ML = 0.2
+
 const getMlUsed = (compound: any, amountMg: number) => {
   if (!compound || compound.type !== "Injectable") return 0
 
   const concentration = Number(compound.concentration || 0)
   if (!concentration) return 0
 
-  return amountMg / concentration
+  const doseMl = amountMg / concentration
+
+  return doseMl + INJECTION_EXTRA_ML
 }
 
 const adjustInjectableStock = async (

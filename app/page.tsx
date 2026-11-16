@@ -29,18 +29,18 @@ className:
     badgeClass: "border-cyan-400/20 bg-cyan-400/10 text-cyan-300",
     badge: "Beta",
   },
-  {
-    title: "Ernährung",
-    subtitle: "Kalorien, Makros und Barcode-Scanner",
-    href: "/nutrition",
-    icon: Sparkles,
-    className:
-      "border-orange-400/20 bg-gradient-to-br from-orange-400/[0.12] to-white/[0.025] shadow-[0_0_40px_rgba(251,146,60,0.10)]",
-    iconClass: "bg-orange-400/12 text-orange-300",
-    badgeClass: "border-orange-400/20 bg-orange-400/10 text-orange-300",
-    badge: "Coming Soon",
-    disabled: false,
-  },
+{
+  title: "Peptide",
+  subtitle: "Peptide, Protokolle und Tracking",
+  href: "/peptides",
+  icon: Syringe,
+  className:
+    "border-purple-400/20 bg-gradient-to-br from-purple-400/[0.12] to-white/[0.025] shadow-[0_0_40px_rgba(192,132,252,0.10)]",
+  iconClass: "bg-purple-400/12 text-purple-300",
+  badgeClass: "border-purple-400/20 bg-purple-400/10 text-purple-300",
+  badge: "Coming Soon",
+  disabled: false,
+},
   {
     title: "Pflege",
     subtitle: "Haut, Gesundheit und Routinen",
@@ -471,7 +471,7 @@ if (checkingAuth) {
             </h2>
 
             <p className="mt-4 max-w-[320px] text-sm leading-6 text-muted-foreground">
-              Wähle zwischen Suppliments, Gym, Ernährung und Pflege. Die aktiven Bereiche sind sofort nutzbar.
+              Wähle zwischen Supplements, Gym, Peptiden und Pflege. Die aktiven Bereiche sind sofort nutzbar.
             </p>
           </div>
         </section>

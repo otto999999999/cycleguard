@@ -348,31 +348,38 @@ toast.error("Fehler: " + error.message)
     setShowDeleteConfirm(true)
   }
 
-  const confirmDelete = async () => {
-    if (!compoundToDelete) return
+const confirmDelete = async () => {
+  if (!compoundToDelete) return
 
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
 
-    if (!session) return
-
-    const { error } = await supabase
-      .from("compounds")
-      .delete()
-      .eq("id", compoundToDelete)
-      .eq("user_id", session.user.id)
-
-    if (error) {
-      haptic()
-toast.error("Fehler beim Löschen: " + error.message)
-      return
-    }
-
-    setShowDeleteConfirm(false)
-    setCompoundToDelete(null)
-    await loadCompounds()
+  if (!session) {
+    toast.error("Nicht eingeloggt")
+    return
   }
+
+  const { error } = await supabase
+    .from("compounds")
+    .delete()
+    .eq("id", compoundToDelete)
+    .eq("user_id", session.user.id)
+
+  if (error) {
+    haptic()
+    toast.error("Fehler beim Löschen: " + error.message)
+    return
+  }
+
+  haptic()
+  toast.success("Substanz gelöscht")
+
+  setShowDeleteConfirm(false)
+  setCompoundToDelete(null)
+
+  await loadCompounds()
+}
 
   const getStockInfo = (c: Compound) => {
     let count = 0
